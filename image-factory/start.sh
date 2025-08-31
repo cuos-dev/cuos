@@ -9,8 +9,8 @@ raise() {
 	exit 1
 }
 
-VERSION="${1:-"development"}"
-BUILDER_IMAGE="/base-system-docker-boot/base-system-docker-boot-image"
+VERSION="${1:-"latest"}"
+BUILDER_IMAGE="cuos-image-factory"
 
 dockerlogin() {
 	## docker login:
