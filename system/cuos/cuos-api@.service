@@ -1,0 +1,10 @@
+[Unit]
+Description=cuos: API service
+Requires=cuos-api.socket
+After=network.target
+
+[Service]
+ExecStart=/usr/local/cuos/api.sh input
+StandardInput=socket
+StandardOutput=socket
+StandardError=socket

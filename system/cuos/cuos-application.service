@@ -1,0 +1,12 @@
+[Unit]
+Description=cuos: Run application layer
+After=docker.service
+Requires=docker.service cuos-init.service cuos-api.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/local/cuos/application.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

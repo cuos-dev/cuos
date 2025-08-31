@@ -1,0 +1,27 @@
+{
+	"images": [
+		{
+			"subname": "updater",
+			"context": "updater",
+			"pretest": [
+				{
+					"script": "apk add bash; ./.pipeline-test.sh"
+				}
+			]
+		},
+		{
+			"subname": "system",
+			"context": "system"
+		},
+		{
+			"subname": "system-lxc",
+			"context": "system",
+			"dockerfile": "Dockerfile_lxc"
+		},
+		{
+			"subname": "image",
+			"context": "",
+			"dockerfile": "image/Dockerfile"
+		}
+	]
+}

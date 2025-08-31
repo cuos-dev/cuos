@@ -1,0 +1,11 @@
+[Unit]
+Description=cuos: API socket
+
+[Socket]
+ListenStream=/var/run/cuos.sock
+SocketMode=0666
+Accept=yes
+TimeoutSec=0
+
+[Install]
+WantedBy=sockets.target
