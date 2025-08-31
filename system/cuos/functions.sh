@@ -312,7 +312,7 @@ create_swap_and_resize_fs() {
 			swapoff "$SWAPFILE" 2>/dev/null || true
 			rm -f "$SWAPFILE"
 			chattr +C "$SWAP_MOUNTPOINT"
-			dd if=/dev/zero of="$SWAPFILE" bs=1M count=$((SWAP_SIZE_GB*1024)) status=progress
+			dd if=/dev/zero of="$SWAPFILE" bs=1M count="$((TARGET_SIZE/1024/1024))" status=progress
 			chmod 600 "$SWAPFILE"
 			mkswap "$SWAPFILE"
 
