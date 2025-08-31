@@ -65,20 +65,3 @@ COPY seccomp-default.json /etc/docker/
 RUN echo 'root:root' | chpasswd && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-RUN echo "sd-genesis-os-lxc" >/etc/hostname
-#RUN /usr/bin/hostnamectl set-hostname "sd-genesis-os"
-
-#RUN mv /boot /container_boot
-
-# Enable systemd
-#STOPSIGNAL SIGRTMIN+3
-#CMD ["/sbin/init"]
-
-## Allow systemd to run inside Docker
-#VOLUME [ "/sys/fs/cgroup" ]
-
-#COPY update-grub-custom.sh /usr/sbin/
-#COPY update-grub-custom-root.sh /usr/sbin/
-
-## Expose SSH
-#EXPOSE 22
