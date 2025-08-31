@@ -16,8 +16,7 @@ docker_login() {
 	local password="$3"
 	# Only login if not already present in config.json
 	if ! grep -q "$server" "${HOME}/.docker/config.json" 2>/dev/null; then
-		echo "$password" | docker login "$server" --username "$user" --password-stdin
-		if [ "$?" != "0" ]; then
+		if ! echo "$password" | docker login "$server" --username "$user" --password-stdin; then
 			echo "Error: Docker login failed for $server" >&2
 			return 1
 		fi
