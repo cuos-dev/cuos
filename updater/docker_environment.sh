@@ -54,7 +54,11 @@ mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii
 #fi
 
 # Start dockerd and wait until it is ready:
-dockerd --storage-driver btrfs --iptables=false --data-root "${DOCKER_DIR}" &
+dockerd \
+	--storage-driver btrfs \
+	--iptables=false \
+	--ip6tables=false \
+	--data-root "${DOCKER_DIR}" &
 DOCKERD_PID="$!"
 echo "Waiting for Docker to be ready..."
 counter=0
