@@ -1,5 +1,5 @@
 [Unit]
-Description=cuos: Run application layer
+Description=CuOS: Run application layer
 After=docker.service
 Requires=docker.service cuos-init.service cuos-api.socket
 

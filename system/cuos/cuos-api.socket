@@ -1,5 +1,5 @@
 [Unit]
-Description=cuos: API socket
+Description=CuOS: API socket
 
 [Socket]
 ListenStream=/var/run/cuos.sock

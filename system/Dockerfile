@@ -81,6 +81,7 @@ RUN echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf
 
 # Put logs in /data/logs
 RUN  mkdir -p /data && \
+    rm -f /etc/machine-id && ln -sf /data/machine-id /etc/machine-id && \
     rm -Rf /var/log && ln -sf /data/log /var/log && \
     rm -Rf /var/lib/dhcp && ln -sf /data/dhcp /var/lib/dhcp && \
     rm -Rf /var/lib/docker && mkdir -p /data/docker && ln -sf /data/docker /var/lib/docker && \

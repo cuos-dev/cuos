@@ -1,5 +1,5 @@
 [Unit]
-Description=cuos: API service
+Description=CuOS: API service
 Requires=cuos-api.socket
 After=network.target
 

@@ -72,6 +72,7 @@ ensure_system_config() {
 }
 
 prepare_data_volume() {
+	systemd-machine-id-setup
 	mkdir -p /data/{docker,containerd,dhcp,log,shieldor,.docker}
 	mkdir -p /data/log/journal
 	chown -R root:systemd-journal /data/log/journal
