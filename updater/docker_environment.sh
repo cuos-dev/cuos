@@ -58,6 +58,7 @@ dockerd \
 	--storage-driver btrfs \
 	--iptables=false \
 	--ip6tables=false \
+	--bridge=none \
 	--data-root "${DOCKER_DIR}" &
 DOCKERD_PID="$!"
 echo "Waiting for Docker to be ready..."

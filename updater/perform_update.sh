@@ -61,6 +61,7 @@ DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" | cut -d 
 
 docker run -it -d \
 	--pull=never \
+	--network=none \
 	--restart=always \
 	--name "${CONTAINER_NAME}" \
 	"${IMAGE}" || raise "Failed to run container"
