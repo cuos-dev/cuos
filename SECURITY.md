@@ -8,7 +8,8 @@ We release security updates for the latest stable version of the software. Older
 
 If you discover a security vulnerability, please report it to us privately. Do not create a public issue.
 
-Please email contact@simonwalz.de with the details of the vulnerability. Include:
+Please email [Simon Walz](https://simonwalz.de/?id=impressum) with the details of the vulnerability. Include:
+
 - A description of the vulnerability
 - Steps to reproduce
 - Any relevant logs or screenshots
