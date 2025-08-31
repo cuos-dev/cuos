@@ -4,6 +4,11 @@ set -x
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+if [[ ! -f "/system_next.json" ]]; then
+	echo "Rollback not possible. No previous system."
+	exit 1
+fi
+
 VIRT_TYPE="$(systemd-detect-virt)"
 if [[ "${VIRT_TYPE}" = "lxc" ]]; then
 	"${SCRIPT_DIR}/lxc-rollback.sh" "$@"

@@ -1,5 +1,5 @@
 {
-	"hostname": "sd-genesis-os",
+	"hostname": "cuos-system",
 	"update_registry": "gitlab.triovega.com:4567/securitygateway",
 	"update_registry_user": "securitygateway",
 	"update_registry_password": "",
