@@ -286,7 +286,7 @@ create_swap_and_resize_fs() {
 		SWAP_SIZE_GB=8
 		TARGET_SIZE="$((SWAP_SIZE_GB*1024*1024*1024))"
 		FS_SIZE="$(df --output=size -B1 "$(dirname "$SWAPFILE")" | tail -n1)"
-		MAX_SIZE="$((FS_SIZE / 4))"
+		MAX_SIZE="$((FS_SIZE / 4 / 1024 / 1024 * 1024 * 1024))"
 		if [ "${TARGET_SIZE}" -gt "${MAX_SIZE}" ]; then
 			TARGET_SIZE="${MAX_SIZE}"
 		fi
