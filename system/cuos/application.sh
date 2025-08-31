@@ -39,7 +39,10 @@ download_image() {
     IMAGE_PATH="$1"
     IMAGE_DIGEST="$2"
 
-    OLD_IMAGE_DIGEST=$(docker image inspect --format '{{index .RepoDigests 0}}' "${IMAGE_PATH}" 2>/dev/null | cut -d'@' -f2)
+    OLD_IMAGE_PATH="$(docker inspect --format='{{.Image}}' cuos-app)"
+    OLD_IMAGE_PATH="${OLD_IMAGE_PATH:-"${IMAGE_PATH}"}"
+
+    OLD_IMAGE_DIGEST=$(docker image inspect --format '{{index .RepoDigests 0}}' "${OLD_IMAGE_PATH}" 2>/dev/null | cut -d'@' -f2)
     if [[ -n "${OLD_IMAGE_DIGEST}" && "${OLD_IMAGE_DIGEST}" = "${IMAGE_DIGEST}" ]]; then
         # Image already exists with the correct digest
         return 2
