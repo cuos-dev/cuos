@@ -154,7 +154,9 @@ elif [[ "${COMMAND}" = "factory-reset" ]]; then
 elif [[ "${COMMAND}" = "reboot" ]]; then
 	logger -t "cuos" "Manuel reboot triggered by the user"
 	"${SCRIPT_DIR}/state.sh" '.state' 'starting'
-	/sbin/reboot
+	sync
+	echo "Rebooting ..."
+	reboot
 
 ## shutdown           - Shutdown the system
 elif [[ "${COMMAND}" = "shutdown" ]]; then
