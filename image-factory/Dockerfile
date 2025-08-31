@@ -12,6 +12,6 @@ RUN apk add --no-cache \
     gptfdisk qemu-img kpartx util-linux ovmf jq btrfs-progs bash
 
 
-COPY image/create_image.sh /create_image.sh
+COPY image-factory/create_image.sh /create_image.sh
 COPY updater/*.sh /usr/local/updater/
-COPY image/mount_image.sh /mount_image.sh
+COPY image-factory/mount_image.sh /mount_image.sh
