@@ -22,4 +22,6 @@ for dir in /data/*/; do
   fi
 done
 
+sync
+
 /sbin/reboot

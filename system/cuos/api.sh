@@ -148,7 +148,7 @@ elif [[ "${COMMAND}" = "rollback" ]]; then
 ## factory-reset      - Factory reset
 elif [[ "${COMMAND}" = "factory-reset" ]]; then
 	logger -t "cuos" "Factory reset triggered by the user"
-	"${SCRIPT_DIR}/factory-reset.sh"
+	setsid "${SCRIPT_DIR}/factory-reset.sh" >/data/log/factory-reset.log 2>&1 &
 
 ## reboot             - Reboot the system
 elif [[ "${COMMAND}" = "reboot" ]]; then

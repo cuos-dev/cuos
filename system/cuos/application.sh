@@ -39,7 +39,7 @@ download_image() {
     IMAGE_PATH="$1"
     IMAGE_DIGEST="$2"
 
-    OLD_IMAGE_PATH="$(docker inspect --format='{{.Image}}' cuos-app)"
+    OLD_IMAGE_PATH="$(docker inspect --format='{{.Image}}' "${CONTAINER_NAME}")"
     OLD_IMAGE_PATH="${OLD_IMAGE_PATH:-"${IMAGE_PATH}"}"
 
     OLD_IMAGE_DIGEST=$(docker image inspect --format '{{index .RepoDigests 0}}' "${OLD_IMAGE_PATH}" 2>/dev/null | cut -d'@' -f2)
@@ -93,10 +93,10 @@ while ! "${SCRIPT_DIR}/docker-login.sh"; do
     sleep 5
 done
 
-IMAGE_DIGEST=$(docker image inspect --format '{{index .RepoDigests 0}}' "${INITIAL_IMAGE}" 2>/dev/null | cut -d'@' -f2)
+IMAGE_RUNNING=$(docker image inspect --format '{{index .RepoDigests 0}}' "${INITIAL_IMAGE}" 2>/dev/null | cut -d'@' -f2)
 
 UPDATE=0
-if [[ -f "/data/run-update" || -z "${IMAGE_DIGEST}" ]]; then
+if [[ -f "/data/run-update" || -z "${IMAGE_RUNNING}" ]]; then
     if download_image "${INITIAL_IMAGE}" "${INITIAL_DIGEST}"; then
         docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
     fi
