@@ -244,7 +244,7 @@ create_swap_and_resize_fs() {
 	SWAP_SUBVOL="@swap"
 	SWAP_MOUNTPOINT="/swap"
 	SWAPFILE="$SWAP_MOUNTPOINT/swapfile"
-	SWAP_SIZE_GB="$(jq_config ".swap_size // 8")"
+	SWAP_SIZE_GB="$(jq_config ".swap_size // empty")"
 	ROOT_MOUNT="/"
 	ROOT_DEV=$(findmnt -n -o SOURCE --target "$ROOT_MOUNT")
 
@@ -278,23 +278,35 @@ create_swap_and_resize_fs() {
 
 	if ! mountpoint -q "$SWAP_MOUNTPOINT"; then
 		mkdir -p "$SWAP_MOUNTPOINT"
-		mount -o subvol=$SWAP_SUBVOL "$ROOT_DEV" "$SWAP_MOUNTPOINT"
+		mount -o "compress=no,noatime,subvol=$SWAP_SUBVOL" "$ROOT_DEV" "$SWAP_MOUNTPOINT"
+	fi
+
+	if [[ -z "${SWAP_SIZE_GB}" ]]; then
+		SWAP_SIZE_GB=8
+		TARGET_SIZE="$((SWAP_SIZE_GB*1024*1024*1024))"
+		FS_SIZE="$(df --output=size -B1 "$(dirname "$SWAPFILE")" | tail -n1)"
+		MAX_SIZE="$((FS_SIZE / 4))"
+		if [ "${TARGET_SIZE}" -gt "${MAX_SIZE}" ]; then
+			TARGET_SIZE="${MAX_SIZE}"
+		fi
+	else
+		TARGET_SIZE="$((SWAP_SIZE_GB*1024*1024*1024))"
 	fi
 
 	RECREATE_SWAPFILE=false
 	if [ ! -f "$SWAPFILE" ]; then
 		RECREATE_SWAPFILE=true
-	elif [ "$(stat -c%s "$SWAPFILE")" -lt $((SWAP_SIZE_GB*1024*1024*1024)) ]; then
+	elif [ "$(stat -c%s "$SWAPFILE")" -lt "${TARGET_SIZE}" ]; then
 		RECREATE_SWAPFILE=true
 	fi
 
 	if $RECREATE_SWAPFILE; then
 
 		# Get available space in bytes on the filesystem containing the swap file
-		AVAIL_BYTES=$(df --output=avail -B1 "$(dirname "$SWAPFILE")" | tail -n1)
+		AVAIL_BYTES="$(df --output=avail -B1 "$(dirname "$SWAPFILE")" | tail -n1)"
 
 		# Check if available space is at least 1.5x the desired swap size (for safety)
-		REQUIRED_BYTES=$((SWAP_SIZE_GB * 1024 * 1024 * 1024 * 3 / 2))
+		REQUIRED_BYTES=$((TARGET_SIZE * 3 / 2))
 
 		if [ "$AVAIL_BYTES" -ge "$REQUIRED_BYTES" ]; then
 			swapoff "$SWAPFILE" 2>/dev/null || true
@@ -304,18 +316,9 @@ create_swap_and_resize_fs() {
 			chmod 600 "$SWAPFILE"
 			mkswap "$SWAPFILE"
 
-			FSTAB_SWAP_MOUNT="LABEL=system  $SWAP_MOUNTPOINT btrfs subvol=$SWAP_SUBVOL 0 0"
-			FSTAB_SWAPFILE="$SWAPFILE none swap sw 0 0"
-
-			if ! grep -q "$FSTAB_SWAP_MOUNT" /etc/fstab; then
-				echo "$FSTAB_SWAP_MOUNT" >> /etc/fstab
-			fi
-			if ! grep -q "$FSTAB_SWAPFILE" /etc/fstab; then
-				echo "$FSTAB_SWAPFILE" >> /etc/fstab
-			fi
-			echo "Swap file created at $SWAPFILE with size ${SWAP_SIZE_GB}GB"
-
-			swapon "$SWAPFILE"
 		fi
+	fi
+	if [[ -f "${SWAPFILE}" ]]; then
+		swapon "$SWAPFILE"
 	fi
 }
