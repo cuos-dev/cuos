@@ -89,7 +89,7 @@ elif [[ "${COMMAND}" = "update" ]]; then
 		"${SCRIPT_DIR}/init.sh" --reinit
 
 		touch "/data/run-update"
-		systemctl restart cuos-application.service
+		systemctl restart cuos-app.service
 	fi
 
 ## patch              - Patch the system. Provide config object.
@@ -106,7 +106,7 @@ elif [[ "${COMMAND}" = "patch" ]]; then
 	"${SCRIPT_DIR}/init.sh" --reinit
 
 	touch "/data/run-update"
-	systemctl restart cuos-application.service
+	systemctl restart cuos-app.service
 
 ## patch-network-0    - Patch the network[0]. Provide config object.
 elif [[ "${COMMAND}" = "patch-network-0" ]]; then

@@ -64,7 +64,7 @@ COPY cuos/lxc-swaproot/*.sh /usr/local/cuos/lxc-swaproot/
 COPY cuos/*.service cuos/*.socket /etc/systemd/system/
 RUN systemctl enable cuos-init.service && \
     systemctl enable cuos-api.socket && \
-    systemctl enable cuos-application.service && \
+    systemctl enable cuos-app.service && \
     ln -sf /usr/local/cuos/api.sh /usr/bin/cuos
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
