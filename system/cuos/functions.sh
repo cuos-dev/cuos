@@ -62,8 +62,8 @@ ensure_system_config() {
 		mount -o ro LABEL=cidata "/mnt/cidata/"
 		if [[ -f "/mnt/cidata/user-data" ]]; then
 			echo "Found Cloud Init user-data, merging with system.json"
-			NEW_CONFIG="$(cloud-init-to-system-json.sh "/mnt/cidata/user-data" | \
-				yq -s '.[0] * .[1]' \
+			NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/cidata/user-data" /dev/stdout | \
+				jq -s '.[0] * .[1]' \
 				"${CONFIG_PATH}" -)"
 			echo "${NEW_CONFIG}" >"${CONFIG_PATH}"
 		fi

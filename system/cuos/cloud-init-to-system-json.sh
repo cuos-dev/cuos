@@ -15,7 +15,6 @@ if [[ -z "${OUTPUT_FILE}" ]]; then
 fi
 
 yq '.ntp.servers as $ntp | . * {
-  hostname: .hostname,
   network: (
     .network.config // [] | map({
       "dhcp": .dhcp4,
