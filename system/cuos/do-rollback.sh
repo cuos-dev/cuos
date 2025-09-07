@@ -11,9 +11,12 @@ fi
 
 VIRT_TYPE="$(systemd-detect-virt)"
 if [[ "${VIRT_TYPE}" = "lxc" ]]; then
-	"${SCRIPT_DIR}/lxc-rollback.sh" "$@"
+	"${SCRIPT_DIR}/do-rollback-lxc.sh" "$@"
 	exit "$?"
 fi
+
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/utils.sh"
 
 TARGET_BOOT_PARTITION="${TARGET_BOOT_PARTITION:-"LABEL=boot"}"
 TARGET_BOOT="${TARGET_BOOT:-"/mnt/boot"}"
@@ -34,12 +37,12 @@ if [[ "${CURRENT_PARTITION}" == "A" ]]; then
 fi
 
 REASON="$1"
-"${SCRIPT_DIR}/dialog.sh" "CRITICAL" "CRITICAL: Perfoming Rollback to partition ${PARTITION}: ${REASON}"
+"${SCRIPT_DIR}/dialog.sh" "CRITICAL: Perfoming Rollback to partition ${PARTITION}: ${REASON}"
 
 # set update state: Rollback because of ${REASON}"
-"${SCRIPT_DIR}/state.sh" '.state' 'rollback'
-"${SCRIPT_DIR}/state.sh" jq '.last_update_date = (now | todate)'
-"${SCRIPT_DIR}/state.sh" '.update_state' "rollback to partition ${PARTITION} (${REASON})"
+state '.state' 'rollback'
+state jq '.last_update_date = (now | todate)'
+state '.update_state' "rollback to partition ${PARTITION} (${REASON})"
 
 PARTITION_NAME="$(grep "menuentry " "${TARGET_BOOT}/${PARTITION}_grub.cfg" | head -n 1 | cut -d "'" -f 2)"
 if [[ -z "${PARTITION_NAME}" ]]; then

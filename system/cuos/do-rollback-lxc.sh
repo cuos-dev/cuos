@@ -4,6 +4,9 @@ set -x
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/utils.sh"
+
 CURRENT_PARTITION="$(cat "/etc/partition_mode" 2>/dev/null || echo "A")"
 PARTITION="A"
 if [[ "${CURRENT_PARTITION}" == "A" ]]; then
@@ -11,12 +14,12 @@ if [[ "${CURRENT_PARTITION}" == "A" ]]; then
 fi
 
 REASON="$1"
-"${SCRIPT_DIR}/dialog.sh" "CRITICAL" "CRITICAL: Perfoming Rollback to partition ${PARTITION}: ${REASON}"
+"${SCRIPT_DIR}/dialog.sh" "CRITICAL: Perfoming Rollback to partition ${PARTITION}: ${REASON}"
 
 # set update state: Rollback because of ${REASON}"
-"${SCRIPT_DIR}/state.sh" '.state' 'rollback'
-"${SCRIPT_DIR}/state.sh" jq '.last_update_date = (now | todate)'
-"${SCRIPT_DIR}/state.sh" '.update_state' "rollback to partition ${PARTITION} (${REASON})"
+state '.state' 'rollback'
+state jq '.last_update_date = (now | todate)'
+state '.update_state' "rollback to partition ${PARTITION} (${REASON})"
 
 
 cp -R "${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \

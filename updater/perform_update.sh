@@ -129,7 +129,7 @@ if [[ "${INSTALLIMAGE}" = "true" ]]; then
 		cp "/output/system.json" "${TARGET_BOOT}/system.json" \
 			|| raise "Failed to copy system.json from dir"
 	else
-		docker cp "${CONTAINER_NAME}:/usr/local/cuos/system_default.json" "${TARGET_BOOT}/system.json" \
+		docker cp "${CONTAINER_NAME}:/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
 			|| raise "Failed to copy system.json from container"
 	fi
 fi

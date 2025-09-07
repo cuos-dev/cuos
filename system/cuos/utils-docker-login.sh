@@ -1,5 +1,9 @@
 #!/bin/bash
 
+SCRIPT_DIR="$( cd -- "$( dirname -- "$( readlink -f "${BASH_SOURCE[0]}" )" )" &> /dev/null && pwd)"
+
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/utils.sh"
 
 HOME="${HOME:-/root}"
 
@@ -11,18 +15,18 @@ rmdir /root/.docker/config.json 2>/dev/null && echo "Warning: deleted config.jso
 
 # Function to perform docker login for a given server, user, password
 docker_login() {
-	local server="$1"
-	local user="$2"
-	local password="$3"
-	# Only login if not already present in config.json
-	if ! grep -q "$server" "${HOME}/.docker/config.json" 2>/dev/null; then
-		if ! echo "$password" | docker login "$server" --username "$user" --password-stdin; then
-			echo "Error: Docker login failed for $server" >&2
-			return 1
-		fi
-	else
-		echo "Credentials for $server already existing. Skipped login."
-	fi
+  local server="$1"
+  local user="$2"
+  local password="$3"
+  # Only login if not already present in config.json
+  if ! grep -q "$server" "${HOME}/.docker/config.json" 2>/dev/null; then
+    if ! echo "$password" | docker login "$server" --username "$user" --password-stdin; then
+      report_err "cuos:docker:login_failed" "Docker login failed for $server"
+      return 1
+    fi
+  else
+    echo "Credentials for $server already existing. Skipped login."
+  fi
 }
 
 UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
@@ -39,17 +43,17 @@ fi
 DOCKER_REGISTRIES_COUNT=$(jq 'if .docker_registries then .docker_registries | length else 0 end' "${CONFIG_PATH}")
 
 if [ "$DOCKER_REGISTRIES_COUNT" -gt 0 ]; then
-	# Loop over all registries in the array
-	for ((i=0; i<DOCKER_REGISTRIES_COUNT; i++)); do
-		reg_server=$(jq -r ".docker_registries[$i].server" "${CONFIG_PATH}")
-		reg_user=$(jq -r ".docker_registries[$i].user" "${CONFIG_PATH}")
-		reg_password=$(jq -r ".docker_registries[$i].password" "${CONFIG_PATH}")
-		if [ -n "$reg_server" ] && [ -n "$reg_user" ] && [ -n "$reg_password" ]; then
-			docker_login "$reg_server" "$reg_user" "$reg_password"
-		else
-			echo "Warning: Incomplete registry entry at index $i, skipping."
-		fi
-	done
+  # Loop over all registries in the array
+  for ((i=0; i<DOCKER_REGISTRIES_COUNT; i++)); do
+    reg_server=$(jq -r ".docker_registries[$i].server" "${CONFIG_PATH}")
+    reg_user=$(jq -r ".docker_registries[$i].user" "${CONFIG_PATH}")
+    reg_password=$(jq -r ".docker_registries[$i].password" "${CONFIG_PATH}")
+    if [ -n "$reg_server" ] && [ -n "$reg_user" ] && [ -n "$reg_password" ]; then
+      docker_login "$reg_server" "$reg_user" "$reg_password"
+    else
+      report_warning "cuos:docker:incomplete_registry_entry" "Incomplete registry entry at index $i, skipping."
+    fi
+  done
 fi
 
 exit 0

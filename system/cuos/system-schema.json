@@ -1,40 +1,60 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "CuOS System Configuration Schema",
+  "description": "Schema for configuring CuOS system parameters including networking, update sources, and image versions.",
   "type": "object",
   "properties": {
     "update_registry": {
       "type": "string",
-      "description": "Registry URL for updates"
+      "description": "URL of the registry used for system updates (e.g., https://update.triovega.com/v2)"
     },
     "update_registry_user": {
       "type": "string",
-      "description": "Login user for update registry"
+      "description": "Username for accessing the update registry"
     },
     "update_registry_password": {
       "type": "string",
-      "description": "Login password for update registry"
+      "description": "Password for accessing the update registry"
     },
     "hostname": {
       "type": "string",
-      "description": "FQDN Hostname of the system"
+      "description": "Fully Qualified Domain Name (FQDN) of the system"
     },
     "network": {
       "type": "array",
+      "description": "List of network interface configurations",
       "items": {
         "type": "object",
         "properties": {
-          "dhcp": { "type": "boolean", "default": false },
-          "ip-address": { "type": "string" },
-          "network-mask": { "type": "string" },
-          "gateway": { "type": "string" },
+          "dhcp": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enable DHCP for this interface"
+          },
+          "ip-address": {
+            "type": "string",
+            "description": "Static IPv4 address (required if DHCP is false)",
+            "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$"
+          },
+          "network-mask": {
+            "type": "string",
+            "description": "IPv4 subnet mask (required if DHCP is false)",
+            "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$"
+          },
+          "gateway": {
+            "type": "string",
+            "description": "IPv4 gateway address",
+            "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$"
+          },
           "dns-server": {
+            "description": "DNS server(s) for this interface",
             "oneOf": [
               { "type": "string" },
               { "type": "array", "items": { "type": "string" } }
             ]
           },
           "ntp-server": {
+            "description": "NTP server(s) for time synchronization",
             "oneOf": [
               { "type": "string" },
               { "type": "array", "items": { "type": "string" } }
@@ -45,26 +65,31 @@
     },
     "docker_net_prefix": {
       "type": "string",
-      "pattern": "^(\\d{1,3})\\.(\\d{1,3})$",
+      "description": "First two octets of the Docker network IP range (e.g., '10.235')",
+      "pattern": "^\\d{1,3}\\.\\d{1,3}$",
       "default": "10.235"
     },
     "docker_bridge_net": {
       "type": "string",
-      "pattern": "^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$",
+      "description": "CIDR notation for Docker bridge network (e.g., '10.235.255.1/24')",
+      "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}$",
       "default": "10.235.255.1/24"
     },
     "docker_net_space": {
       "type": "string",
-      "pattern": "^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})$",
+      "description": "CIDR notation for Docker container network space (e.g., '10.235.128.0/18')",
+      "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}$",
       "default": "10.235.128.0/18"
     },
     "docker_net_space_size": {
       "type": "number",
+      "description": "Subnet size for Docker container networks (CIDR suffix)",
       "minimum": 0,
       "maximum": 32,
       "default": 26
     },
     "custom_ca_certs": {
+      "description": "Custom CA certificates to be trusted by the system",
       "oneOf": [
         { "type": "string" },
         { "type": "array", "items": { "type": "string" } }
@@ -72,17 +97,51 @@
     },
     "swap_size": {
       "type": "number",
-      "default": 8,
-      "minimum": 0
+      "description": "Swap size in GB (will only be extended if enough disk space is available)",
+      "minimum": 0,
+      "default": 8
     },
-    "initial_image": { "type": "string" },
-    "initial_image_version": { "type": "string" },
-    "initial_image_digest": { "type": "string" },
-    "updater_image": { "type": "string" },
-    "updater_image_version": { "type": "string" },
-    "updater_image_digest": { "type": "string" },
-    "os_image": { "type": "string" },
-    "os_image_version": { "type": "string" },
-    "os_image_digest": { "type": "string" }
+    "initial_image": {
+      "type": "string",
+      "description": "Initial application image to start",
+      "minLength": 1
+    },
+    "initial_image_version": {
+      "type": "string",
+      "description": "Version of the initial application image",
+      "minLength": 1
+    },
+    "initial_image_digest": {
+      "type": "string",
+      "description": "Digest of the initial image for integrity check (optional)"
+    },
+    "updater_image": {
+      "type": "string",
+      "description": "Image used for updating the system",
+      "minLength": 1
+    },
+    "updater_image_version": {
+      "type": "string",
+      "description": "Version of the updater image",
+      "minLength": 1
+    },
+    "updater_image_digest": {
+      "type": "string",
+      "description": "Digest of the updater image for integrity check (optional)"
+    },
+    "os_image": {
+      "type": "string",
+      "description": "Operating system image",
+      "minLength": 1
+    },
+    "os_image_version": {
+      "type": "string",
+      "description": "Version of the operating system image",
+      "minLength": 1
+    },
+    "os_image_digest": {
+      "type": "string",
+      "description": "Digest of the OS image for integrity check (optional)"
+    }
   }
 }

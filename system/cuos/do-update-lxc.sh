@@ -5,16 +5,15 @@ set -o pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/utils.sh"
+
+
 CURRENT_PARTITION="$(cat "/etc/partition_mode" 2>/dev/null || echo "A")"
 PARTITION="A"
 if [[ "${CURRENT_PARTITION}" == "A" ]]; then
     PARTITION="B"
 fi
-
-raise() {
-	echo "Error: $*" >&2
-	exit 1
-}
 
 export CONFIG_PATH="/system_next.json"
 
@@ -31,9 +30,9 @@ if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
 	exit 2
 fi
 
-"${SCRIPT_DIR}/state.sh" jq '.last_update_check = (now | todate)'
+state jq '.last_update_check = (now | todate)'
 
-"${SCRIPT_DIR}/docker-login.sh" || raise "Docker login failed"
+"${SCRIPT_DIR}/utils-docker-login.sh" || raise "Docker login failed"
 
 docker image pull "${IMAGE_VERSION}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_VERSION}" 2>/dev/null | cut -d '@' -f 2)
@@ -91,9 +90,9 @@ chmod a+x /sbin/init
 
 
 touch "/data/run-update"
-"${SCRIPT_DIR}/state.sh" '.state' 'updating'
-"${SCRIPT_DIR}/state.sh" jq '.last_update_date = (now | todate)'
-"${SCRIPT_DIR}/state.sh" '.update_state' 'updated partition '"${PARTITION}"' to '"${OS_IMAGE}:${OS_VERSION}"
+state '.state' 'updating'
+state jq '.last_update_date = (now | todate)'
+state '.update_state' 'updated partition '"${PARTITION}"' to '"${OS_IMAGE}:${OS_VERSION}"
 sync
 echo "Rebooting ..."
 reboot

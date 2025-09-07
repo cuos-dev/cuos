@@ -6,16 +6,14 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 VIRT_TYPE="$(systemd-detect-virt)"
 if [[ "${VIRT_TYPE}" = "lxc" ]]; then
-	"${SCRIPT_DIR}/lxc-update.sh" "$@"
-	exit "$?"
+  "${SCRIPT_DIR}/do-update-lxc.sh" "$@"
+  exit "$?"
 fi
 
-PARTITION="$(cat "/etc/partition_mode")"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/utils.sh"
 
-raise() {
-	echo "Error: $*" >&2
-	exit 1
-}
+PARTITION="$(cat "/etc/partition_mode")"
 
 export CONFIG_PATH="/system_next.json"
 
@@ -32,19 +30,19 @@ OS_DIGEST="$(jq -r '.os_image_digest // empty' "${CONFIG_PATH}")"
 IMAGE_VERSION_STRING="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}@${OS_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
-	echo "No new image version available. Exiting."
-	exit 2
+  echo "No new image version available. Exiting."
+  exit 2
 fi
 
-"${SCRIPT_DIR}/state.sh" jq '.last_update_check = (now | todate)'
+state jq '.last_update_check = (now | todate)'
 
-"${SCRIPT_DIR}/docker-login.sh" || raise "Docker login failed"
+"${SCRIPT_DIR}/utils-docker-login.sh" || raise "Docker login failed"
 
 docker image pull "${UPDATE_IMAGE}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${UPDATE_IMAGE}" 2>/dev/null | cut -d '@' -f 2)
 if [[ -n "${UPDATE_IMAGE_DIGEST}" && "${UPDATE_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-	echo "Image digest mismatch: ${UPDATE_IMAGE_DIGEST} != ${NEW_DIGEST}"
-	exit 1
+  echo "Image digest mismatch: ${UPDATE_IMAGE_DIGEST} != ${NEW_DIGEST}"
+  exit 1
 fi
 
 # Get Root Disk:
@@ -53,25 +51,25 @@ ROOT_DISK="/dev/$(lsblk -no PKNAME "$ROOT_DEV" | head -n1)"
 
 docker network rm cuos-internet
 docker network create \
-	--driver=bridge \
-	--opt com.docker.network.bridge.enable_icc=false \
-	--opt com.docker.network.bridge.enable_ip_masquerade=true \
-	cuos-internet
+  --driver=bridge \
+  --opt com.docker.network.bridge.enable_icc=false \
+  --opt com.docker.network.bridge.enable_ip_masquerade=true \
+  cuos-internet
 
 touch "/root/.docker/config.json"
 docker run --rm \
-	--pull=never \
-	--log-driver=journald \
-	--network=cuos-internet \
-	--privileged \
-	--device "${ROOT_DISK}" \
-	-v "/root/.docker/config.json:/root/.docker/config.json:ro" \
-	-v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
-	-v "/etc/image:/etc/image:ro" \
-	-e "TARGET_DEVICE=${ROOT_DISK}" \
-	--name dockerboot-updater-container \
-	"${UPDATE_IMAGE}" \
-	"${PARTITION}" "${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}" "${OS_DIGEST}"
+  --pull=never \
+  --log-driver=journald \
+  --network=cuos-internet \
+  --privileged \
+  --device "${ROOT_DISK}" \
+  -v "/root/.docker/config.json:/root/.docker/config.json:ro" \
+  -v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
+  -v "/etc/image:/etc/image:ro" \
+  -e "TARGET_DEVICE=${ROOT_DISK}" \
+  --name dockerboot-updater-container \
+  "${UPDATE_IMAGE}" \
+  "${PARTITION}" "${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}" "${OS_DIGEST}"
 
 DOCKER_EXIT_CODE="$?"
 
@@ -80,20 +78,23 @@ echo "Exit Code: ${DOCKER_EXIT_CODE}"
 docker network rm cuos-internet
 
 if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
-	PARTITION_NEXT="A"
-	[[ "${PARTITION}" == "A" ]] && PARTITION_NEXT="B"
-	touch "/data/run-update"
-	"${SCRIPT_DIR}/state.sh" '.state' 'updating'
-	"${SCRIPT_DIR}/state.sh" jq '.last_update_date = (now | todate)'
-	"${SCRIPT_DIR}/state.sh" '.update_state' 'updated partition '"${PARTITION_NEXT}"' to '"${OS_IMAGE}:${OS_VERSION}"
-	sync
-	echo "Rebooting ..."
-	reboot
+  PARTITION_NEXT="A"
+  [[ "${PARTITION}" == "A" ]] && PARTITION_NEXT="B"
+  touch "/data/run-update"
+  state '.state' 'updating'
+  state jq '.last_update_date = (now | todate)'
+  state '.update_state' 'updated partition '"${PARTITION_NEXT}"' to '"${OS_IMAGE}:${OS_VERSION}"
+  report_info "cuos:update:restart" "Update requires reboot. Rebooting"
+  echo "Rebooting ..."
+
+  sync
+  reboot
 elif [[ "${DOCKER_EXIT_CODE}" = "2" ]]; then
-	echo "No new image version available."
+  echo "No new image version available."
+  report_info "cuos:update:not_needed" "No new image version available"
 else
-	"${SCRIPT_DIR}/state.sh" '.update_state' "update of partition ${PARTITION_NEXT} to ${OS_IMAGE}:${OS_VERSION} failed"
-	logger -t cuos -p "err" "Error: Update failed. Exit code ${DOCKER_EXIT_CODE}"
+  state '.update_state' "update of partition ${PARTITION_NEXT} to ${OS_IMAGE}:${OS_VERSION} failed"
+  report_err "cuos:update:failed" "Update failed. Exit code ${DOCKER_EXIT_CODE}"
 fi
 
 exit "${DOCKER_EXIT_CODE}"
