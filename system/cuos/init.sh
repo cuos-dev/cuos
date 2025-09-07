@@ -354,6 +354,8 @@ create_swap_and_resize_fs() {
       mkswap "$SWAPFILE"
 
     fi
+  elif [[ -n "${REINIT:-}" ]]; then
+    return
   fi
   if [[ -f "${SWAPFILE}" ]]; then
     swapon "$SWAPFILE"

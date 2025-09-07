@@ -6,7 +6,7 @@
   "properties": {
     "update_registry": {
       "type": "string",
-      "description": "URL of the registry used for system updates (e.g., https://update.triovega.com/v2)"
+      "description": "URL of the registry used for system updates (e.g., https://update.example.com/v2)"
     },
     "update_registry_user": {
       "type": "string",

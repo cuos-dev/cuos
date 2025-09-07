@@ -47,7 +47,7 @@ dockerlogin
 UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
 OS_IMAGE="$(jq -r '.os_image_lxc' "${CONFIG_PATH}")"
 OS_VERSION="$(jq -r '.os_image_lxc_version // "latest"' "${CONFIG_PATH}")"
-OS_DIGEST="$(jq -r '.os_image_lxc_digest // empty' "${CONFIG_PATH}")"
+OS_IMAGE_DIGEST="$(jq -r '.os_image_lxc_digest // empty' "${CONFIG_PATH}")"
 
 IMAGE_VERSION="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}"
 
