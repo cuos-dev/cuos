@@ -23,6 +23,7 @@ IMAGE="/output/image.img"
 IMAGE_QCOW="/output/image.qcow2"
 #SIZE_MB=2048
 SIZE_MB=4096
+SIZE_MB=1636
 
 PARTITION="B"
 
