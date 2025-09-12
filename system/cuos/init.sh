@@ -82,14 +82,30 @@ prepare_data_volume() {
   chown -R root:systemd-journal /data/log/journal
   chmod 2755 /data/log/journal
   journalctl --flush
+  if [[ ! -f /data/log/lastlog ]]; then
+    touch /data/log/lastlog
+    chgrp utmp /data/log/lastlog
+    chmod 664 /data/log/lastlog
+  fi
 }
 
 set_hostname() {
+  OLD_HOSTNAME="$(cat /etc/hostname)"
+
   SYSTEM_HOSTNAME="$(jq_config '.hostname // empty')"
+  if [[ -n "${SYSTEM_HOSTNAME}" && ! -f /etc/hostname ]]; then
+      local r1 r2 hn
+      r1=$(printf "%02X" $(( RANDOM % 256 )))
+      r2=$(printf "%02X" $(( RANDOM % 256 )))
+      SYSTEM_HOSTNAME="device-${r1}${r2}"
+  fi
   if [[ -n "${SYSTEM_HOSTNAME}" ]]; then
     echo "Setting hostname to $SYSTEM_HOSTNAME"
     echo "$SYSTEM_HOSTNAME" > "/etc/hostname"
     hostname "$SYSTEM_HOSTNAME"
+  fi
+  if [[ -n "${REINIT:-}" && "${OLD_HOSTNAME}" != "${SYSTEM_HOSTNAME}" ]]; then
+    systemctl restart networking
   fi
 }
 
@@ -210,7 +226,10 @@ create_ssh_hostkey() {
 
 configure_docker() {
   jq '{
-      "log-level": "info",
+      "log-driver": "journald",
+      "log-opts": {
+        "tag": "{{.Name}}"
+      },
       "storage-driver": "overlay2",
       "data-root": "/data/docker",
       "bip": (.docker_bridge_net // "10.235.255.1/24"),
@@ -221,14 +240,16 @@ configure_docker() {
           # total: 4*128 = 512 networks
         }
       ],
+      "max-concurrent-downloads": 3,
+      "max-concurrent-uploads": 3,
       "no-new-privileges": true,
       "live-restore": true,
       "userland-proxy": false,
       "default-ulimits": {
         "nofile": {
-      "Hard": 20000,
-      "Name": "nofile",
-      "Soft": 20000
+          "Hard": 20000,
+          "Name": "nofile",
+          "Soft": 20000
         }
       },
       "seccomp-profile": "/etc/docker/seccomp-default.json"

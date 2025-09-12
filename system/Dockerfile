@@ -7,8 +7,6 @@ ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0'
 
 COPY seccomp-default.json /etc/docker/
 
-RUN echo "cuos-system" >/etc/hostname
-
 # Pre-install initramfs-tools
 RUN apt-get update && apt-get install --no-install-recommends -y \
   initramfs-tools \
@@ -48,6 +46,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   jsonschema-jv \
   kbd \
   kmod \
+  less \
   linux-image-amd64 \
   openssh-server \
   pass \
