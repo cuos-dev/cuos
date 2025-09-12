@@ -9,9 +9,6 @@ raise() {
 	exit 1
 }
 
-VERSION="${1:-"latest"}"
-BUILDER_IMAGE="cuos-image-factory"
-
 dockerlogin() {
 	## docker login:
 	UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
@@ -38,10 +35,23 @@ dockerlogin() {
 	fi
 }
 
+export LOCAL_CONFIG_PATH="$1"
+if [[ ! -f "${LOCAL_CONFIG_PATH}" ]]; then
+	echo "Config file not found."
+	exit 1
+fi
+mkdir -p "${SCRIPT_DIR}/../output/"
+cp "${LOCAL_CONFIG_PATH}" "${CONFIG_PATH}"
+
+
 if [[ ! -f "${CONFIG_PATH}" ]]; then
 	echo "Config file not found: ${CONFIG_PATH}"
 	exit 1
 fi
+
+VERSION="${2:-"latest"}"
+BUILDER_IMAGE="cuos-image-factory"
+
 
 dockerlogin
 
@@ -61,6 +71,6 @@ docker run --rm \
 	--network=host \
 	--privileged \
 	-v "${HOME}/.docker/config.json":/root/.docker/config.json:ro \
-	-v "${PWD}/../output/:/output/" \
+	-v "${SCRIPT_DIR}/../output/:/output/" \
 	--name dockerboot-imagebuilder-container \
 	"${IMAGE}"
