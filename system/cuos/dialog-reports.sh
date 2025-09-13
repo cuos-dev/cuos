@@ -24,9 +24,12 @@ change_vt
     --boot=all \
     --no-pager \
     --output=json | jq --unbuffered -r '
-    . as $e
-    | (($e.__REALTIME_TIMESTAMP | tonumber) / 1000000 | strflocaltime("%Y-%m-%d %H:%M:%S")) + " [" +
-      (["emerg","alert","crit","err","warning","notice","info","debug"][$e.PRIORITY | tonumber]) + "] " +
+    . as $e |
+      (if ($e.MESSAGE | test("^cuos:init:start")) then "\n" else "" end) +
+      (($e.__REALTIME_TIMESTAMP | tonumber) / 1000000 | strflocaltime("%Y-%m-%d %H:%M:%S")) +
+      " " +
+      (["[emerg]","[alert]","[crit] ","[err]  ","[warning]","[notice]","[info] ","[debug]"][$e.PRIORITY | tonumber]) +
+      " " +
       $e.MESSAGE
   ' > "$tmpfile" &
   JOURNAL_PID=$!
