@@ -15,12 +15,20 @@ change_vt
   trap cleanup EXIT
 
   tmpfile=$(mktemp)
+  cat <<EOF >"$tmpfile"
+
+Host: $(hostname)
+
+Start Time:  $(jq -r '.start_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
+Last Update: $(jq -r '.last_update_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
+
+EOF
 
   journalctl \
     --identifier=cuos \
     --merge \
     --follow \
-    --lines=20 \
+    --lines=15 \
     --boot=all \
     --no-pager \
     --output=json | jq --unbuffered -r '
@@ -28,10 +36,10 @@ change_vt
       (if ($e.MESSAGE | test("^cuos:init:start")) then "\n" else "" end) +
       (($e.__REALTIME_TIMESTAMP | tonumber) / 1000000 | strflocaltime("%Y-%m-%d %H:%M:%S")) +
       " " +
-      (["[emerg]","[alert]","[crit] ","[err]  ","[warning]","[notice]","[info] ","[debug]"][$e.PRIORITY | tonumber]) +
+      (["[emerg] ","[alert] ","[crit]  ","[err]   ","[warning]","[notice]","[info]  ","[debug] "][$e.PRIORITY | tonumber]) +
       " " +
-      $e.MESSAGE
-  ' > "$tmpfile" &
+      $e.MESSAGE | sub("^cuos:[a-z:_-]+ "; "")
+  ' >> "$tmpfile" &
   JOURNAL_PID=$!
 
   term cuos_dialog \
