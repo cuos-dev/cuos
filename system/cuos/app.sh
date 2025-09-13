@@ -56,7 +56,7 @@ download_image() {
 
   while true; do
     check_rollback
-    echo "Pulling $IMAGE ... (Digest should be ${IMAGE_DIGEST}, but is ${CURRENT_IMAGE_DIGEST})"
+    echo "Pulling $IMAGE_PATH ... (Digest should be ${IMAGE_DIGEST}, but is ${CURRENT_IMAGE_DIGEST})"
     if docker pull "${INITIAL_IMAGE}"; then
       CURRENT_IMAGE_DIGEST=$(docker image inspect --format '{{index .RepoDigests 0}}' "${IMAGE_PATH}" 2>/dev/null | cut -d'@' -f2)
       if [[ -n "${CURRENT_IMAGE_DIGEST}" && "${CURRENT_IMAGE_DIGEST}" = "${IMAGE_DIGEST}" ]]; then
