@@ -8,7 +8,7 @@ if [[ "${VIRT_TYPE}" == "lxc" ]]; then
 fi
 
 cuos() {
-  [[ -n "${TEST}" ]] && return
+  [[ -n "${TEST:-}" ]] && return
   "${SCRIPT_DIR}/api.sh" "$@"
 }
 export -f cuos
@@ -17,11 +17,11 @@ CUOS_VERSION="$(cuos version)"
 CUOS_VERSION="${CUOS_VERSION/*\//}"
 
 term() {
-  if [[ -n "${TEST}" ]]; then "$@"; return; fi
+  if [[ -n "${TEST:-}" ]]; then "$@"; return; fi
   TERM=linux "$@" >/dev/tty42 </dev/tty42
 }
 term_output() {
-  if [[ -n "${TEST}" ]]; then "$@"; return; fi
+  if [[ -n "${TEST:-}" ]]; then "$@"; return; fi
   TERM=linux "$@" >/dev/tty42
 }
 
@@ -39,7 +39,7 @@ cuos_dialog() {
 
 change_vt() {
   #alternative: TERM=linux setsid -w openvt -s -e -w -- dialog --clear --yesno Hi 6 40
-  if [[ -z "${TEST}" && -z "${DIALOG_SUB}" ]]; then
+  if [[ -z "${TEST:-}" && -z "${DIALOG_SUB}" ]]; then
     export DIALOG_SUB=1
 
     VT_OLD="$(fgconsole)"
@@ -124,7 +124,7 @@ valid_ipv4() {
 
 
 
-if [[ -n "${TEST}" && "$(uname)" = "Darwin" ]]; then
+if [[ -n "${TEST:-}" && "$(uname)" = "Darwin" ]]; then
   sed() {
     gsed "$@"
   }

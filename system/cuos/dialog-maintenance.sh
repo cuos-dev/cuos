@@ -232,7 +232,7 @@ diagnostics_dns() {
 expert() {
   confirm=$(DIALOGRC="${SCRIPT_DIR}/dialog-red.rc" term cuos_dialog --title "Expert Settings" --inputbox "You found the hidden expert settings.\nOnly continue, when you know what you are doing." 13 72 3>&1 1>&2 2>&3) || return 1
   if [[ "$confirm" != "CuOS" ]]; then msg "Aborted." "Expert Settings"; return 1; fi
-  vim "+set backupcopy=yes" /system.json
+  term vim "+set backupcopy=yes" /system.json
 }
 
 
