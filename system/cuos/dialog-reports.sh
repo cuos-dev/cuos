@@ -16,7 +16,7 @@ change_vt
 
   tmpfile=$(mktemp)
 
-  journalctl -f -t abc -n 10 --output=json | jq --unbuffered -r '
+  journalctl -f -t cuos -n 12 --output=json | jq --unbuffered -r '
     . as $e
     | (($e.__REALTIME_TIMESTAMP | tonumber) / 1000000 | strflocaltime("%Y-%m-%d %H:%M:%S")) + " [" +
       (["emerg","alert","crit","err","warning","notice","info","debug"][$e.PRIORITY | tonumber]) + "] " +

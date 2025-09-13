@@ -181,8 +181,8 @@ diagnostics_menu() {
       "back" "\Z5Back\Z0")" || return 1
     case "$choice" in
       resources) check_resources ;;
-      clogs) cuos_logs ;;
-      logs) view_logs ;;
+      clogs) term_all cuos_logs ;;
+      logs) term_all view_logs ;;
       docker) api_stream "docker ps" docker ps ;;
       ping) diagnostics_ping ;;
       dns) diagnostics_dns ;;
@@ -199,21 +199,35 @@ check_resources() {
 }
 
 cuos_logs() {
-  term_all journalctl \
-    -t cuos \
-    --priority "emerg".."info" \
-    --lines=2000 \
-    --output=short \
-    --no-hostname \
-    --pager-end
+  (
+    echo -e "\033[1;36m[ Log View - Press 'Q' to quit the view ]\033[0m";
+    SYSTEMD_COLORS=true journalctl \
+      -t cuos \
+      --priority "emerg".."info" \
+      --lines=2000 \
+      --output=short \
+      --no-hostname \
+      --no-pager
+  ) | \
+    LESSSECURE=1 less \
+      --header=1,0 \
+      +G
 }
 
 view_logs() {
-  term_all journalctl \
-    --lines=10000 \
-    --output=short \
-    --no-hostname \
-    --pager-end
+  (
+    echo -e "\033[1;36m[ Log View - Press 'Q' to quit the view ]\033[0m";
+    SYSTEMD_COLORS=true journalctl \
+      --priority "emerg".."info" \
+      --lines=10000 \
+      --output=short \
+      --no-hostname \
+      --no-pager
+  ) | \
+    LESSSECURE=1 less \
+      --header=1,0 \
+      -R \
+      +G
 }
 
 diagnostics_ping() {
