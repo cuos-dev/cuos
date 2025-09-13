@@ -13,6 +13,13 @@ HOME="${HOME:-/root}"
 export CONFIG_PATH="/system.json"
 LAST_CONFIG_PATH="/system_next.json"
 
+RUN_CONFIG="$(jq -r '.run_config' "${CONFIG_PATH}")"
+if [[ "${RUN_CONFIG}" = "true" ]]; then
+  "${SCRIPT_DIR}/dialog-config.sh"
+fi
+
+"${SCRIPT_DIR}/dialog-reports.sh" &
+
 action_on_failure() {
   report_err "$@"
   sleep 60
