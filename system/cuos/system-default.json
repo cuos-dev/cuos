@@ -1,10 +1,2 @@
 {
-	"hostname": "cuos-system",
-	"update_registry": "gitlab.triovega.com:4567/securitygateway",
-	"update_registry_user": "securitygateway",
-	"update_registry_password": "",
-	"initial_image": "/app-system-dev/app-system-dev:development",
-	"initial_image_digest": "sha256:9576b02ce00d8a978992c62b0fe5ae57b9163f25445581ff3c40bbb6b492a7e1",
-	"os_image": "/base-system-docker-boot/base-system-docker-boot-base:development",
-	"os_image_digest": ""
 }

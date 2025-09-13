@@ -90,10 +90,10 @@ prepare_data_volume() {
 }
 
 set_hostname() {
-  OLD_HOSTNAME="$(cat /etc/hostname)"
+  OLD_HOSTNAME="$(cat /etc/hostname 2>/dev/null)"
 
   SYSTEM_HOSTNAME="$(jq_config '.hostname // empty')"
-  if [[ -z "${SYSTEM_HOSTNAME}" && ! -f /etc/hostname ]]; then
+  if [[ -z "${SYSTEM_HOSTNAME}" && -z "${OLD_HOSTNAME}" ]]; then
       local r1 r2 hn
       r1=$(printf "%02X" $(( RANDOM % 256 )))
       r2=$(printf "%02X" $(( RANDOM % 256 )))
