@@ -44,7 +44,7 @@ cuos_dialog() {
 
 change_vt() {
   #alternative: TERM=linux setsid -w openvt -s -e -w -- dialog --clear --yesno Hi 6 40
-  if [[ -z "${TEST:-}" && -z "${DIALOG_SUB}" ]]; then
+  if [[ -z "${TEST:-}" && -z "${DIALOG_SUB:-}" ]]; then
     export DIALOG_SUB=1
 
     VT_OLD="$(fgconsole)"
@@ -112,7 +112,11 @@ api_stream_size() {
   prgbox "$*" "$title" "$h" "$w"
 }
 
-yesno()     { dialog --backtitle "$BACKTITLE" --title "${2:-Confirm}" --yesno "$1" ${3:-9} ${4:-70}; }
+yesno() {
+  term cuos_dialog \
+    --title "${2:-Confirm}" \
+    --yesno "$1" "${3:-9}" "${4:-70}"
+}
 
 valid_hostname() {
   local h="$1"

@@ -8,7 +8,7 @@ source "${SCRIPT_DIR}/utils.sh"
 source "${SCRIPT_DIR}/lib-dialog.sh"
 
 CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
-if [[ -n "${TEST}" ]]; then
+if [[ -n "${TEST:-}" ]]; then
 	CONFIG_PATH="system.json"
 fi
 
@@ -124,7 +124,7 @@ fi
 # Save to new config
 echo "${CONFIG_JSON}" >"${CONFIG_PATH}" || exit 1
 
-if [[ -n "${TEST}" ]]; then exit; fi
+if [[ -n "${TEST:-}" ]]; then exit; fi
 
 if mode_hostname; then
 	"${SCRIPT_DIR}/init.sh" --reinit set_hostname
