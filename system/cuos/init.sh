@@ -98,6 +98,9 @@ set_hostname() {
       r1=$(printf "%02X" $(( RANDOM % 256 )))
       r2=$(printf "%02X" $(( RANDOM % 256 )))
       SYSTEM_HOSTNAME="device-${r1}${r2}"
+      jq_replace \
+        --arg hn "${SYSTEM_HOSTNAME}" \
+        '.hostname = $hn'
   fi
   if [[ -n "${SYSTEM_HOSTNAME}" ]]; then
     echo "Setting hostname to $SYSTEM_HOSTNAME"

@@ -183,7 +183,7 @@ diagnostics_menu() {
       resources) check_resources ;;
       clogs) term_all cuos_logs ;;
       logs) term_all view_logs ;;
-      docker) api_stream "docker ps" docker ps ;;
+      docker) api_stream "docker ps" 30 120 docker ps ;;
       ping) diagnostics_ping ;;
       dns) diagnostics_dns ;;
       "expert") expert ;;
@@ -202,8 +202,8 @@ cuos_logs() {
   (
     echo -e "\033[1;36m[ Log View - Press 'Q' to quit the view ]\033[0m";
     SYSTEMD_COLORS=true journalctl \
-      -t cuos \
-      --priority "emerg".."info" \
+      --identifier=cuos \
+      --priority="emerg".."info" \
       --lines=2000 \
       --output=short \
       --no-hostname \
@@ -211,6 +211,7 @@ cuos_logs() {
   ) | \
     LESSSECURE=1 less \
       --header=1,0 \
+      -R \
       +G
 }
 
@@ -218,7 +219,7 @@ view_logs() {
   (
     echo -e "\033[1;36m[ Log View - Press 'Q' to quit the view ]\033[0m";
     SYSTEMD_COLORS=true journalctl \
-      --priority "emerg".."info" \
+      --priority="emerg".."info" \
       --lines=10000 \
       --output=short \
       --no-hostname \

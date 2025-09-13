@@ -102,6 +102,15 @@ api_stream() {
   prgbox "$*" "$title" 22 90
 }
 
+api_stream_size() {
+  # Stream API output in prgbox
+  # Usage: api_stream <title> <h> <w> <action> [args...]
+  local title="$1"; shift
+  local h="$1"; shift
+  local w="$1"; shift
+  prgbox "$*" "$title" "$h" "$w"
+}
+
 yesno()     { dialog --backtitle "$BACKTITLE" --title "${2:-Confirm}" --yesno "$1" ${3:-9} ${4:-70}; }
 
 valid_hostname() {

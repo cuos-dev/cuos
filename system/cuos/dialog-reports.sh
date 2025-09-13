@@ -16,7 +16,14 @@ change_vt
 
   tmpfile=$(mktemp)
 
-  journalctl -f -t cuos -n 12 --output=json | jq --unbuffered -r '
+  journalctl \
+    --identifier=cuos \
+    --merge \
+    --follow \
+    --lines=20 \
+    --boot=all \
+    --no-pager \
+    --output=json | jq --unbuffered -r '
     . as $e
     | (($e.__REALTIME_TIMESTAMP | tonumber) / 1000000 | strflocaltime("%Y-%m-%d %H:%M:%S")) + " [" +
       (["emerg","alert","crit","err","warning","notice","info","debug"][$e.PRIORITY | tonumber]) + "] " +
@@ -27,7 +34,7 @@ change_vt
   term cuos_dialog \
     --title "System Reports" \
     --exit-label "Intervention: Start configuration" \
-    --tailbox "$tmpfile" 30 70
+    --tailbox "$tmpfile" 40 100
   EXIT_CODE_DIALOG="$?"
 
   kill "$JOURNAL_PID"
