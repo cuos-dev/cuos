@@ -2,9 +2,12 @@
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
-export DIALOGRC="${SCRIPT_DIR}/dialog.rc"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/utils.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib-dialog.sh"
 
-CONFIG_PATH="/system.json"
+CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
 if [[ -n "${TEST}" ]]; then
 	CONFIG_PATH="system.json"
 fi
@@ -13,20 +16,6 @@ fi
 # Load initial config into a variable
 CONFIG_JSON="$(cat "$CONFIG_PATH" || echo '{}')"
 CONFIG_NEW="{}"
-
-term() {
-	if [[ -n "${TEST}" ]]; then "$@"; return; fi
-	TERM=linux "$@" >/dev/tty1 </dev/tty1
-}
-
-cuos_dialog() {
-	dialog \
-		--colors \
-		--no-trim \
-		--no-collapse \
-		--cr-wrap \
-		"$@"
-}
 
 # --- Validation functions ---
 is_valid_hostname() {

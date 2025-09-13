@@ -41,6 +41,7 @@ cuos_dialog() {
     "$@"
 }
 
+
 change_vt() {
   #alternative: TERM=linux setsid -w openvt -s -e -w -- dialog --clear --yesno Hi 6 40
   if [[ -z "${TEST:-}" && -z "${DIALOG_SUB}" ]]; then

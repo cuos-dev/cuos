@@ -100,7 +100,8 @@ set_hostname() {
       SYSTEM_HOSTNAME="device-${r1}${r2}"
       jq_replace \
         --arg hn "${SYSTEM_HOSTNAME}" \
-        '.hostname = $hn'
+        '.hostname = $hn' \
+        "${CONFIG_PATH}"
   fi
   if [[ -n "${SYSTEM_HOSTNAME}" ]]; then
     echo "Setting hostname to $SYSTEM_HOSTNAME"

@@ -183,7 +183,7 @@ diagnostics_menu() {
       resources) check_resources ;;
       clogs) term_all cuos_logs ;;
       logs) term_all view_logs ;;
-      docker) api_stream "docker ps" 30 120 docker ps ;;
+      docker) api_stream_size "docker ps" 30 120 docker ps ;;
       ping) diagnostics_ping ;;
       dns) diagnostics_dns ;;
       "expert") expert ;;
@@ -247,7 +247,16 @@ diagnostics_dns() {
 expert() {
   confirm=$(DIALOGRC="${SCRIPT_DIR}/dialog-red.rc" term cuos_dialog --title "Expert Settings" --inputbox "You found the hidden expert settings.\nOnly continue, when you know what you are doing." 13 72 3>&1 1>&2 2>&3) || return 1
   if [[ "$confirm" != "CuOS" ]]; then msg "Aborted." "Expert Settings"; return 1; fi
-  term_all vim "+set backupcopy=yes" /system.json
+  cp "/system.json" /tmp/edit-system.json
+  chown nobody:nogroup /tmp/edit-system.json
+  term_all sudo -u nobody rvim /tmp/edit-system.json
+  if ! jq . /tmp/edit-system.json >/dev/null 2>&1; then
+    term msg "Invalid JSON"
+  else
+    cat /tmp/edit-system.json >/system.json
+    api_stream "Applying system.json" cuos patch
+  fi
+  rm -f /tmp/edit-system.json
 }
 
 
