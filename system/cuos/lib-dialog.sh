@@ -20,6 +20,10 @@ term() {
   if [[ -n "${TEST:-}" ]]; then "$@"; return; fi
   TERM=linux "$@" >/dev/tty42 </dev/tty42
 }
+term_all() {
+  if [[ -n "${TEST:-}" ]]; then "$@"; return; fi
+  TERM=linux "$@" >/dev/tty42 2>/dev/tty42 </dev/tty42
+}
 term_output() {
   if [[ -n "${TEST:-}" ]]; then "$@"; return; fi
   TERM=linux "$@" >/dev/tty42

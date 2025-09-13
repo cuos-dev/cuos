@@ -35,6 +35,7 @@ change_vt
 
   if [[ "${EXIT_CODE_DIALOG}" == "0" ]]; then
     "${SCRIPT_DIR}/dialog-maintenance.sh"
+    term dialog --clear
     sleep 1
   else
     sleep 5
