@@ -49,28 +49,30 @@ if [[ ! -f "${CONFIG_PATH}" ]]; then
 	exit 1
 fi
 
-VERSION="${2:-"latest"}"
-BUILDER_IMAGE="cuos-image-factory"
+OS_VERSION="${2:-"$(jq -r '.os_image_version // "latest"' "${CONFIG_PATH}")"}"
+
+UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
+OS_IMAGE="cuos-image-factory"
+OS_IMAGE_DIGEST="$(jq -r '.os_image_digest // empty' "${CONFIG_PATH}")"
 
 
 dockerlogin
 
 if [[ "${VERSION}" == "build" ]]; then
-	IMAGE="dockerboot_imagebuilder"
-	docker build -f "Dockerfile" -t "${IMAGE}" .. \
+	IMAGE_VERSION="cuos_imagebuilder"
+	docker build -f "Dockerfile" -t "${IMAGE_VERSION}" .. \
 		|| raise "Failed to build image"
 else
-	IMAGE="${UPDATE_REGISTRY}${BUILDER_IMAGE}:${VERSION}"
-	docker image pull "${IMAGE}" \
+	IMAGE_VERSION="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}"
+	docker image pull "${IMAGE_VERSION}" \
 		|| raise "Faild to fetch image"
 fi
 
-touch "${HOME}/.docker/config.json"
+touch "${HOME}/.docker/config.json" 2>/dev/null
 docker run --rm \
 	--pull=never \
-	--network=host \
 	--privileged \
 	-v "${HOME}/.docker/config.json":/root/.docker/config.json:ro \
 	-v "${SCRIPT_DIR}/../output/:/output/" \
-	--name dockerboot-imagebuilder-container \
-	"${IMAGE}"
+	--name cuos-imagebuilder-container \
+	"${IMAGE_VERSION}"

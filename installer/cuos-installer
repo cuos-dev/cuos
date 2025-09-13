@@ -1,0 +1,100 @@
+#!/bin/sh
+
+case "$1" in
+  prereqs)
+    echo ""
+    exit 0
+  ;;
+esac
+
+# shellcheck source=/dev/null
+. /scripts/functions
+
+echo "Running custom installer..."
+#dialog --msgbox Hallo 10 40
+
+
+IMAGE="/image.img"
+
+# Collect disks: TYPE=disk, RO=0
+DISKS=""
+while read -r name type ro size model; do
+  [ "$type" = "disk" ] || continue
+  [ "$ro" = "0" ] || continue
+  safe_model=$(echo "$model" | tr ' ' '_')
+  label="${size}_${safe_model}"
+  DISKS="$DISKS $name $label off"
+done <<INNEREOF
+$(lsblk -dn -o NAME,TYPE,RO,SIZE,MODEL)
+INNEREOF
+
+COUNT=$(echo "$DISKS" | wc -w)
+# Each disk adds 3 words (name label off), so count/3
+COUNT=$((COUNT / 3))
+
+if [ "$COUNT" -eq 0 ]; then
+  dialog --clear --backtitle "Installer" \
+    --title "Error" \
+    --msgbox "No writable disks found" 20 40
+  reboot -f
+  exit 1
+fi
+
+#if [ "$COUNT" -eq 1 ]; then
+#  TARGET=$(echo "$DISKS" | awk '{print $1}')
+#else
+  # shellcheck disable=SC2086
+  CHOICE=$(dialog --clear --backtitle "Installer" \
+    --title "Select Target Disk" \
+    --radiolist "Select disk to overwrite:" 20 70 10 \
+    $DISKS 3>&1 1>&2 2>&3)
+  clear
+  TARGET="$CHOICE"
+#fi
+
+if [ -z "$TARGET" ]; then
+  dialog --clear --backtitle "Installer" \
+    --title "Error" \
+    --msgbox "No disk selected" 20 40
+  reboot -f
+  exit 1
+fi
+
+wait_for_udev 10
+
+iso_label="CUOS"
+iso_dev=""
+if [ -e "/dev/disk/by-label/$iso_label" ]; then
+  iso_dev="/dev/disk/by-label/$iso_label"
+else
+  # Fallback: try /dev/sr0 or the first iso9660 device
+  [ -b /dev/sr0 ] && iso_dev="/dev/sr0"
+  [ -z "$iso_dev" ] && iso_dev="$(blkid -t TYPE=iso9660 -o device | head -n1)"
+fi
+
+if [ -z "$iso_dev" ]; then
+  echo "iso-img: ERROR: Could not locate ISO device (label=$iso_label)" >&2
+  exit 0
+fi
+
+mkdir -p /cdrom
+if ! mount -t iso9660 -o ro "$iso_dev" /cdrom; then
+  echo "iso-img: ERROR: mount ISO failed: $iso_dev" >&2
+  exit 0
+fi
+
+# Loop-mount the embedded image (read-only by default)
+if [ ! -e "/cdrom$IMAGE" ]; then
+  echo "iso-img: WARNING: /cdrom$IMAGE not found" >&2
+  exit 0
+fi
+
+echo "Writing $IMAGE to /dev/$TARGET... (this may take a while)"
+dd if="/cdrom$IMAGE" of="/dev/$TARGET" bs=4M iflag=fullblock
+sync
+echo "Done."
+
+#sh
+
+reboot -f
+

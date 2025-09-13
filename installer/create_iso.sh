@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x
 
 # Define paths
 WORKDIR="/build"
@@ -13,9 +14,10 @@ if [[ ! -d "${OUTPUT_DIR}" ]]; then
 fi
 
 
+rm -f "${OUTPUT_DIR}/installer.iso"
+
 # Prepare initramfs-tools config
 mkdir -p "/etc/initramfs-tools/conf.d"
-mkdir -p "/usr/share/initramfs-tools/scripts/init-bottom"
 
 # Add required modules
 cat <<EOF >"/etc/initramfs-tools/modules"
@@ -35,24 +37,17 @@ EOF
 # Disable resume
 echo "RESUME=none" > "/etc/initramfs-tools/conf.d/resume"
 
-# Add custom installer script
-cat <<'EOF' > "/etc/initramfs-tools/scripts/init-premount/cuos-installer"
-#!/bin/sh
-echo "Running custom installer..."
-# Your install logic here
-sleep 5
-reboot
-
-EOF
-chmod +x "/etc/initramfs-tools/scripts/init-premount/cuos-installer"
+mkdir -p "${WORKDIR}" "${ISO_DIR}"
 
 # Build initrd.img
-mkinitramfs -o "${INITRD_IMAGE}"
+KVER="$(basename /lib/modules/* | head -n1)"
+mkinitramfs -o "${INITRD_IMAGE}" "${KVER}"
 
 # Prepare ISO directory
 mkdir -p "${ISO_DIR}/boot/grub"
 cp "/boot/vmlinuz"-* "${ISO_DIR}/boot/vmlinuz"
 cp "${INITRD_IMAGE}" "${ISO_DIR}/boot/initrd.img"
+cp "/output/image.img" "${ISO_DIR}"
 
 # Create grub config
 cat <<EOF >"${ISO_DIR}/boot/grub/grub.cfg"
@@ -65,20 +60,13 @@ menuentry "CuOS Installer" {
 }
 EOF
 
-# Build hybrid ISO
-xorriso -as mkisofs \
+
+VOLID="CUOS"
+grub-mkrescue \
+  -o "${OUTPUT_DIR}/installer.iso" \
+  -V "${VOLID}" \
   -iso-level 3 \
   -full-iso9660-filenames \
-  -volid "CuOSInstaller" \
-  -output "${OUTPUT_DIR}/installer.iso" \
-  -eltorito-boot boot/grub/i386-pc/eltorito.img \
-  -no-emul-boot -boot-load-size 4 -boot-info-table \
-  -eltorito-catalog boot/grub/boot.cat \
-  -eltorito-alt-boot \
-  -e --interval:appended_partition_2:all:: \
-  -no-emul-boot \
-  -append_partition 2 0xef "${ISO_DIR}/boot/grub/efi.img" \
-  -isohybrid-gpt-basdat \
-  -isohybrid-apm-hfsplus \
-  -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
   "${ISO_DIR}"
+
+
