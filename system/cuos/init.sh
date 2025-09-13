@@ -71,7 +71,6 @@ ensure_system_config() {
 }
 
 check_schema_system_json() {
-  # TODO: Check system.json against JSON schema for security
   jv "${SCRIPT_DIR}/system-schema.json" "/system.json"
 }
 
@@ -102,11 +101,15 @@ set_hostname() {
         --arg hn "${SYSTEM_HOSTNAME}" \
         '.hostname = $hn' \
         "${CONFIG_PATH}"
-  fi
-  if [[ -n "${SYSTEM_HOSTNAME}" ]]; then
+  elif [[ -n "${SYSTEM_HOSTNAME}" ]]; then
     echo "Setting hostname to $SYSTEM_HOSTNAME"
     echo "$SYSTEM_HOSTNAME" > "/etc/hostname"
     hostname "$SYSTEM_HOSTNAME"
+  elif [[ -n "${OLD_HOSTNAME}" ]]; then
+      jq_replace \
+        --arg hn "${OLD_HOSTNAME}" \
+        '.hostname = $hn' \
+        "${CONFIG_PATH}"
   fi
   if [[ -n "${REINIT:-}" && "${OLD_HOSTNAME}" != "${SYSTEM_HOSTNAME}" ]]; then
     systemctl restart networking

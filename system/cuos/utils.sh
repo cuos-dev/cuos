@@ -117,3 +117,7 @@ state() {
     "${state_file}")" || return "$?"
   echo "${new_state}" >"${state_file}"
 }
+
+check_config() {
+  jv "${SCRIPT_DIR}/system-schema.json" "/dev/stdin"
+}

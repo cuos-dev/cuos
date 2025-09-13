@@ -252,6 +252,8 @@ expert() {
   term_all sudo -u nobody rvim /tmp/edit-system.json
   if ! jq . /tmp/edit-system.json >/dev/null 2>&1; then
     term msg "Invalid JSON"
+  elif ! cat /tmp/edit-system.json | check_config; then
+    term msg "Invalid Configuration"
   else
     cat /tmp/edit-system.json >/system.json
     api_stream "Applying system.json" cuos patch
