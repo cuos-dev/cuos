@@ -93,7 +93,7 @@ set_hostname() {
   OLD_HOSTNAME="$(cat /etc/hostname)"
 
   SYSTEM_HOSTNAME="$(jq_config '.hostname // empty')"
-  if [[ -n "${SYSTEM_HOSTNAME}" && ! -f /etc/hostname ]]; then
+  if [[ -z "${SYSTEM_HOSTNAME}" && ! -f /etc/hostname ]]; then
       local r1 r2 hn
       r1=$(printf "%02X" $(( RANDOM % 256 )))
       r2=$(printf "%02X" $(( RANDOM % 256 )))
