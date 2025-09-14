@@ -36,7 +36,7 @@ EOF
       (if ($e.MESSAGE | test("^cuos:init:start")) then "\n" else "" end) +
       (($e.__REALTIME_TIMESTAMP | tonumber) / 1000000 | strflocaltime("%Y-%m-%d %H:%M:%S")) +
       " " +
-      (["[emerg] ","[alert] ","[crit]  ","[err]   ","[warning]","[notice]","[info]  ","[debug] "][$e.PRIORITY | tonumber]) +
+      (["[emerg] ","[alert] "," [crit] "," [err]  ","[warning]","[notice]"," [info] ","[debug] "][$e.PRIORITY | tonumber]) +
       " " +
       $e.MESSAGE | sub("^cuos:[a-z:_-]+ "; "")
   ' >> "$tmpfile" &
