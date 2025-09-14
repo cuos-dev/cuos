@@ -7,6 +7,8 @@ case "$1" in
   ;;
 esac
 
+set -x
+
 # shellcheck source=/dev/null
 . /scripts/functions
 
@@ -36,21 +38,21 @@ detect_fstype() {
 try_mount() {
   t="$1"
   shift
-  mount -t "$t" -o ro "$@" "$mount_point"
+  mount -t "$t" -o ro "$@"
 }
 
 mount_iso() {
-  iso_dev="${1:-}"
-  mount_point="${2:-}"
+  l_iso_dev="${1:-}"
+  l_mount_point="${2:-}"
 
-  mkdir -p "$mount_point"
+  mkdir -p "$l_mount_point"
 
-  fstype="$(detect_fstype "$iso_dev")"
+  fstype="$(detect_fstype "$l_iso_dev")"
 
   # Main mounting logic
   if [ "$fstype" = "iso9660" ] || [ "$fstype" = "udf" ]; then
-    if ! try_mount "$fstype" "$iso_dev"; then
-      log "WARN: $fstype mount failed on $iso_dev, will try fallbacks"
+    if ! try_mount "$fstype" "$l_iso_dev" "$l_mount_point"; then
+      log "WARN: $fstype mount failed on $l_iso_dev, will try fallbacks"
     else
       return 0
     fi
@@ -58,48 +60,48 @@ mount_iso() {
     modprobe hfsplus 2>/dev/null || true
 
     # Read-only is fine for journaled HFS+
-    if ! try_mount "hfsplus" "$iso_dev"; then
-      log "WARN: hfsplus mount failed on $iso_dev, will try fallbacks"
+    if ! try_mount "hfsplus" "$l_iso_dev" "$l_mount_point"; then
+      log "WARN: hfsplus mount failed on $l_iso_dev, will try fallbacks"
     else
       return 0
     fi
   fi
 
   # Fallback sequence if detection was missing or failed
-  if try_mount "iso9660" "$iso_dev"; then
+  if try_mount "iso9660" "$l_iso_dev" "$l_mount_point"; then
     return 0
   fi
-  if try_mount "udf" "$iso_dev"; then
+  if try_mount "udf" "$l_iso_dev" "$l_mount_point"; then
     return 0
   fi
   maybe_modprobe_hfsplus
-  if try_mount "hfsplus" "$iso_dev"; then
+  if try_mount "hfsplus" "$l_iso_dev" "$l_mount_point"; then
     return 0
   fi
 
-  raise "ERROR: mount failed for all known types (iso9660/udf/hfsplus): $iso_dev"
+  raise "ERROR: mount failed for all known types (iso9660/udf/hfsplus): $l_iso_dev"
 }
 
 find_dev() {
   wait_for_udev 10
   sleep 5
 
-  iso_dev="$(find_dev_by_label)"
+  l_iso_dev="$(find_dev_by_label)"
 
-  if [ -z "${iso_dev:-}" ] && [ -b "/dev/sr0" ]; then
-    iso_dev="/dev/sr0"
+  if [ -z "${l_iso_dev:-}" ] && [ -b "/dev/sr0" ]; then
+    l_iso_dev="/dev/sr0"
   fi
-  if [ -z "${iso_dev:-}" ]; then
-    iso_dev="$(blkid -t TYPE=iso9660 -o device 2>/dev/null | head -n1 || true)"
+  if [ -z "${l_iso_dev:-}" ]; then
+    l_iso_dev="$(blkid -t TYPE=iso9660 -o device 2>/dev/null | head -n1 || true)"
   fi
-  if [ -z "${iso_dev:-}" ]; then
-    iso_dev="$(blkid -t TYPE=udf -o device 2>/dev/null | head -n1 || true)"
+  if [ -z "${l_iso_dev:-}" ]; then
+    l_iso_dev="$(blkid -t TYPE=udf -o device 2>/dev/null | head -n1 || true)"
   fi
-  if [ -z "${iso_dev:-}" ]; then
-    iso_dev="$(blkid -t TYPE=hfsplus -o device 2>/dev/null | head -n1 || true)"
+  if [ -z "${l_iso_dev:-}" ]; then
+    l_iso_dev="$(blkid -t TYPE=hfsplus -o device 2>/dev/null | head -n1 || true)"
   fi
 
-  echo "$iso_dev"
+  echo "$l_iso_dev"
 }
 
 main() {
@@ -109,7 +111,7 @@ main() {
     raise "ERROR: Could not locate ISO device (label=$iso_label)"
   fi
 
-  mount_iso "${iso_dev}"
+  mount_iso "${iso_dev}" "${mount_point}"
 
   # Loop-mount the embedded image (read-only by default)
   if [ ! -e "$mount_point$image" ]; then
