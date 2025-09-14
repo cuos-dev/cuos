@@ -2,3 +2,4 @@
 .*.swp
 old/
 output/
+/system*.json

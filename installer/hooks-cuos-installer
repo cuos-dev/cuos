@@ -1,0 +1,17 @@
+#!/bin/sh
+
+case "${1:-}" in
+  prereqs) echo ""; exit 0;;
+esac
+
+[ -r /usr/share/initramfs-tools/hook-functions ] || exit 0
+# shellcheck source=/dev/null
+. /usr/share/initramfs-tools/hook-functions
+
+copy_exec /usr/bin/dialog
+copy_exec /usr/bin/lsblk
+
+mkdir -p "$DESTDIR/usr/share/terminfo/l/"
+cp -p /usr/share/terminfo/l/linux "$DESTDIR/usr/share/terminfo/l/linux"
+
+
