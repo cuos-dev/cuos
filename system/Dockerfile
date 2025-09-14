@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   docker-cli \
   docker.io \
   gnupg2 \
+  inetutils-ping \
   jq \
   jsonschema-jv \
   kbd \

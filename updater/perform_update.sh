@@ -23,7 +23,7 @@ if [[ "${INSTALLIMAGE}" != "true" ]]; then
 	AVAIL_BYTES=$(df -B1 "${TARGET_ROOT}" | awk 'NR==2 {print $4}')
 	REQUIRED_BYTES=$((2 * 1024 * 1024 * 1024))
 	if [ "$AVAIL_BYTES" -le "$REQUIRED_BYTES" ]; then
-		echo "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update."
+		echo "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update." >&2
 		exit 3
 	fi
 fi
@@ -96,8 +96,7 @@ CONTAINER_ID="$(docker inspect --format '{{ .Id }}' "${CONTAINER_NAME}")" \
 	|| raise "Failed to get container id"
 
 if [ -z "${CONTAINER_ID}" ]; then
-	echo "Container not found: ${CONTAINER_NAME}"
-	exit 2
+	raise "Container not found: ${CONTAINER_NAME}"
 fi
 
 CONTAINER_ROOTFS_FS="$(jq -r '.config.rootfs' \
@@ -105,8 +104,7 @@ CONTAINER_ROOTFS_FS="$(jq -r '.config.rootfs' \
 	|| raise "Failed to get container rootfs"
 
 if [ -z "${CONTAINER_ROOTFS_FS}" ]; then
-	echo "Rootfs not found: ${CONTAINER_NAME}"
-	exit 2
+	raise "Rootfs not found: ${CONTAINER_NAME}"
 fi
 
 CONTAINER_ROOTFS="@os/docker/${CONTAINER_ROOTFS_FS#"${DOCKER_DIR}/"}"

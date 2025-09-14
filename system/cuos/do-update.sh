@@ -77,9 +77,10 @@ echo "Exit Code: ${DOCKER_EXIT_CODE}"
 
 docker network rm cuos-internet
 
+PARTITION_NEXT="A"
+[[ "${PARTITION}" == "A" ]] && PARTITION_NEXT="B"
+
 if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
-  PARTITION_NEXT="A"
-  [[ "${PARTITION}" == "A" ]] && PARTITION_NEXT="B"
   touch "/data/run-update"
   state '.state' 'updating'
   state jq '.last_update_date = (now | todate)'
@@ -92,6 +93,9 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
 elif [[ "${DOCKER_EXIT_CODE}" = "2" ]]; then
   echo "No new image version available."
   report_info "cuos:update:not_needed" "No new image version available"
+elif [[ "${DOCKER_EXIT_CODE}" = "3" ]]; then
+  echo "Not enough free disk space available"
+  report_info "cuos:update:no_space" "Not enough free disk space available"
 else
   state '.update_state' "update of partition ${PARTITION_NEXT} to ${OS_IMAGE}:${OS_VERSION} failed"
   report_err "cuos:update:failed" "Update failed. Exit code ${DOCKER_EXIT_CODE}"

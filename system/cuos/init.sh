@@ -71,7 +71,6 @@ ensure_system_config() {
 }
 
 check_schema_system_json() {
-  # TODO: Check system.json against JSON schema for security
   jv "${SCRIPT_DIR}/system-schema.json" "/system.json"
 }
 
@@ -90,19 +89,27 @@ prepare_data_volume() {
 }
 
 set_hostname() {
-  OLD_HOSTNAME="$(cat /etc/hostname)"
+  OLD_HOSTNAME="$(cat /etc/hostname 2>/dev/null)"
 
   SYSTEM_HOSTNAME="$(jq_config '.hostname // empty')"
-  if [[ -n "${SYSTEM_HOSTNAME}" && ! -f /etc/hostname ]]; then
+  if [[ -z "${SYSTEM_HOSTNAME}" && -z "${OLD_HOSTNAME}" ]]; then
       local r1 r2 hn
       r1=$(printf "%02X" $(( RANDOM % 256 )))
       r2=$(printf "%02X" $(( RANDOM % 256 )))
       SYSTEM_HOSTNAME="device-${r1}${r2}"
-  fi
-  if [[ -n "${SYSTEM_HOSTNAME}" ]]; then
+      jq_replace \
+        --arg hn "${SYSTEM_HOSTNAME}" \
+        '.hostname = $hn' \
+        "${CONFIG_PATH}"
+  elif [[ -n "${SYSTEM_HOSTNAME}" ]]; then
     echo "Setting hostname to $SYSTEM_HOSTNAME"
     echo "$SYSTEM_HOSTNAME" > "/etc/hostname"
     hostname "$SYSTEM_HOSTNAME"
+  elif [[ -n "${OLD_HOSTNAME}" ]]; then
+      jq_replace \
+        --arg hn "${OLD_HOSTNAME}" \
+        '.hostname = $hn' \
+        "${CONFIG_PATH}"
   fi
   if [[ -n "${REINIT:-}" && "${OLD_HOSTNAME}" != "${SYSTEM_HOSTNAME}" ]]; then
     systemctl restart networking

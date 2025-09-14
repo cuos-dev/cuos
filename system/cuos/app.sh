@@ -13,6 +13,13 @@ HOME="${HOME:-/root}"
 export CONFIG_PATH="/system.json"
 LAST_CONFIG_PATH="/system_next.json"
 
+RUN_CONFIG="$(jq -r '.run_config' "${CONFIG_PATH}")"
+if [[ "${RUN_CONFIG}" = "true" ]]; then
+  "${SCRIPT_DIR}/dialog-config.sh"
+fi
+
+"${SCRIPT_DIR}/dialog-reports.sh" &
+
 action_on_failure() {
   report_err "$@"
   sleep 60
@@ -56,7 +63,7 @@ download_image() {
 
   while true; do
     check_rollback
-    echo "Pulling $IMAGE ... (Digest should be ${IMAGE_DIGEST}, but is ${CURRENT_IMAGE_DIGEST})"
+    echo "Pulling $IMAGE_PATH ... (Digest should be ${IMAGE_DIGEST})"
     if docker pull "${INITIAL_IMAGE}"; then
       CURRENT_IMAGE_DIGEST=$(docker image inspect --format '{{index .RepoDigests 0}}' "${IMAGE_PATH}" 2>/dev/null | cut -d'@' -f2)
       if [[ -n "${CURRENT_IMAGE_DIGEST}" && "${CURRENT_IMAGE_DIGEST}" = "${IMAGE_DIGEST}" ]]; then
@@ -124,18 +131,18 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
     DOCKER_ARGS="$(docker inspect --format '{{ index .Config.Labels "dev.cuos.app_command" }}' "${INITIAL_IMAGE}")"
     if [[ -z "${DOCKER_ARGS}" ]]; then
       DOCKER_ARGS="\
-		--device /dev/tty1 \
+        --device /dev/tty1 \
         --network=host \
-		--volume /var/run/docker.sock:/var/run/docker.sock  \
+        --volume /var/run/docker.sock:/var/run/docker.sock  \
         --volume /root/.docker/config.json:/root/.docker/config.json:ro  \
         --volume /system.json:/system.json:ro  \
         --volume /etc/partition_mode:/etc/partition_mode:ro  \
         --volume /var/run/cuos.sock:/var/run/cuos.sock  \
         --volume /usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro"
-	fi
+    fi
 
     touch "${HOME}/.docker/config.json"
-	# shellcheck disable=SC2086
+    # shellcheck disable=SC2086
     docker run \
       --detach \
       --pull=never \
