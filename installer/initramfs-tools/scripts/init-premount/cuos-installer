@@ -1,0 +1,171 @@
+#!/bin/sh
+
+case "$1" in
+  prereqs)
+    echo ""
+    exit 0
+  ;;
+esac
+
+# shellcheck source=/dev/null
+. /scripts/functions
+
+iso_label="CUOS"
+image="/image.img"
+mount_point="/cdrom"
+
+log() { echo "iso-img: $*" >&2; }
+raise() {
+  sleep 5
+  dialog --clear --backtitle "Installer" \
+    --title "Error" \
+    --msgbox "$*" 10 40 >&2
+  echo "iso-img: $*" >&2
+
+  sh
+  reboot -f
+}
+
+find_dev_by_label() {
+  blkid -o device -t "LABEL=$iso_label" 2>/dev/null | head -n1 || true
+}
+detect_fstype() {
+  dev="$1"
+  blkid -o value -s TYPE "$dev" 2>/dev/null || true
+}
+try_mount() {
+  t="$1"
+  shift
+  mount -t "$t" -o ro "$@" "$mount_point"
+}
+
+mount_iso() {
+  iso_dev="${1:-}"
+  mount_point="${2:-}"
+
+  mkdir -p "$mount_point"
+
+  fstype="$(detect_fstype "$iso_dev")"
+
+  # Main mounting logic
+  if [ "$fstype" = "iso9660" ] || [ "$fstype" = "udf" ]; then
+    if ! try_mount "$fstype" "$iso_dev"; then
+      log "WARN: $fstype mount failed on $iso_dev, will try fallbacks"
+    else
+      return 0
+    fi
+  elif [ "$fstype" = "hfsplus" ]; then
+    modprobe hfsplus 2>/dev/null || true
+
+    # Read-only is fine for journaled HFS+
+    if ! try_mount "hfsplus" "$iso_dev"; then
+      log "WARN: hfsplus mount failed on $iso_dev, will try fallbacks"
+    else
+      return 0
+    fi
+  fi
+
+  # Fallback sequence if detection was missing or failed
+  if try_mount "iso9660" "$iso_dev"; then
+    return 0
+  fi
+  if try_mount "udf" "$iso_dev"; then
+    return 0
+  fi
+  maybe_modprobe_hfsplus
+  if try_mount "hfsplus" "$iso_dev"; then
+    return 0
+  fi
+
+  raise "ERROR: mount failed for all known types (iso9660/udf/hfsplus): $iso_dev"
+}
+
+find_dev() {
+  wait_for_udev 10
+  sleep 5
+
+  iso_dev="$(find_dev_by_label)"
+
+  if [ -z "${iso_dev:-}" ] && [ -b "/dev/sr0" ]; then
+    iso_dev="/dev/sr0"
+  fi
+  if [ -z "${iso_dev:-}" ]; then
+    iso_dev="$(blkid -t TYPE=iso9660 -o device 2>/dev/null | head -n1 || true)"
+  fi
+  if [ -z "${iso_dev:-}" ]; then
+    iso_dev="$(blkid -t TYPE=udf -o device 2>/dev/null | head -n1 || true)"
+  fi
+  if [ -z "${iso_dev:-}" ]; then
+    iso_dev="$(blkid -t TYPE=hfsplus -o device 2>/dev/null | head -n1 || true)"
+  fi
+
+  echo "$iso_dev"
+}
+
+main() {
+
+  iso_dev="$(find_dev)"
+  if [ -z "${iso_dev:-}" ]; then
+    raise "ERROR: Could not locate ISO device (label=$iso_label)"
+  fi
+
+  mount_iso "${iso_dev}"
+
+  # Loop-mount the embedded image (read-only by default)
+  if [ ! -e "$mount_point$image" ]; then
+    raise "WARN: $mount_point$image not found"
+  fi
+
+  echo "Running custom installer..."
+
+  # Collect disks: TYPE=disk, RO=0
+  DISKS=""
+  while read -r name type ro size model; do
+    [ "$type" = "disk" ] || continue
+    [ "$ro" = "0" ] || continue
+    safe_model=$(echo "$model" | tr ' ' '_')
+    label="${size}_${safe_model}"
+    DISKS="$DISKS $name $label off"
+  done <<INNEREOF
+$(lsblk -dn -o NAME,TYPE,RO,SIZE,MODEL)
+INNEREOF
+
+  COUNT=$(echo "$DISKS" | wc -w)
+  # Each disk adds 3 words (name label off), so count/3
+  COUNT=$((COUNT / 3))
+
+  if [ "$COUNT" -eq 0 ]; then
+    raise "No writable disks found"
+  fi
+
+  #if [ "$COUNT" -eq 1 ]; then
+  #  target=$(echo "$DISKS" | awk '{print $1}')
+  #else
+    # shellcheck disable=SC2086
+    target=$(dialog --clear --backtitle "Installer" \
+      --title "Select Target Disk" \
+      --radiolist "Select disk to overwrite:" 20 70 10 \
+      $DISKS 3>&1 1>&2 2>&3)
+    clear
+  #fi
+
+  if [ -z "$target" ]; then
+    raise "No disk selected"
+  fi
+
+  echo "$target"
+
+
+  echo "Writing $image to /dev/$target... (this may take a while)"
+  if ! dd if="$mount_point$image" of="/dev/$target" bs=4M iflag=fullblock; then
+    raise "Failed writing image to disk"
+  fi
+
+  sync
+  echo "Done."
+  #sh
+  reboot -f
+}
+
+main
+

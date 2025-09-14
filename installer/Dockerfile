@@ -43,6 +43,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     xorriso \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+COPY prepare_iso.sh /
+COPY initramfs-tools/ /etc/initramfs-tools/
+
+RUN /prepare_iso.sh
+
 COPY create_iso.sh /
-COPY cuos-installer /etc/initramfs-tools/scripts/init-premount/cuos-installer
-COPY hooks-cuos-installer /etc/initramfs-tools/hooks/cuos-installer
