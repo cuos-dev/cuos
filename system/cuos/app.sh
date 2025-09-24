@@ -21,7 +21,6 @@ fi
 "${SCRIPT_DIR}/dialog-reports.sh" &
 
 action_on_failure() {
-  report_err "$@"
   sleep 60
   if [[ -f "/data/run-update" || "${UPDATE}" = "1" ]]; then
     report_alert "cuos:update:rollback" "Failed to start application. Update aborted. Rolling back changes and rebooting system"
@@ -42,7 +41,8 @@ START_TIME=$(date +%s)
 check_rollback() {
   ELAPSED=$(( $(date +%s) - START_TIME ))
   if [[ $ELAPSED -ge 3600 ]]; then
-    action_on_failure "cuos:startup:timedout" "System start or update took too long"
+    report_err "cuos:startup:timedout" "System start or update took too long"
+    action_on_failure
   fi
   return 0
 }
@@ -88,8 +88,10 @@ download_image() {
 }
 
 CONTAINER_NAME="cuos-app"
-INITIAL_IMAGE="$(image_url "initial")" || \
-  action_on_failure "cuos:application:image_not_defined" "Application image not defined"
+if ! INITIAL_IMAGE="$(image_url "initial")"; then
+  report_err "cuos:application:image_not_defined" "Application image not defined"
+  action_on_failure
+fi
 INITIAL_IMAGE_VERSION="$(image_version "${INITIAL_IMAGE}")"
 
 LAST_INITIAL_IMAGE_VERSION="$(jq -r '.initial_image_version // empty' "${LAST_CONFIG_PATH}" 2>/dev/null)"
@@ -145,7 +147,7 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
 
     touch "${HOME}/.docker/config.json"
     # shellcheck disable=SC2086
-    docker run \
+    if ! docker run \
       --detach \
       --pull=never \
       --restart always \
@@ -156,9 +158,10 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
       --env VIRT_TYPE="$(systemd-detect-virt)" \
       --name "${CONTAINER_NAME}" \
       "${INITIAL_IMAGE}" \
-      "${INITIAL_IMAGE_VERSION}" "${LAST_INITIAL_IMAGE_VERSION}" \
-      || \
-        action_on_failure "cuos:application:failed" "Failed to run initial container with image ${INITIAL_IMAGE}"
+      "${INITIAL_IMAGE_VERSION}" "${LAST_INITIAL_IMAGE_VERSION}"; then
+        report_err "cuos:application:failed" "Failed to run initial container with image ${INITIAL_IMAGE}"
+        action_on_failure
+    fi
   fi
 fi
 
