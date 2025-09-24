@@ -121,3 +121,38 @@ state() {
 check_config() {
   jv "${SCRIPT_DIR}/system-schema.json" "/dev/stdin"
 }
+
+image_url() {
+  local image
+  image="$(jq -r \
+    --arg prefix "${1:-}" '
+    (
+      if (.[$prefix + "_image"] | (type == "string" and . != "" and
+          ((startswith("/")) or (contains(".") | not)))) then
+        .update_registry + .[$prefix + "_image"]
+      else
+        .[$prefix + "_image"]
+      end
+    ) + (
+      if .[$prefix + "_image_version"] and .[$prefix + "_image_version"] != ""then
+        ":" + .[$prefix + "_image_version"]
+      else
+        ""
+      end
+    )
+    ' "${CONFIG_PATH}")"
+  if [[ -z "${image}" ]]; then return 1; fi
+  echo "${image}"
+}
+
+image_version() {
+  local image="${1:-""}"
+  #remove registry name including :[port]
+  image="${image##*/}"
+  if [[ "${image}" != *:* ]]; then
+    echo "latest"
+    return
+  fi
+  local version="${image##*:}"
+  echo "${version:-"latest"}"
+}

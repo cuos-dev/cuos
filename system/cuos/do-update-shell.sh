@@ -11,22 +11,15 @@ raise() {
 
 export CONFIG_PATH="/system.json"
 
-UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
-UPDATE_IMAGE_NAME="$(jq -r '.updater_image' "${CONFIG_PATH}")"
-UPDATE_IMAGE_VERSION="$(jq -r '.updater_image_version // "latest"' "${CONFIG_PATH}")"
-UPDATE_IMAGE="${UPDATE_REGISTRY}${UPDATE_IMAGE_NAME}:${UPDATE_IMAGE_VERSION}"
+UPDATE_IMAGE="$(image_url "updater")" || \
+  action_on_failure "cuos:updater:image_not_defined" "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
-OS_IMAGE="$(jq -r '.os_image' "${CONFIG_PATH}")"
-OS_VERSION="$(jq -r '.os_image_version // "latest"' "${CONFIG_PATH}")"
+
+OS_IMAGE="$(image_url "os")" || \
+  action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
 OS_DIGEST="$(jq -r '.os_image_digest // empty' "${CONFIG_PATH}")"
 
-
-IMAGE_VERSION_STRING="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}@${OS_DIGEST}"
-
-if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
-	echo "No new image version available. Exiting."
-	exit 2
-fi
+IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
 
 "${SCRIPT_DIR}/docker-login.sh" || raise "Docker login failed"
 

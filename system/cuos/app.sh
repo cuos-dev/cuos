@@ -88,8 +88,10 @@ download_image() {
 }
 
 CONTAINER_NAME="cuos-app"
-INITIAL_IMAGE="$(jq -r '.update_registry + .initial_image + ":" + .initial_image_version' "${CONFIG_PATH}")"
-INITIAL_IMAGE_VERSION="$(jq -r '.initial_image_version' "${CONFIG_PATH}")"
+INITIAL_IMAGE="$(image_url "initial")" || \
+  action_on_failure "cuos:application:image_not_defined" "Application image not defined"
+INITIAL_IMAGE_VERSION="$(image_version "${INITIAL_IMAGE}")"
+
 LAST_INITIAL_IMAGE_VERSION="$(jq -r '.initial_image_version // empty' "${LAST_CONFIG_PATH}" 2>/dev/null)"
 INITIAL_DIGEST="$(jq -r '.initial_image_digest // empty' "${CONFIG_PATH}")"
 

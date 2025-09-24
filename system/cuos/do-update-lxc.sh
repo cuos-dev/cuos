@@ -17,13 +17,12 @@ fi
 
 export CONFIG_PATH="/system_next.json"
 
-UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
-OS_IMAGE="$(jq -r '.os_image_lxc' "${CONFIG_PATH}")"
-OS_VERSION="$(jq -r '.os_image_lxc_version // "latest"' "${CONFIG_PATH}")"
-OS_DIGEST="$(jq -r '.os_image_lxc_digest // empty' "${CONFIG_PATH}")"
+LXC_IMAGE="$(image_url "lxc")" || \
+  action_on_failure "cuos:updater:lxc_image_not_defined" "LXC image not defined"
+LXC_DIGEST="$(jq -r '.lxc_image_digest // empty' "${CONFIG_PATH}")"
 
-IMAGE_VERSION="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}"
-IMAGE_VERSION_STRING="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}@${OS_DIGEST}"
+IMAGE_VERSION="${LXC_IMAGE}"
+IMAGE_VERSION_STRING="${LXC_IMAGE}@${LXC_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
 	echo "No new image version available. Exiting."
@@ -36,8 +35,8 @@ state jq '.last_update_check = (now | todate)'
 
 docker image pull "${IMAGE_VERSION}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_VERSION}" 2>/dev/null | cut -d '@' -f 2)
-if [[ -n "${OS_IMAGE_DIGEST}" && "${OS_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-	echo "Image digest mismatch: ${OS_IMAGE_DIGEST} != ${NEW_DIGEST}"
+if [[ -n "${LXC_IMAGE_DIGEST}" && "${LXC_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
+	echo "Image digest mismatch: ${LXC_IMAGE_DIGEST} != ${NEW_DIGEST}"
 	exit 1
 fi
 
@@ -92,7 +91,7 @@ chmod a+x /sbin/init
 touch "/data/run-update"
 state '.state' 'updating'
 state jq '.last_update_date = (now | todate)'
-state '.update_state' 'updated partition '"${PARTITION}"' to '"${OS_IMAGE}:${OS_VERSION}"
+state '.update_state' 'updated partition '"${PARTITION}"' to '"${LXC_IMAGE}"
 sync
 echo "Rebooting ..."
 reboot

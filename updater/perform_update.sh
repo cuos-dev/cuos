@@ -167,7 +167,7 @@ menuentry 'CuOS Partition ${PARTITION} - Linux $version' {
 
     search --no-floppy --label boot --set=root
 
-    linux /${filename_kernel} root=LABEL=system rootflags=subvol=${CONTAINER_ROOTFS} ro loglevel=3 noresume apparmor=0
+    linux /${filename_kernel} root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} ro loglevel=3 noresume apparmor=0
     initrd /${filename_initrd}
 }
 

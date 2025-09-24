@@ -17,17 +17,15 @@ PARTITION="$(cat "/etc/partition_mode")"
 
 export CONFIG_PATH="/system_next.json"
 
-UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
-UPDATE_IMAGE_NAME="$(jq -r '.updater_image' "${CONFIG_PATH}")"
-UPDATE_IMAGE_VERSION="$(jq -r '.updater_image_version // "latest"' "${CONFIG_PATH}")"
-UPDATE_IMAGE="${UPDATE_REGISTRY}${UPDATE_IMAGE_NAME}:${UPDATE_IMAGE_VERSION}"
+UPDATE_IMAGE="$(image_url "updater")" || \
+  action_on_failure "cuos:updater:image_not_defined" "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
-OS_IMAGE="$(jq -r '.os_image' "${CONFIG_PATH}")"
-OS_VERSION="$(jq -r '.os_image_version // "latest"' "${CONFIG_PATH}")"
+
+OS_IMAGE="$(image_url "os")" || \
+  action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
 OS_DIGEST="$(jq -r '.os_image_digest // empty' "${CONFIG_PATH}")"
 
-
-IMAGE_VERSION_STRING="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}@${OS_DIGEST}"
+IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
   echo "No new image version available. Exiting."
@@ -69,7 +67,7 @@ docker run --rm \
   -e "TARGET_DEVICE=${ROOT_DISK}" \
   --name dockerboot-updater-container \
   "${UPDATE_IMAGE}" \
-  "${PARTITION}" "${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}" "${OS_DIGEST}"
+  "${PARTITION}" "${OS_IMAGE}" "${OS_DIGEST}"
 
 DOCKER_EXIT_CODE="$?"
 
@@ -84,7 +82,7 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
   touch "/data/run-update"
   state '.state' 'updating'
   state jq '.last_update_date = (now | todate)'
-  state '.update_state' 'updated partition '"${PARTITION_NEXT}"' to '"${OS_IMAGE}:${OS_VERSION}"
+  state '.update_state' 'updated partition '"${PARTITION_NEXT}"' to '"${OS_IMAGE}"
   report_info "cuos:update:restart" "Update requires reboot. Rebooting"
   echo "Rebooting ..."
 
@@ -97,7 +95,7 @@ elif [[ "${DOCKER_EXIT_CODE}" = "3" ]]; then
   echo "Not enough free disk space available"
   report_info "cuos:update:no_space" "Not enough free disk space available"
 else
-  state '.update_state' "update of partition ${PARTITION_NEXT} to ${OS_IMAGE}:${OS_VERSION} failed"
+  state '.update_state' "update of partition ${PARTITION_NEXT} to ${OS_IMAGE} failed"
   report_err "cuos:update:failed" "Update failed. Exit code ${DOCKER_EXIT_CODE}"
 fi
 
