@@ -50,6 +50,7 @@ change_vt() {
     VT_OLD="$(fgconsole)"
     chvt 42
 
+    # shellcheck disable=SC2317
     function finish {
       chvt "${VT_OLD}"
       deallocvt 42

@@ -93,7 +93,7 @@ set_hostname() {
 
   SYSTEM_HOSTNAME="$(jq_config '.hostname // empty')"
   if [[ -z "${SYSTEM_HOSTNAME}" && -z "${OLD_HOSTNAME}" ]]; then
-      local r1 r2 hn
+      local r1 r2
       r1=$(printf "%02X" $(( RANDOM % 256 )))
       r2=$(printf "%02X" $(( RANDOM % 256 )))
       SYSTEM_HOSTNAME="device-${r1}${r2}"

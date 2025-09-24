@@ -77,7 +77,7 @@ install_menu() {
 
 
 change_admin_password() {
-  local user="admin" p1 p2
+  local p1 p2
   while true; do
     p1="$(pwbox "Enter a new password (Beware the english keyboard layout):" "Administrator Password" 10 70)" || return 1
     p2="$(pwbox "Confirm password:" "Administrator Password" 10 70)" || return 1
@@ -142,16 +142,28 @@ system_actions_menu_installation() {
   done
 }
 
-system_reboot() { yesno "Are you sure you want to reboot now?" "Reboot" 8 52 && cuos reboot || true; }
-system_shutdown() { yesno "Are you sure you want to shutdown now?" "Shutdown" 8 52 && cuos shutdown || true; }
+system_reboot() {
+  if yesno "Are you sure you want to reboot now?" "Reboot" 8 52; then
+    cuos reboot
+  fi
+}
+system_shutdown() {
+  if yesno "Are you sure you want to shutdown now?" "Shutdown" 8 52; then
+    cuos shutdown
+  fi
+}
 
 system_update() {
-  yesno "Apply the latest system update?\n\nThis may take several minutes and the system may reboot automatically." "System Update" 11 70 || return
+  if ! yesno "Apply the latest system update?\n\nThis may take several minutes and the system may reboot automatically." "System Update" 11 70; then
+    return
+  fi
   api_stream "Applying System Update" cuos update
 }
 
 system_rollback() {
-  yesno "Rollback to the previous system version?\n\nThe system will boot into the previous partition." "Rollback" 11 72 || return
+  if ! yesno "Rollback to the previous system version?\n\nThe system will boot into the previous partition." "Rollback" 11 72; then
+    return
+  fi
   api_stream "Preparing Rollback" cuos rollback
 }
 
@@ -203,7 +215,7 @@ cuos_logs() {
     echo -e "\033[1;36m[ Log View - Press 'Q' to quit the view ]\033[0m";
     SYSTEMD_COLORS=true journalctl \
       --identifier=cuos \
-      --priority="emerg".."info" \
+      --priority="emerg..info" \
       --lines=2000 \
       --output=short \
       --no-hostname \
@@ -219,7 +231,7 @@ view_logs() {
   (
     echo -e "\033[1;36m[ Log View - Press 'Q' to quit the view ]\033[0m";
     SYSTEMD_COLORS=true journalctl \
-      --priority="emerg".."info" \
+      --priority="emerg..info" \
       --lines=10000 \
       --output=short \
       --no-hostname \
@@ -252,7 +264,7 @@ expert() {
   term_all sudo -u nobody rvim /tmp/edit-system.json
   if ! jq . /tmp/edit-system.json >/dev/null 2>&1; then
     term msg "Invalid JSON"
-  elif ! cat /tmp/edit-system.json | check_config; then
+  elif ! check_config < /tmp/edit-system.json; then
     term msg "Invalid Configuration"
   else
     cat /tmp/edit-system.json >/system.json

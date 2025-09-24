@@ -53,7 +53,6 @@ OS_VERSION="${2:-"$(jq -r '.os_image_version // "latest"' "${CONFIG_PATH}")"}"
 
 UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
 OS_IMAGE="cuos-image-factory"
-OS_IMAGE_DIGEST="$(jq -r '.os_image_digest // empty' "${CONFIG_PATH}")"
 
 
 dockerlogin

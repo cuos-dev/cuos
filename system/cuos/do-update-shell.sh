@@ -15,12 +15,6 @@ UPDATE_IMAGE="$(image_url "updater")" || \
   action_on_failure "cuos:updater:image_not_defined" "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
 
-OS_IMAGE="$(image_url "os")" || \
-  action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
-OS_DIGEST="$(jq -r '.os_image_digest // empty' "${CONFIG_PATH}")"
-
-IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
-
 "${SCRIPT_DIR}/docker-login.sh" || raise "Docker login failed"
 
 docker image pull "${UPDATE_IMAGE}" || raise "Faild to fetch image"

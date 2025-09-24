@@ -96,7 +96,8 @@ os_pretty() {
   if cmd_exists hostnamectl; then
     hostnamectl 2>/dev/null | sed -n '1,8p'
   elif [[ -f /etc/os-release ]]; then
-    . /etc/os-release
+    # shellcheck source=/dev/null
+    source /etc/os-release
     echo "Operating System: ${PRETTY_NAME:-unknown}"
     echo "Kernel: $(uname -r)"
     echo "Architecture: $(uname -m)"
@@ -151,7 +152,7 @@ get_resources() {
   echo
 
   # Memory section (from /proc/meminfo)
-  local mt mf ma st sf bu ca
+  local mt ma st sf bu ca
   mt="$(kv_from_meminfo MemTotal)"
   ma="$(kv_from_meminfo MemAvailable)"
   st="$(kv_from_meminfo SwapTotal)"
@@ -163,7 +164,7 @@ get_resources() {
   _kb_to_mib() { awk -v k="${1:-0}" 'BEGIN{printf "%.1f", k/1024}'; }
   _kb_to_gib() { awk -v k="${1:-0}" 'BEGIN{printf "%.2f", k/1048576}'; }
 
-  local used avail pct
+  local used pct
   if [[ -n "$mt" && -n "$ma" ]]; then
     used=$(( mt - ma ))
     pct=$(awk -v u="$used" -v t="$mt" 'BEGIN{ if(t>0) printf "%.1f", (u*100.0)/t; else print "n/a"}')
