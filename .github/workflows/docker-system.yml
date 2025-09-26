@@ -63,6 +63,21 @@ jobs:
             org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
           #platforms: linux/amd64,linux/arm64,linux/arm/v7
 
+      - name: Build and push Docker image - cuos-system-rpi-arm64
+        uses: docker/build-push-action@v6
+        with:
+          context: ./system
+          file: ./system/Dockerfile.rpi-arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm64:${{ steps.vars.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.run_id }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
+          platforms: linux/arm64
+
       - name: Build and push Docker image - cuos-system-lxc
         uses: docker/build-push-action@v6
         with:
