@@ -21,9 +21,11 @@ UPDATE_IMAGE="$(image_url "updater")" || \
   action_on_failure "cuos:updater:image_not_defined" "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
 
-OS_IMAGE="$(image_url "os")" || \
+OS_ARCH="$(cat "/etc/cuos-arch" 2>/dev/null || arch)"
+
+OS_IMAGE="$(image_url "${OS_ARCH}" || image_url "os")" || \
   action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
-OS_DIGEST="$(jq -r '.os_image_digest // empty' "${CONFIG_PATH}")"
+OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_image_digest // empty' "${CONFIG_PATH}")"
 
 IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
 
@@ -65,6 +67,7 @@ docker run --rm \
   -v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
   -v "/etc/image:/etc/image:ro" \
   -e "TARGET_DEVICE=${ROOT_DISK}" \
+  -e "OS_ARCH=${OS_ARCH}" \
   --name dockerboot-updater-container \
   "${UPDATE_IMAGE}" \
   "${PARTITION}" "${OS_IMAGE}" "${OS_DIGEST}"

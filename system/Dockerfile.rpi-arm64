@@ -8,6 +8,29 @@ ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0'
 COPY seccomp-default.json /etc/docker/
 COPY raspberrypi-archive.gpg /etc/apt/keyrings/
 
+RUN echo "rpi-arm64" >"/etc/cuos-arch" \
+  && mkdir -p /boot/firmware && \
+  cat <<'EOF' > "/boot/firmware/config.txt"
+dtparam=audio=on
+camera_auto_detect=1
+display_auto_detect=1
+auto_initramfs=1
+dtoverlay=vc4-kms-v3d
+max_framebuffers=2
+disable_fw_kms_setup=1
+arm_64bit=1
+disable_overscan=1
+arm_boost=1
+
+[cm4]
+otg_mode=1
+
+[cm5]
+dtoverlay=dwc2,dr_mode=host
+
+[all]
+EOF
+
 RUN apt-get update && apt-get install --no-install-recommends -y \
   ca-certificates curl lsb-release apt-transport-https \
   busybox-static parted dosfstools e2fsprogs \
