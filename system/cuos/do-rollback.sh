@@ -77,7 +77,7 @@ sync
 umount "${TARGET_BOOT}" || umount -l "${TARGET_BOOT}" || {
     echo "Warning: Failed to unmount ${TARGET_BOOT}. Is it busy?"
 }
-echo "Boot configuration updated for partition ${PARTITION_NAME}."
+echo "Boot configuration updated for rollback."
 
 echo "Rebooting ..."
 reboot
