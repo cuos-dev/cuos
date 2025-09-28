@@ -27,10 +27,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install CuOS scripts (systemd required)
-COPY cuos/ /usr/local/cuos/
-RUN /usr/local/cuos/install.sh
-
 RUN apt-get update && apt-get install --no-install-recommends -y \
   hostname \
   ifupdown \
@@ -56,6 +52,10 @@ RUN  mkdir -p /data && \
   ln -sf /data/shieldor /usr/local/shieldor && \
   rm -f /etc/ssh/ssh_host_* && \
   systemctl mask cgroupfs-mount.service sys-kernel-debug.mount
+
+# Install CuOS scripts (systemd required)
+COPY cuos/ /usr/local/cuos/
+RUN /usr/local/cuos/install.sh
 
 # Set up SSH
 RUN echo 'root:root' | chpasswd && \

@@ -31,14 +31,8 @@ dtoverlay=dwc2,dr_mode=host
 [all]
 EOF
 
-RUN apt-get update && apt-get install --no-install-recommends -y \
-  ca-certificates curl lsb-release apt-transport-https \
-  busybox-static parted dosfstools e2fsprogs \
-  coreutils findutils util-linux \
-  && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 # Add Raspberry Pi apt repository and key
-RUN echo "deb [signed-by=/etc/apt/keyrings/raspberrypi-archive.gpg] http://archive.raspberrypi.org/debian/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/raspi.list \
+RUN echo "deb [signed-by=/etc/apt/keyrings/raspberrypi-archive.gpg] http://archive.raspberrypi.org/debian/ $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"') main" > /etc/apt/sources.list.d/raspi.list \
   && apt-get update \
   && apt-get full-upgrade -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -60,59 +54,37 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && echo "RESUME=none" >>/etc/initramfs-tools/conf.d/resume \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
-# Install Raspberry Pi firmware, kernel and related packages
+# Install required packages
 RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## Raspberry Pi packages \
+  parted \
+  dosfstools \
+  e2fsprogs \
   linux-image-rpi-2712 \
   linux-image-rpi-v8 \
-  raspberrypi-archive-keyring \
-  raspberrypi-net-mods \
   raspberrypi-sys-mods \
-  raspi-config \
   raspi-firmware \
-  raspi-utils \
-  raspi-utils-core \
-  raspi-utils-dt \
-  raspi-utils-eeprom \
-  raspi-utils-otp \
-  raspinfo \
-  device-tree-compiler \
+  raspberrypi-archive-keyring \
+  #raspberrypi-net-mods \
+  #raspi-utils \
+  #raspi-utils-core # = pinctrl \
+  #raspi-utils-dt \
+  #device-tree-compiler \
   firmware-atheros \
   firmware-brcm80211 \
   firmware-libertas \
   firmware-linux-free \
   firmware-misc-nonfree \
   firmware-realtek \
-  flashrom \
+  #flashrom \
   gpiod \
   fake-hwclock \
-  fakeroot \
-  rpi-swap \
-  rpi-eeprom \
-  rpi-update \
-  initramfs-tools \
-  initramfs-tools-core \
-  iw \
-  kbd \
+  # raspi-utils-eeprom \
+  # rpi-eeprom \
+  # rpi-swap \
+  # iw \
   lsb-release \
-  && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-
-#pigpio
-#pigpio-tools
-#pigpiod
-
-
-#linux-image-6.6.51+rpt-rpi-2712
-#linux-image-6.6.51+rpt-rpi-v8
-#linux-image-rpi-2712
-
-# Regenerate initramfs for installed kernels (best-effort)
-#RUN update-initramfs -c -k all
-
-
-# Install required packages
-RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## cuos system tools \
   btrfs-progs \
   busybox \
   ca-certificates \
@@ -139,15 +111,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   systemd-timesyncd \
   vim \
   yq \
-  && apt-get clean && rm -rf /var/lib/apt/lists/* \
-  && systemctl enable systemd-timesyncd.service
-
-# Install CuOS scripts (systemd required)
-COPY cuos/ /usr/local/cuos/
-RUN /usr/local/cuos/install.sh
-
-# Install network services
-RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## network tools \
   hostname \
   ifupdown \
   iproute2 \
@@ -156,6 +120,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   isc-dhcp-common \
   openresolv \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
+  && systemctl enable systemd-timesyncd.service \
   && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf
 
 # Ensure persistence
@@ -171,6 +136,10 @@ RUN  mkdir -p /data && \
   mkdir -p /data/shieldor && \
   ln -sf /data/shieldor /usr/local/shieldor && \
   rm -f /etc/ssh/ssh_host_*
+
+# Install CuOS scripts (systemd required)
+COPY cuos/ /usr/local/cuos/
+RUN /usr/local/cuos/install.sh
 
 # Set up SSH
 RUN echo 'root:root' | chpasswd && \

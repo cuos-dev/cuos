@@ -61,10 +61,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && systemctl enable systemd-timesyncd.service
 
-# Install CuOS scripts (systemd required)
-COPY cuos/ /usr/local/cuos/
-RUN /usr/local/cuos/install.sh
-
 # Install network services
 RUN apt-get update && apt-get install --no-install-recommends -y \
   hostname \
@@ -90,6 +86,10 @@ RUN  mkdir -p /data && \
   mkdir -p /data/shieldor && \
   ln -sf /data/shieldor /usr/local/shieldor && \
   rm -f /etc/ssh/ssh_host_*
+
+# Install CuOS scripts (systemd required)
+COPY cuos/ /usr/local/cuos/
+RUN /usr/local/cuos/install.sh
 
 # Set up SSH
 RUN echo 'root:root' | chpasswd && \
