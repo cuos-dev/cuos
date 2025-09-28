@@ -34,8 +34,18 @@ partprobe "${LOOPDEV}"
 kpartx -av "${LOOPDEV}"
 sleep 1
 
-TARGET_BOOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p2"
-TARGET_ROOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p3"
+if [[ "${TARGET}" == "rpi" ]]; then
+  TARGET_BOOT_PARTITION_NUM=1
+  TARGET_ROOT_PARTITION_NUM=2
+else
+  TARGET_BOOT_PARTITION_NUM=2
+  TARGET_ROOT_PARTITION_NUM=3
+fi
+
+TARGET_BOOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_BOOT_PARTITION_NUM}"
+export TARGET_BOOT_PARTITION
+TARGET_ROOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_ROOT_PARTITION_NUM}"
+export TARGET_ROOT_PARTITION
 TARGET_BOOT="${TARGET_BOOT:-"/mnt/boot"}"
 TARGET_ROOT="${TARGET_ROOT:-"/mnt/os"}"
 
@@ -46,7 +56,7 @@ mount -t btrfs -o subvol=@os "${TARGET_ROOT_PARTITION}" "${TARGET_ROOT}"
 mkdir -p "${TARGET_BOOT}"
 mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro" "${TARGET_BOOT_PARTITION}" "${TARGET_BOOT}"
 
-bash
+/usr/local/updater/docker_environment.sh /bin/bash
 
 umount /mnt/os
 umount /mnt/boot

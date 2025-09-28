@@ -19,6 +19,42 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# functions from system/cuos/utils.sh
+image_url() {
+  local image
+  image="$(jq -r \
+    --arg prefix "${1:-}" '
+    (
+      if (.[$prefix + "_image"] | (type == "string" and . != "" and
+          ((startswith("/")) or (contains(".") | not)))) then
+        .update_registry + .[$prefix + "_image"]
+      else
+        .[$prefix + "_image"]
+      end
+    ) + (
+      if .[$prefix + "_image_version"] and .[$prefix + "_image_version"] != ""then
+        ":" + .[$prefix + "_image_version"]
+      else
+        ""
+      end
+    )
+    ' "${CONFIG_PATH}")"
+  if [[ -z "${image}" ]]; then return 1; fi
+  echo "${image}"
+}
+
+image_version() {
+  local image="${1:-""}"
+  #remove registry name including :[port]
+  image="${image##*/}"
+  if [[ "${image}" != *:* ]]; then
+    echo "latest"
+    return
+  fi
+  local version="${image##*:}"
+  echo "${version:-"latest"}"
+}
+
 IMAGE="/output/image.img"
 IMAGE_QCOW="/output/image.qcow2"
 #SIZE_MB=2048
@@ -37,22 +73,41 @@ if [[ ! -f "${CONFIG_PATH}" ]]; then
 	echo "Config file not found: ${CONFIG_PATH}"
 	exit 1
 fi
-UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
-OS_IMAGE="$(jq -r '.os_image' "${CONFIG_PATH}")"
-OS_VERSION="$(jq -r '.os_image_version' "${CONFIG_PATH}")"
-OS_DIGEST="$(jq -r '.os_image_digest' "${CONFIG_PATH}")"
+export OS_ARCH="${OS_ARCH:-"$(arch)"}"
+
+OS_IMAGE="$(image_url "${OS_ARCH}" || image_url "os")" || \
+  action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
+OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_image_digest // empty' "${CONFIG_PATH}")"
+
+
+SIZE_MB="$(jq --arg size_mb "${SIZE_MB}" -r '.image_size_mb // $size_mb' "${CONFIG_PATH}")"
 
 # Create empty image
 echo "Create empty image:"
 dd if=/dev/zero of="${IMAGE}" bs=1M count="${SIZE_MB}"
 
-# Partition the image
-parted "${IMAGE}" --script mklabel gpt \
-	mkpart bios_boot 1MiB 3MiB \
-	set 1 bios_grub on \
-	mkpart ESP fat32 3MiB 256MiB \
-	set 2 boot on \
-	mkpart primary btrfs 256MiB 100%
+if [[ "${TARGET}" == "rpi" ]]; then
+  parted "${IMAGE}" --script \
+    mklabel msdos \
+    mkpart primary fat32 1MiB 256MiB \
+    mkpart primary btrfs 256MiB 100% \
+    set 1 boot on
+
+  TARGET_BOOT_PARTITION_NUM=1
+  TARGET_ROOT_PARTITION_NUM=2
+else
+  # Partition the image
+  parted "${IMAGE}" --script \
+    mklabel gpt \
+    mkpart bios_boot 1MiB 3MiB \
+    set 1 bios_grub on \
+    mkpart ESP fat32 3MiB 256MiB \
+    set 2 boot on \
+    mkpart primary btrfs 256MiB 100%
+
+  TARGET_BOOT_PARTITION_NUM=2
+  TARGET_ROOT_PARTITION_NUM=3
+fi
 
 # Setup loop device
 LOOPDEV="$(losetup --find --show $IMAGE)"
@@ -63,9 +118,9 @@ kpartx -av "${LOOPDEV}"
 sleep 1
 
 export TARGET_DEVICE="${LOOPDEV}"
-TARGET_BOOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p2"
+TARGET_BOOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_BOOT_PARTITION_NUM}"
 export TARGET_BOOT_PARTITION
-TARGET_ROOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p3"
+TARGET_ROOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_ROOT_PARTITION_NUM}"
 export TARGET_ROOT_PARTITION
 
 # Format partitions
@@ -86,10 +141,10 @@ mkdir -p /mnt/root/@data/log
 umount /mnt/root
 
 
-INSTALLGRUB=true INSTALLIMAGE=true \
-	/usr/local/updater/updater.sh \
+export INSTALLIMAGE=true
+/usr/local/updater/updater.sh \
 	"${PARTITION}" \
-	"${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}" \
+	"${OS_IMAGE}" \
 	"${OS_DIGEST}"
 
 EXITCODE="$?"
@@ -115,7 +170,7 @@ echo "Image created at ${IMAGE}"
 # RAW	Universal (can be converted to others)	Simple, uncompressed, large file size
 # OVA/OVF	VMware, VirtualBox, Proxmox (via import)	Bundle of disk + metadata, easy to distribute
 
-qemu-img convert -f raw -O qcow2 "${IMAGE}" "${IMAGE_QCOW}"
+#qemu-img convert -f raw -O qcow2 "${IMAGE}" "${IMAGE_QCOW}"
 
 #qemu-img convert -f raw -O vmdk image.img linux.vmdk
 #qemu-img convert -f raw -O vhdx image.img linux.vhdx

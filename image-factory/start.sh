@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-CONFIG_PATH="${SCRIPT_DIR}/../output/system.json"
+export CONFIG_PATH="${SCRIPT_DIR}/../output/system.json"
 
 
 raise() {
@@ -10,29 +10,8 @@ raise() {
 }
 
 dockerlogin() {
-	## docker login:
-	UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
-	# just the server name:
-	UPDATE_REGISTRY_SERVER="${UPDATE_REGISTRY//\/*}"
-
-	UPDATE_REGISTRY_USER="$(jq -r '.update_registry_user // .update_server_user // ""' "${CONFIG_PATH}")"
-	UPDATE_REGISTRY_PASSWORD="$(jq -r '.update_registry_password // .update_server_password // ""' "${CONFIG_PATH}")"
-
-
-	# Do docker login only if not already in .docker/config.json file
-	if ! grep -q "${UPDATE_REGISTRY_SERVER}" "${HOME}/.docker/config.json" 2>/dev/null
-	then
-		echo "${UPDATE_REGISTRY_PASSWORD}" | docker login \
-			"${UPDATE_REGISTRY_SERVER}" \
-			--username "${UPDATE_REGISTRY_USER}" --password-stdin
-		if test "$?" != "0"
-		then
-			echo "Error: Docker login failed" >&2
-			exit 1
-		fi
-	else
-		echo "Credentials for ${UPDATE_REGISTRY_SERVER} already existing. Skipped login."
-	fi
+	DOCKER_CONFIG_FILE="${SCRIPT_DIR}/.docker_config.json" \
+		"${SCRIPT_DIR}/../system/cuos/utils-docker-login.sh"
 }
 
 export LOCAL_CONFIG_PATH="$1"
@@ -49,10 +28,12 @@ if [[ ! -f "${CONFIG_PATH}" ]]; then
 	exit 1
 fi
 
+OS_ARCH="${2:-"$(arch)"}"
+
 OS_VERSION="${2:-"$(jq -r '.os_image_version // "latest"' "${CONFIG_PATH}")"}"
 
 UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
-OS_IMAGE="cuos-image-factory"
+OS_IMAGE_FACTORY="cuos-image-factory"
 
 
 dockerlogin
@@ -62,16 +43,20 @@ if [[ "${VERSION}" == "build" ]]; then
 	docker build -f "Dockerfile" -t "${IMAGE_VERSION}" .. \
 		|| raise "Failed to build image"
 else
-	IMAGE_VERSION="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}"
+	IMAGE_VERSION="${UPDATE_REGISTRY}${OS_IMAGE_FACTORY}:${OS_VERSION}"
 	docker image pull "${IMAGE_VERSION}" \
 		|| raise "Faild to fetch image"
 fi
 
 touch "${HOME}/.docker/config.json" 2>/dev/null
+#cp "${HOME}/.docker/config.json" "${SCRIPT_DIR}/.docker_config.json"
+
 docker run --rm \
 	--pull=never \
 	--privileged \
-	-v "${HOME}/.docker/config.json":/root/.docker/config.json:ro \
+	-v "${SCRIPT_DIR}/.docker_config.json":/root/.docker/config.json:ro \
 	-v "${SCRIPT_DIR}/../output/:/output/" \
+        -e "TARGET=rpi" \
+        -e "OS_ARCH=${OS_ARCH:-}" \
 	--name cuos-imagebuilder-container \
 	"${IMAGE_VERSION}"
