@@ -25,44 +25,24 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && echo "RESUME=none" >>/etc/initramfs-tools/conf.d/resume \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
-# Optional: force initramfs to include busybox and essential tools
-#RUN echo "BUSYBOX=y" >>/etc/initramfs-tools/initramfs.conf
-
 # Install required packages
 RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## cuos system dependencies (kernel) \
+  linux-image-amd64 \
+  ## cuos os dependencies \
   btrfs-progs \
-  busybox \
-  ca-certificates \
-  cloud-guest-utils \
-  curl \
   dbus \
   dbus-broker \
-  dialog \
   docker-cli \
   docker.io \
-  gnupg2 \
-  inetutils-ping \
-  jq \
-  jsonschema-jv \
   kbd \
   kmod \
-  less \
-  linux-image-amd64 \
-  openssh-server \
-  pass \
+  lsb-release \
   selinux-policy-default \
-  sudo \
   systemd \
   systemd-sysv \
   systemd-timesyncd \
-  vim \
-  yq \
-  && apt-get clean && rm -rf /var/lib/apt/lists/* \
-  && systemctl enable systemd-timesyncd.service
-
-# Install network services
-RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## network dependencies \
   hostname \
   ifupdown \
   iproute2 \
@@ -70,7 +50,24 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   isc-dhcp-client \
   isc-dhcp-common \
   openresolv \
+  ## cuos service dependencies \
+  ca-certificates \
+  cloud-guest-utils \
+  curl \
+  dialog \
+  gnupg2 \
+  inetutils-ping \
+  jq \
+  jsonschema-jv \
+  less \
+  pass \
+  sudo \
+  yq \
+  ## debugging tools \
+  openssh-server \
+  vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
+  && systemctl enable systemd-timesyncd.service \
   && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf
 
 # Ensure persistence

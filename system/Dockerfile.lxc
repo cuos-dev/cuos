@@ -9,25 +9,22 @@ COPY seccomp-default.json /etc/docker/
 
 # Install required packages
 RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## cuos system dependencies (lxc) \
   busybox-static \
-  ca-certificates \
-  curl \
+  ## cuos os dependencies \
+  #-btrfs-progs \
   dbus \
   dbus-broker \
   docker-cli \
   docker.io \
-  gnupg2 \
-  jq \
-  jsonschema-jv \
+  #-kbd \
   kmod \
-  openssh-server \
-  pass \
+  lsb-release \
+  #-selinux-policy-default \
   systemd \
   systemd-sysv \
-  vim \
-  && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install --no-install-recommends -y \
+  #-systemd-timesyncd \
+  ## network dependencies \
   hostname \
   ifupdown \
   iproute2 \
@@ -35,6 +32,22 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   isc-dhcp-client \
   isc-dhcp-common \
   openresolv \
+  ## cuos service dependencies \
+  ca-certificates \
+  cloud-guest-utils \
+  curl \
+  dialog \
+  gnupg2 \
+  inetutils-ping \
+  jq \
+  jsonschema-jv \
+  less \
+  pass \
+  sudo \
+  yq \
+  ## debugging tools \
+  openssh-server \
+  vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf
 
