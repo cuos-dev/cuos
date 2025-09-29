@@ -67,7 +67,9 @@ CuOS is designed for **mass deployment**:
 
 ## 📦 Getting Started
 
-Coming soon: Installation instructions, example Dockerfiles, and deployment guides.
+For system administrators looking to deploy services using CuOS, please visit [cuos-iac](https://github.com/cuos-dev/cuos-iac/), our Infrastructure as Code repository. It provides tools and templates for deploying and managing services on CuOS.
+
+For developers looking to create custom CuOS-based systems, check out our [CuOS Development Guide](docs/development-guide.md).
 
 ---
 
