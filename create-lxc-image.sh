@@ -45,16 +45,16 @@ fi
 dockerlogin
 
 UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
-OS_IMAGE="$(jq -r '.os_image_lxc' "${CONFIG_PATH}")"
-OS_VERSION="$(jq -r '.os_image_lxc_version // "latest"' "${CONFIG_PATH}")"
-OS_IMAGE_DIGEST="$(jq -r '.os_image_lxc_digest // empty' "${CONFIG_PATH}")"
+LXC_IMAGE="$(jq -r '.lxc_image' "${CONFIG_PATH}")"
+LXC_VERSION="$(jq -r '.lxc_image_version // "latest"' "${CONFIG_PATH}")"
+LXC_IMAGE_DIGEST="$(jq -r '.lxc_image_digest // empty' "${CONFIG_PATH}")"
 
-IMAGE_VERSION="${UPDATE_REGISTRY}${OS_IMAGE}:${OS_VERSION}"
+IMAGE_VERSION="${UPDATE_REGISTRY}${LXC_IMAGE}:${LXC_VERSION}"
 
 docker image pull "${IMAGE_VERSION}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_VERSION}" 2>/dev/null | cut -d '@' -f 2)
-if [[ -n "${OS_IMAGE_DIGEST}" && "${OS_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-	echo "Image digest mismatch: ${OS_IMAGE_DIGEST} != ${NEW_DIGEST}"
+if [[ -n "${LXC_IMAGE_DIGEST}" && "${LXC_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
+	echo "Image digest mismatch: ${LXC_IMAGE_DIGEST} != ${NEW_DIGEST}"
 	exit 1
 fi
 
