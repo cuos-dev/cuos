@@ -35,7 +35,7 @@ Use CuOS base images with API services for system management:
 
 [Learn more about Variant 2](variants/variant2.md)
 
-### Variant 3: Base of CuOS System Image
+### Variant 3: Base on CuOS System Image
 
 Run your application in a Docker container with full CuOS integration:
 - Complete application container support

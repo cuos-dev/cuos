@@ -1,4 +1,4 @@
-# Variant 3: Base of CuOS System Image
+# Variant 3: Base on CuOS System Image
 
 This guide explains how to use your CuOS base images. You provide and run your application in a docker container. Be aware, that it is possible, to just use this as packaging, as you can run docker containers priviledged and even with host shared pid and network space.
 
