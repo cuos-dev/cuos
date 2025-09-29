@@ -36,10 +36,19 @@ dockerlogin() {
 	fi
 }
 
+# check if jq is installed
+if ! command -v jq >/dev/null 2>&1; then
+	raise "jq is required but not installed. Please install jq."
+fi
+
+if [ "$#" -ne 1 ]; then
+	echo "Usage: $0 <config.json>"
+	exit 1
+fi
+
 export CONFIG_PATH="$1"
 if [[ ! -f "${CONFIG_PATH}" ]]; then
-	echo "Config file not found."
-	exit 1
+	raise "Config file not found."
 fi
 
 dockerlogin
