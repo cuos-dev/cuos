@@ -51,6 +51,7 @@ COPY app /app
 ```
 
 2. Build and push the application:
+
 ```bash
 docker build -t your-registry/your-app:version .
 docker push your-registry/your-app:version

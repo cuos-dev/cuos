@@ -2,9 +2,18 @@
 
 This guide explains how to create and deploy CuOS in LXC containers, with specific instructions for Proxmox VE and general LXC usage.
 
+![System layers](./diagrams/layer_architecture_diagram.png)
+
+The LXC based CuOS matches the normal CuOS, expect:
+
+* No kernel, initrd or boot config needed for LXC
+* System swapping is performed directly on directories, as no volume access is possible for LXC
+* No seperate update container. Update is performed directly in the system container.
+
 ## Creating LXC Image
 
 ### Prerequisites
+
 - Docker installed and running
 - Access to your container registry
 - `jq` installed

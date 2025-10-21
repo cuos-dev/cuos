@@ -5,7 +5,7 @@ Requires=docker.service cuos-init.service cuos-api.socket
 
 [Service]
 Type=simple
-ExecStart=/usr/local/cuos/app.sh
+ExecStart=/usr/local/cuos/app-init.sh
 Restart=on-failure
 
 [Install]

@@ -80,7 +80,7 @@ EOF
 
       # we need to check, if app container needs update
       touch "/data/run-update"
-      systemctl restart cuos-app.service
+      systemctl restart cuos-app-init.service
     fi
   ;;
 
@@ -108,7 +108,7 @@ EOF
 
     # retrigger application
     touch "/data/run-update"
-    systemctl restart cuos-app.service
+    systemctl restart cuos-app-init.service
   ;;
 
 ## patch-network    - Patch the network. Provide config object.

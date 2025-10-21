@@ -135,7 +135,7 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
     DOCKER_ARGS="$(docker inspect --format '{{ index .Config.Labels "dev.cuos.app_command" }}' "${INITIAL_IMAGE}")"
     if [[ -z "${DOCKER_ARGS}" ]]; then
       DOCKER_ARGS="\
-        --device /dev/tty1 \
+        --device /dev/tty7 \
         --network=host \
         --volume /var/run/docker.sock:/var/run/docker.sock  \
         --volume /root/.docker/config.json:/root/.docker/config.json:ro  \

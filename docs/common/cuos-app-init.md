@@ -1,0 +1,127 @@
+# Your Application Init Container
+
+To start your application (via variant 2 or 3) you have to define a container. Let's call it Application Init Container or `cuos-app`.
+
+What you can do within this container:
+
+* Start your application
+* Start more docker container (you need to mount the docker socket, see app_command label)
+* Interact with the [CuOS API](./cuos-api.md) via `/var/lib/cuos.sock`.
+
+## Start the container
+
+Relevant configuration fields, see [system.json](./system-json.md):
+
+```json
+{
+  "initial_image": "your-registry/your-app",
+  "initial_image_version": "1.2.3",
+  "initial_image_digest": "sha256:..."
+}
+```
+
+## Build you Application Init Container
+
+```dockerfile
+FROM your-base-image
+
+# Your application setup
+COPY app /app
+
+```
+
+### Label Based Custom Command
+
+If the application image sets a label:
+
+```dockerfile
+LABEL dev.cuos.app_command="--env FOO=bar --cap-add NET_ADMIN"
+```
+
+Its value replaces the default Docker run argument block (still augmented with standard names/restart/logging flags). Keep security in mind: avoid unnecessary capabilities.
+
+Default:
+
+```shell
+--device /dev/tty7 \
+--network host \
+--volume /var/run/docker.sock:/var/run/docker.sock \
+--volume /root/.docker/config.json:/root/.docker/config.json:ro \
+--volume /system.json:/system.json:ro \
+--volume /etc/partition_mode:/etc/partition_mode:ro \
+--volume /var/run/cuos.sock:/var/run/cuos.sock \
+--volume /usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro
+```
+
+Suggestions for more parameters:
+
+```shell
+--memory 512MB \
+--user myuser:mygroup \
+--read-only \
+--tmpfs /etc/ssl/certs:rw,noexec,nosuid,size=16m
+```
+
+### Entrypoint
+
+To make ca-certificate import work, you have to execute
+
+```shell
+update-ca-certificates --fresh
+```
+
+### Entrypoint: Container Startup Parameters
+
+Additional runtime environment variables, that are set by CuOS:
+
+| Variable | Purpose |
+|----------|---------|
+| `SYSTEM_TYPE=cuos` | Identify environment |
+| `SYSTEM_CONFIG_PATH=/system.json` | Location of active config |
+| `VIRT_TYPE` | Result of `systemd-detect-virt` |
+| Positional Args | Current + previous app version (used by your entrypoint logic) |
+
+### In-Container Update Hook
+
+After a successful OS/app update the script `/api/update` is executed in the container:
+
+This allows the application to perform migrations or internal reconfiguration. The hook is optional; failures are ignored (logged only). Provide an `/api/update` entrypoint if you need deterministic upgrade steps.
+
+Don't forget to add execution permission to your script.
+
+| Name | Type | Description |
+|------|------|-------------|
+| `SYSTEM_TYPE` | env | Always `cuos` for identification |
+| `SYSTEM_CONFIG_PATH` | env | Path to active config (`/system.json`) |
+| `VIRT_TYPE` | env | Result of `systemd-detect-virt` (e.g. `kvm`, `docker`, `none`) |
+| `$1` | arg | Current application version (from `initial_image_version`) |
+| `$2` | arg | Previous application version (if available) |
+
+## Failure & Rollback Logic
+
+| Failure Scenario | Host Reaction |
+|------------------|---------------|
+| App fails to start repeatedly during update window | Triggers OS rollback |
+| Digest never matches (tamper?) | Continuous pull attempts + error logs |
+| Timeout (> 3600s startup/update) | Rollback & reboot |
+| Single transient pull failure | Retry every 60s |
+
+Rollback resets to previous OS subvolume and replays last stable config.
+
+## Operational Tips
+
+* Use **digests** for production to ensure integrity.
+* Store persistent writable data under mounted `/data` volumes if you add any (consider explicit mounts rather than relying on default host path sharing beyond what CuOS provides).
+* Avoid `--privileged` unless mandatory; prefer granular `--cap-add`.
+
+## Launch Flow (Simplified)
+
+```text
+[systemd] → cuos-app.service → app.sh
+  └─ waits for Docker daemon ready
+     └─ performs registry login (if configured)
+        └─ evaluates desired vs current image digest
+           ├─ pull if missing / version change / digest mismatch
+           ├─ create or start container `cuos-app`
+           └─ invoke optional in-container update hook (/api/update)
+```

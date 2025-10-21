@@ -11,7 +11,7 @@ docker system prune -f
 
 sync
 
-systemctl stop cuos-app docker docker.socket
+systemctl stop cuos-app-init docker docker.socket
 
 
 echo "Cleaning up @data"
