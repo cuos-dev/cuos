@@ -117,6 +117,46 @@ set_hostname() {
   fi
 }
 
+# Helper to convert dotted netmask to prefix length (e.g. 255.255.255.0 -> 24)
+mask_to_prefix() {
+  local m="$1"
+  if [ -z "$m" ] || [ "$m" == "null" ]; then
+    echo ""
+    return
+  fi
+  # If already numeric return
+  if [[ "$m" =~ ^[0-9]+$ ]]; then
+    echo "$m"
+    return
+  fi
+  # Validate dotted mask
+  IFS='.' read -r o1 o2 o3 o4 <<< "$m"
+  if [[ -z "$o1" || -z "$o2" || -z "$o3" || -z "$o4" ]]; then
+    echo ""
+    return
+  fi
+  local -i bits=0
+  for oct in "$o1" "$o2" "$o3" "$o4"; do
+    if ! [[ "$oct" =~ ^[0-9]+$ ]] || [ "$oct" -lt 0 ] || [ "$oct" -gt 255 ]; then
+      echo ""
+      return
+    fi
+    # convert to binary and count bits
+    local bin
+    bin=$(printf '%08d' "$(bc <<< "obase=2;$oct")" 2>/dev/null || true)
+    # fallback if bc missing: use printf + awk (POSIX-friendly)
+    if [ -z "$bin" ] || [ "$bin" = "00000000" ]; then
+      # portable conversion
+      bin=$(printf '%08d' "$(echo "obase=2;$oct" | bc)" 2>/dev/null || printf '%08d' "$oct")
+    fi
+    # Count ones
+    local ones
+    ones=$(echo -n "$bin" | tr -cd '1' | wc -c)
+    bits=$((bits + ones))
+  done
+  echo "$bits"
+}
+
 configure_network() {
   local interfaces_file="/etc/network/interfaces"
 
@@ -199,17 +239,20 @@ configure_network() {
         fi
         # Static routes
         if echo "$config" | jq -e 'has("routes")' >/dev/null 2>&1; then
-          # Emit one line per route as: up ip route add <dest> [via <gw>] dev <iface> [metric <m>] [table <t>]
           echo "$config" | jq -r '
             .routes // empty |
             (if type=="array" then .[] else . end) |
-            (.destination // .to // .network) as $d |
-            (.gateway // .via) as $g |
-            [$d, ($g // "")] | @tsv' |
-          while IFS=$'\t' read -r RDEST RGW; do
-            if [ -z "$RDEST" ] || [ "$RDEST" = "null" ]; then
+            (.network // "") as $d |
+            (.gateway // "") as $g |
+            (.netmask // "") as $m |
+            [$d, $g, $m] | @tsv' |
+          while IFS=$'\t' read -r RDEST RGW RMASK; do
+            if [ -z "$RDEST" ] || [ -z "$RGW" ]; then
+              echo "IGNORE: invalid route with empty destination or gateway" >&2
               continue
             fi
+            PREFIX=$(mask_to_prefix "$RMASK")
+            RDEST="$RDEST${PREFIX:+"/$PREFIX"}"
             echo "    up ip route add $RDEST via $RGW dev $IFACE"
             echo "    down ip route del $RDEST via $RGW dev $IFACE"
           done
