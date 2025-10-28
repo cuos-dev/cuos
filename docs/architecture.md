@@ -49,20 +49,21 @@ sequenceDiagram
   participant GRUB
   participant Kernel
   participant Initramfs
-  participant systemd
+  participant System
   participant cuosInit as cuos-init
   participant cuosApi as cuos-api
+  participant DockerD as dockerd
   participant cuosApp as cuos-app
 
-  FW->>GRUB: Transfer control
-  GRUB->>Kernel: Load kernel + initramfs (slot @os active)
+  FW->>GRUB: Boot Host
+  GRUB->>Kernel: Load kernel + initramfs (active slot)
   Kernel->>Initramfs: Basic hardware init
-  Initramfs->>systemd: Start PID 1
+  Initramfs->>System: Start Systemd/PID 1 (active @os slot)
   systemd->>cuosInit: Apply config (hostname, network, CA, docker)
-  cuosInit->>cuosApi: Activate API layer (socket)
-  cuosApi->>cuosApp: Trigger application init
-  cuosApp->>cuosApi: Optional /api/update hook finished
-  cuosApi->>systemd: State = running
+  systemd->>cuosApi: Activate CuoS API (socket)
+  systemd->>DockerD: Start dockerd
+  systemd->>cuosApp: Trigger application init
+  cuosApp->>cuosApp: State = running
 ```
 
 ---

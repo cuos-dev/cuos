@@ -135,8 +135,8 @@ cuos_api() {
     
     local return_code="$?"
     if [[ "${return_code}" != "0" ]]; then
-        echo "socat exited with return code ${return_code}."
-        return 1
+        echo "socat exited with return code ${return_code}." >&2
+        return "${return_code}"
     fi
 
     exec 3>&-
