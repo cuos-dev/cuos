@@ -197,6 +197,23 @@ configure_network() {
           [ -n "$NTP" ] && echo "    ntp-servers $NTP"
           echo
         fi
+        # Static routes
+        if echo "$config" | jq -e 'has("routes")' >/dev/null 2>&1; then
+          # Emit one line per route as: up ip route add <dest> [via <gw>] dev <iface> [metric <m>] [table <t>]
+          echo "$config" | jq -r '
+            .routes // empty |
+            (if type=="array" then .[] else . end) |
+            (.destination // .to // .network) as $d |
+            (.gateway // .via) as $g |
+            [$d, ($g // "")] | @tsv' |
+          while IFS=$'\t' read -r RDEST RGW; do
+            if [ -z "$RDEST" ] || [ "$RDEST" = "null" ]; then
+              continue
+            fi
+            echo "    up ip route add $RDEST via $RGW dev $IFACE"
+            echo "    down ip route del $RDEST via $RGW dev $IFACE"
+          done
+        fi
       elif [ "$i" -eq 0 ]; then
         # No config for the first interface, set to DHCP with metric
         echo "auto $IFACE"
