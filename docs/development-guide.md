@@ -21,7 +21,7 @@ CuOS consistens of multiple services and containers.
 |---|---|
 | `cuos-init` | Initialize the system. Setup hostname, network, file system,  |
 | `cuos-api` | API for interaction with the system |
-| `cuos-app-init` | Ensure to start App Init Container container |
+| `cuos-app-init` | Ensure to start Init Container container |
 | `cuos-updater` | Helper container to replace/rollback the system, kernel, initrd and boot config. Started by `cuos-api` or your application. |
 
 ## Development Variants

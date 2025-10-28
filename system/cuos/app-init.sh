@@ -88,7 +88,7 @@ download_image() {
 }
 
 CONTAINER_NAME="cuos-app"
-if ! INITIAL_IMAGE="$(image_url "initial")"; then
+if ! INITIAL_IMAGE="$(image_url "init" || image_url "initial")"; then
   report_err "cuos:application:image_not_defined" "Application image not defined"
   action_on_failure
 fi
