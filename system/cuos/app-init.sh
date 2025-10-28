@@ -13,9 +13,9 @@ HOME="${HOME:-/root}"
 export CONFIG_PATH="/system.json"
 LAST_CONFIG_PATH="/system_next.json"
 
-RUN_CONFIG="$(jq -r '.run_config' "${CONFIG_PATH}")"
-if [[ "${RUN_CONFIG}" = "true" ]]; then
-  "${SCRIPT_DIR}/dialog-config.sh"
+INSTALL_MENU="$(jq -r '.install_menu' "${CONFIG_PATH}")"
+if [[ "${INSTALL_MENU}" = "true" ]]; then
+  "${SCRIPT_DIR}/dialog-maintenance.sh" --install
 fi
 
 "${SCRIPT_DIR}/dialog-reports.sh" &
