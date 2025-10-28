@@ -212,4 +212,9 @@ get_resources() {
 
 }
 
+if [[ -f "${SCRIPT_DIR}/custom-dialog.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/custom-dialog.sh"
+fi
+
 get_resources

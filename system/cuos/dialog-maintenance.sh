@@ -273,6 +273,10 @@ expert() {
   rm -f /tmp/edit-system.json
 }
 
+if [[ -f "${SCRIPT_DIR}/custom-dialog.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/custom-dialog.sh"
+fi
 
 change_vt
 

@@ -20,6 +20,11 @@ else [[ "${2:-}" == "-" ]]; then
   INPUT="$(cat)"
 fi
 
+if [[ -f "${SCRIPT_DIR}/custom-api.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/custom-api.sh"
+fi
+
 case "${COMMAND}" in
   ""|"help"|"--help")
     cat <<EOF

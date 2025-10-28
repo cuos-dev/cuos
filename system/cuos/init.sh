@@ -451,6 +451,10 @@ create_swap_and_resize_fs() {
   fi
 }
 
+if [[ -f "${SCRIPT_DIR}/custom-init.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/custom-init.sh"
+fi
 
 if [[ "${1:-}" = "--reinit" ]]; then
   export REINIT=1

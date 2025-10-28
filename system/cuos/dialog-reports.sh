@@ -5,6 +5,11 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib-dialog.sh"
 
+if [[ -f "${SCRIPT_DIR}/custom-dialog.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/custom-dialog.sh"
+fi
+
 change_vt
 
 # open subshell for own trap

@@ -94,6 +94,11 @@ mode_network() {
 	[[ "${MODE}" == "all" || "${MODE}" == "network" ]]
 }
 
+if [[ -f "${SCRIPT_DIR}/custom-dialog.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/custom-dialog.sh"
+fi
+
 
 if mode_hostname; then
 	edit '.hostname' "Hostname" is_valid_hostname || exit 1
