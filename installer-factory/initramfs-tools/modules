@@ -1,6 +1,7 @@
 iso9660
 udf
 hfsplus
+nls_utf8
 ahci
 nvme
 sd_mod
