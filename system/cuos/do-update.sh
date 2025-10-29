@@ -49,18 +49,10 @@ fi
 ROOT_DEV="$(findmnt -n -o SOURCE -T "/" | sed 's/\[.*\]//')"
 ROOT_DISK="/dev/$(lsblk -no PKNAME "$ROOT_DEV" | head -n1)"
 
-docker network rm cuos-internet
-docker network create \
-  --driver=bridge \
-  --opt com.docker.network.bridge.enable_icc=false \
-  --opt com.docker.network.bridge.enable_ip_masquerade=true \
-  cuos-internet
-
 touch "/root/.docker/config.json"
 docker run --rm \
   --pull=never \
   --log-driver=journald \
-  --network=cuos-internet \
   --privileged \
   --device "${ROOT_DISK}" \
   -v "/root/.docker/config.json:/root/.docker/config.json:ro" \
@@ -75,8 +67,6 @@ docker run --rm \
 DOCKER_EXIT_CODE="$?"
 
 echo "Exit Code: ${DOCKER_EXIT_CODE}"
-
-docker network rm cuos-internet
 
 PARTITION_NEXT="A"
 [[ "${PARTITION}" == "A" ]] && PARTITION_NEXT="B"
