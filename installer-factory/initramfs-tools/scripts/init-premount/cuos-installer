@@ -57,6 +57,7 @@ mount_iso() {
       return 0
     fi
   elif [ "$fstype" = "hfsplus" ]; then
+    modprobe nls_utf8 2>/dev/null || true
     modprobe hfsplus 2>/dev/null || true
 
     # Read-only is fine for journaled HFS+
@@ -74,7 +75,8 @@ mount_iso() {
   if try_mount "udf" "$l_iso_dev" "$l_mount_point"; then
     return 0
   fi
-  maybe_modprobe_hfsplus
+  modprobe nls_utf8 2>/dev/null || true
+  modprobe hfsplus 2>/dev/null || true
   if try_mount "hfsplus" "$l_iso_dev" "$l_mount_point"; then
     return 0
   fi
