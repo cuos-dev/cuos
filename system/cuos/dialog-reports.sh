@@ -57,8 +57,7 @@ change_vt
   JOURNAL_PID=$!
 
   term cuos_dialog \
-    --title "System Reports: $(hostname)" \
-    --exit-label "Intervention: Start configuration" \
+    --exit-label "Intervention: Start configuration (hit enter)" \
     --tailbox "$tmpfile" 40 100
   EXIT_CODE_DIALOG="$?"
 
