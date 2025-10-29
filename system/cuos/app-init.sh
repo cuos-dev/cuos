@@ -13,10 +13,10 @@ HOME="${HOME:-/root}"
 export CONFIG_PATH="/system.json"
 LAST_CONFIG_PATH="/system_next.json"
 
-INSTALL_MENU="$(jq -r '.install_menu' "${CONFIG_PATH}")"
-if [[ "${INSTALL_MENU}" = "true" ]]; then
+INSTALL_MENU="$(jq -r '.install_menu // false' "${CONFIG_PATH}")"
+if [[ "${INSTALL_MENU}" != "false" ]]; then
   report_info "cuos:installation:started" "Starting installation ..."
-  "${SCRIPT_DIR}/dialog-maintenance.sh" --install
+  "${SCRIPT_DIR}/dialog-maintenance.sh" --install "${INSTALL_MENU}"
   report_info "cuos:installation:done" "Installation done. Starting up system.."
 fi
 

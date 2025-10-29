@@ -18,7 +18,7 @@ maintenance_menu() {
       "System Maintenance" \
       "\nSelect an option:\n " \
       20 55 7 \
-      "host" "Change Hostname: $(hostname)" \
+      "host" "Change Hostname: $(hostname -s)" \
       "net" "Configure Network${ipaddress:+": ${ipaddress}"}" \
       - " " \
       "act" "System Actions" \
@@ -54,7 +54,7 @@ install_menu() {
       "\nSelect an option:\n " \
       20 55 7 \
       "${extra[@]}" \
-      "host" "Change Hostname: $(hostname)" \
+      "host" "Change Hostname: $(hostname -s)" \
       "net" "Configure Network${ipaddress:+": ${ipaddress}"}" \
       - " " \
       "act" "System Actions" \
