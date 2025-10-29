@@ -42,7 +42,7 @@ change_vt
     --identifier=cuos \
     --merge \
     --follow \
-    --lines=15 \
+    --lines=10 \
     --boot=all \
     --no-pager \
     --output=json | jq --unbuffered -r '
