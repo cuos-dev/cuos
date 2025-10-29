@@ -101,7 +101,7 @@ fi
 
 
 if mode_hostname; then
-	edit '.hostname' "Hostname" is_valid_hostname || exit 1
+	edit '.hostname' "Hostname (FQDN)" is_valid_hostname || exit 1
 fi
 
 

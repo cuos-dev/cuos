@@ -15,7 +15,9 @@ LAST_CONFIG_PATH="/system_next.json"
 
 INSTALL_MENU="$(jq -r '.install_menu' "${CONFIG_PATH}")"
 if [[ "${INSTALL_MENU}" = "true" ]]; then
+  report_info "cuos:installation:started" "Starting installation ..."
   "${SCRIPT_DIR}/dialog-maintenance.sh" --install
+  report_info "cuos:installation:done" "Installation done. Starting up system.."
 fi
 
 "${SCRIPT_DIR}/dialog-reports.sh" &
@@ -174,6 +176,6 @@ if [[ "${UPDATE}" -eq 1 ]]; then
   report_notice "cuos:update:done" "System successfully updated."
 fi
 
-report_info "cuos:startup:done" "OS layer successfully started."
+report_info "cuos:startup:done" "Operation System and Init Container successfully started."
 
 sleep infinity & wait

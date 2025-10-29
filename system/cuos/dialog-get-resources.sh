@@ -5,6 +5,8 @@
 #
 # Optional: call check_resources_direct_dialog to show in dialog.
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+
 set -Euo pipefail
 
 # --- helpers ---------------------------------------------------------

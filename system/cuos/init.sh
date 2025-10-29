@@ -102,6 +102,7 @@ set_hostname() {
         --arg hn "${SYSTEM_HOSTNAME}" \
         '.hostname = $hn' \
         "${CONFIG_PATH}"
+      hostname "$SYSTEM_HOSTNAME"
   elif [[ -n "${SYSTEM_HOSTNAME}" ]]; then
     echo "Setting hostname to $SYSTEM_HOSTNAME"
     echo "$SYSTEM_HOSTNAME" > "/etc/hostname"
@@ -195,24 +196,24 @@ configure_network() {
         local DHCP
         DHCP=$(echo "$config" | jq -r '.dhcp // empty')
         local IP
-        IP=$(echo "$config" | jq -r '.ip-address // empty')
+        IP=$(echo "$config" | jq -r '."ip-address" // empty')
         local MASK
-        MASK=$(echo "$config" | jq -r '.network-mask // empty')
+        MASK=$(echo "$config" | jq -r '."network-mask" // empty')
         local GW
         GW=$(echo "$config" | jq -r '.gateway // empty')
         local DNS
         DNS=$(echo "$config" | jq -r '
-          if (.dns-server | type == "array") then
-            .dns-server | join(" ")
+          if (."dns-server" | type == "array") then
+            ."dns-server" | join(" ")
           else
-            .dns-server // empty
+            ."dns-server" // empty
           end')
         local NTP
         NTP=$(echo "$config" | jq -r '
-          if (.ntp-server | type == "array") then
-            .ntp-server | join(" ")
+          if (."ntp-server" | type == "array") then
+            ."ntp-server" | join(" ")
           else
-            .ntp-server // empty
+            ."ntp-server" // empty
           end')
         if [ -z "$DHCP" ] && [ -z "$IP" ] && [ -z "$MASK" ]; then
           # No config for this interface, skip it
@@ -460,7 +461,8 @@ if [[ "${1:-}" = "--reinit" ]]; then
   export REINIT=1
 
   if [[ -n "${2:-}" && "$(type -t "${2}")" == "function" ]]; then
-    exec "${2}"
+    "${2}"
+    exit "$?"
   fi
 else
   report_info "cuos:init:start" "System startup"
