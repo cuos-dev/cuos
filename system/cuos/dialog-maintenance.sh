@@ -283,6 +283,7 @@ change_vt
 if [[ "${1:-}" == "--install" ]]; then
   shift
   install_menu "$@"
+  sleep 1
 else
   maintenance_menu "$@"
 fi

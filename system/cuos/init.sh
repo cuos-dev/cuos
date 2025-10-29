@@ -466,6 +466,7 @@ if [[ "${1:-}" = "--reinit" ]]; then
   fi
 else
   report_info "cuos:init:start" "System startup"
+  state jq '.start_date = (now | todate)'
 fi
 
 prepare_data_volume

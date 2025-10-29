@@ -13,14 +13,17 @@ HOME="${HOME:-/root}"
 export CONFIG_PATH="/system.json"
 LAST_CONFIG_PATH="/system_next.json"
 
-INSTALL_MENU="$(jq -r '.install_menu // false' "${CONFIG_PATH}")"
-if [[ "${INSTALL_MENU}" != "false" ]]; then
-  report_info "cuos:installation:started" "Starting installation ..."
-  "${SCRIPT_DIR}/dialog-maintenance.sh" --install "${INSTALL_MENU}"
-  report_info "cuos:installation:done" "Installation done. Starting up system.."
-fi
+init_dialogs() {
+  INSTALL_MENU="$(jq -r '.install_menu // false' "${CONFIG_PATH}")"
+  if [[ "${INSTALL_MENU}" != "false" && ! -f "/data/installed" ]]; then
+    report_info "cuos:installation:started" "Starting installation ..."
+    "${SCRIPT_DIR}/dialog-maintenance.sh" --install "${INSTALL_MENU}"
+    report_info "cuos:installation:done" "Installation done. Starting up system.."
+  fi
+  touch "/data/installed"
 
-"${SCRIPT_DIR}/dialog-reports.sh" &
+  "${SCRIPT_DIR}/dialog-reports.sh" &
+}
 
 action_on_failure() {
   sleep 60
@@ -89,15 +92,23 @@ download_image() {
   done
 }
 
+if [[ -f "${SCRIPT_DIR}/custom-app-init.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/custom-app-init.sh"
+fi
+
+init_dialogs
+
 CONTAINER_NAME="cuos-app"
 if ! INITIAL_IMAGE="$(image_url "init" || image_url "initial")"; then
   report_err "cuos:application:image_not_defined" "Application image not defined"
   action_on_failure
 fi
 INITIAL_IMAGE_VERSION="$(image_version "${INITIAL_IMAGE}")"
+INITIAL_DIGEST="$(jq -r '.init_image_digest // .initial_image_digest // empty' "${CONFIG_PATH}")"
 
-LAST_INITIAL_IMAGE_VERSION="$(jq -r '.initial_image_version // empty' "${LAST_CONFIG_PATH}" 2>/dev/null)"
-INITIAL_DIGEST="$(jq -r '.initial_image_digest // empty' "${CONFIG_PATH}")"
+LAST_INITIAL_IMAGE="$(docker inspect --format='{{.Config.Image}}' "${CONTAINER_NAME}" 2>/dev/null)" || true
+LAST_INITIAL_IMAGE_VERSION="$(image_version "${LAST_INITIAL_IMAGE}")" || true
 
 
 echo "Waiting for Docker to be ready..."
@@ -171,7 +182,6 @@ if [[ "${UPDATE}" -eq 1 ]]; then
   docker exec "${CONTAINER_NAME}" /api/update 2>/dev/null || true
 
   state '.state' 'running'
-  state jq '.start_date = (now | todate)'
 
   report_notice "cuos:update:done" "System successfully updated."
 fi

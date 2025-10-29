@@ -5,6 +5,21 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib-dialog.sh"
 
+dialog_reports_header() {
+  cat <<EOF
+
+## Operating System started successfully.
+
+Host: $(hostname)
+Start Time:  $(jq -r '.start_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
+Last Update: $(jq -r '.last_update_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
+
+## Reports
+
+EOF
+
+}
+
 if [[ -f "${SCRIPT_DIR}/custom-dialog.sh" ]]; then
   # shellcheck source=/dev/null
   source "${SCRIPT_DIR}/custom-dialog.sh"
@@ -21,14 +36,7 @@ change_vt
   trap cleanup EXIT
 
   tmpfile=$(mktemp)
-  cat <<EOF >"$tmpfile"
-
-Host: $(hostname)
-
-Start Time:  $(jq -r '.start_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
-Last Update: $(jq -r '.last_update_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
-
-EOF
+  dialog_reports_header >"$tmpfile"
 
   journalctl \
     --identifier=cuos \
