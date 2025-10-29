@@ -154,6 +154,7 @@ EOF
   "factory-reset")
     report_notice "cuos:useraction:factory-reset" "Factory reset triggered by the user"
     setsid "${SCRIPT_DIR}/do-factory-reset.sh" >/data/log/factory-reset.log 2>&1 &
+    tail -f /data/log/factory-reset.log
   ;;
 
 ## reboot             - Reboot the system

@@ -126,16 +126,17 @@ done
 IMAGE_RUNNING=$(docker image inspect --format '{{index .RepoDigests 0}}' "${INITIAL_IMAGE}" 2>/dev/null | cut -d'@' -f2)
 
 UPDATE=0
-if [[ -f "/data/run-update" || -z "${IMAGE_RUNNING}" ]]; then
-  if download_image "${INITIAL_IMAGE}" "${INITIAL_DIGEST}"; then
-    docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
-  fi
+if [[ -f "/data/run-update" ]]; then
   UPDATE=1
-
   rm -f "/data/run-update"
 fi
 export UPDATE
 
+if [[ "${UPDATE}" = "1" || -z "${IMAGE_RUNNING}" ]]; then
+  if download_image "${INITIAL_IMAGE}" "${INITIAL_DIGEST}"; then
+    docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+  fi
+fi
 
 
 # Check whether the container is running

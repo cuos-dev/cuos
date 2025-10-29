@@ -11,16 +11,16 @@ docker system prune -f
 
 sync
 
-systemctl stop cuos-app-init docker docker.socket
-
-
 echo "Cleaning up @data"
+rm /data/* 2>/dev/null
 for dir in /data/*/; do
   if [[ -d "$dir" && "$dir" != "/data/dhcp/" ]]; then
     echo "Cleaning inside $dir..."
     rm -Rf "${dir:?}"/{*,.*}
   fi
 done
+
+rm /etc/hostname
 
 sync
 
