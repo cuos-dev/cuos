@@ -16,7 +16,7 @@ COMMAND="${1:-""}"
 if [[ "${COMMAND}" = "input" ]]; then
   read -r INPUT
   COMMAND="$(jq -r '.command // empty' <<< "${INPUT}")"
-else [[ "${2:-}" == "-" ]]; then
+elif [[ "${2:-}" == "-" ]]; then
   INPUT="$(cat)"
 fi
 
