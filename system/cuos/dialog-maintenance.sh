@@ -153,21 +153,11 @@ system_shutdown() {
   fi
 }
 
-perform_system_update() {
-  docker exec cuos-app /api/cuos-trigger-update
-  R="$?"
-  # if Container not started or API it not defined, perform cuos update
-  if [[ "$R" == 1 || "$R" == "126" ]]; then
-    cuos update
-  fi
-}
-
 system_update() {
   if ! yesno "Apply the latest system update?\n\nThis may take several minutes and the system may reboot automatically." "System Update" 11 70; then
     return
   fi
-  export -f perform_system_update
-  api_stream "Applying System Update" perform_system_update
+  api_stream "Applying System Update" cuos trigger-update
 }
 
 system_rollback() {

@@ -88,6 +88,14 @@ EOF
       systemctl restart cuos-app-init.service
     fi
   ;;
+  "trigger-update")
+    docker exec cuos-app /api/cuos-trigger-update
+    R="$?"
+    # if Container not started or API it not defined, perform cuos update
+    if [[ "$R" == 1 || "$R" == "126" ]]; then
+      cuos update
+    fi
+  ;;
 
 ## patch              - Patch the current system. Provide config object.
   "patch")
