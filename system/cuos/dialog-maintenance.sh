@@ -38,14 +38,11 @@ maintenance_menu() {
   done
 }
 
-installation_precheck() {
-}
-
 install_menu() {
   local extra
   extra=()
   if [[ "${1:-}" =~ ^.*admin.*$ ]]; then
-    extra=("pass" "Change Administrator Password")
+    extra+=("pass" "Change Administrator Password")
   fi
   while true; do
     local ipaddress
@@ -61,11 +58,11 @@ install_menu() {
       "net" "Configure Network${ipaddress:+": ${ipaddress}"}" \
       - " " \
       "act" "System Actions" \
-      "diag" "Diagnostics" \
+      "diagnostics_menu" "Diagnostics" \
       - " " \
       "exit" "\Z5Continue Installation\Z0")" || return 1
-    #"pass" "Change Admin Password"
     case "$choice" in
+      check) system_qualification_dialog ;;
       net)
         "${SCRIPT_DIR}/dialog-edit-network.sh" network ;;
       host)
@@ -302,7 +299,6 @@ change_vt
 
 if [[ "${1:-}" == "--install" ]]; then
   shift
-  installation_precheck
   install_menu "$@"
   sleep 1
 else
