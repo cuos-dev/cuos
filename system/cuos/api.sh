@@ -101,15 +101,15 @@ EOF
   "patch")
     report_info "cuos:patch" "Patching the system"
     CONFIG="$(echo "${INPUT}" | jq -c '.config // empty')"
-    if ! echo "${CONFIG}" | check_config; then
-      report_err "cuos:update:err_invalid_config" "Update: Invalid configuration provided."
-      echo "Invalid configuration provided."
-      exit 0
-    fi
-    # save current config for rollback:
-    cat "${CONFIG_PATH}" >"${NEXT_CONFIG_PATH}"
-
     if [[ -n "${CONFIG}" ]]; then
+      if ! echo "${CONFIG}" | check_config; then
+        report_err "cuos:update:err_invalid_config" "Update: Invalid configuration provided."
+        echo "Invalid configuration provided."
+        exit 0
+      fi
+      # save current config for rollback:
+      cat "${CONFIG_PATH}" >"${NEXT_CONFIG_PATH}"
+
       jq_replace \
         --argjson config "${CONFIG}" \
         '. * $config' \

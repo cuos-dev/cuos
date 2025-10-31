@@ -41,6 +41,14 @@ is_valid_name_or_ip() {
     is_valid_hostname "$@" || is_valid_ip "$@"
 }
 
+is_valid_names_or_ips() {
+	[[ -z "$1" ]] && return 1
+	for ip in $1; do
+		is_valid_name_or_ip "${ip}" || return 1
+	done
+	return 0
+}
+
 edit() {
 	local field="$1"
 	local displayname="$2"
@@ -117,7 +125,7 @@ if mode_network; then
 			edit '.network['"$i"']["network-mask"]' "Network mask" is_valid_ip || exit 1
 			edit '.network['"$i"']["gateway"]' "Gateway" is_valid_ip || exit 1
 			edit '.network['"$i"']["dns-server"]' "DNS server(s)" is_valid_ips || exit 1
-			edit '.network['"$i"']["ntp"]' "NTP server(s)" is_valid_name_or_ip || exit 1
+			edit '.network['"$i"']["ntp"]' "NTP server(s)" is_valid_names_or_ips || exit 1
 		fi
 	done
 

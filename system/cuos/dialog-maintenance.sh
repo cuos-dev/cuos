@@ -38,6 +38,9 @@ maintenance_menu() {
   done
 }
 
+installation_precheck() {
+}
+
 install_menu() {
   local extra
   extra=()
@@ -76,6 +79,21 @@ install_menu() {
 }
 
 
+hash_admin_password() {
+  local password="$1"
+  local saltlen=8
+  local salt
+  salt="$(head -c "$saltlen" /dev/urandom)"
+
+  local pwhash
+  pwhash="$(printf "%s" "$password" | cat - <(printf "%s" "$salt") | openssl dgst -sha1 -binary)"
+
+  local ssha
+  ssha="$(printf "%s%s" "$pwhash" "$salt" | base64)"
+
+  echo "{SSHA}$ssha"
+}
+
 change_admin_password() {
   local p1 p2
   while true; do
@@ -92,8 +110,9 @@ change_admin_password() {
     (
       set +x
       jq_replace \
-        --arg password "$p1" \
-        '.system_admin_password = $password'
+        --arg password "$(hash_admin_password "$p1")" \
+        '.system_admin_password = $password' \
+        "${CONFIG_PATH}"
     )
     msg "Administrator password set." "Password"
     return 0
@@ -106,8 +125,9 @@ system_actions_menu() {
     choice="$(fmenu "System Actions" "Select an action:" 17 72 10 \
       "reboot" "Reboot System" \
       "shutdown" "Shutdown System" \
-      "update" "Apply System Update" \
-      "rollback" "Rollback Last Update" \
+      - " " \
+      "update" "Trigger System Update" \
+      "rollback" "Rollback Last Update (OS only)" \
       "expand" "Expand Filesystem" \
       "factory" "Factory Reset" \
       - " " \
@@ -129,7 +149,7 @@ system_actions_menu_installation() {
     local choice
     choice="$(fmenu "System Actions" "Select an action:" 17 72 10 \
       "shutdown" "Shutdown System" \
-      "update" "Apply System Update" \
+      "update" "Trigger System Update" \
       "expand" "Expand Filesystem" \
       - " " \
       "back" "\Z5Back\Z0")" || return 1
@@ -154,14 +174,14 @@ system_shutdown() {
 }
 
 system_update() {
-  if ! yesno "Apply the latest system update?\n\nThis may take several minutes and the system may reboot automatically." "System Update" 11 70; then
+  if ! yesno "Trigger system update?\n\nThis may take several minutes to complete and the system may reboot automatically." "System Update" 11 70; then
     return
   fi
   api_stream "Applying System Update" cuos trigger-update
 }
 
 system_rollback() {
-  if ! yesno "Rollback to the previous system version?\n\nThe system will boot into the previous partition." "Rollback" 11 72; then
+  if ! yesno "Rollback last update of the operating system?\n\nThe system will boot into the previous slot. User data will not be affected" "Rollback" 11 72; then
     return
   fi
   api_stream "Preparing Rollback" cuos rollback
@@ -282,6 +302,7 @@ change_vt
 
 if [[ "${1:-}" == "--install" ]]; then
   shift
+  installation_precheck
   install_menu "$@"
   sleep 1
 else
