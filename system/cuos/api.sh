@@ -133,7 +133,7 @@ EOF
       jq_replace \
         --argjson config "${CONFIG}" \
         --arg network_id "${NETWORK_ID}" \
-        '.network[$network_id] = $config' \
+        '.network[$network_id | tonumber] = $config' \
         "${CONFIG_PATH}" || exit 0
       "${SCRIPT_DIR}/init.sh" --reinit configure_network
     fi
