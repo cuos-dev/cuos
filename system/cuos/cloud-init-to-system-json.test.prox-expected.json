@@ -1,0 +1,17 @@
+{
+  "hostname": "test-system3.example.com",
+  "network": [
+    {
+      "dhcp": true,
+      "dns-server": "10.100.248.1 10.100.187.1"
+    },
+    {
+      "dhcp": false,
+      "ip-address": "192.168.7.8",
+      "network-mask": "255.255.255.0",
+      "gateway": "192.168.7.1",
+      "dns-server": "10.100.248.1 10.100.187.1"
+    }
+  ],
+  "system_admin_password": "$6$hashhashhash"
+}

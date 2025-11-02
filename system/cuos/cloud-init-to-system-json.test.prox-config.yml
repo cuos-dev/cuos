@@ -1,0 +1,10 @@
+#cloud-config
+hostname: test-system3
+manage_etc_hosts: true
+fqdn: test-system3.example.com
+password: $6$hashhashhash
+chpasswd:
+  expire: False
+users:
+  - default
+package_upgrade: true

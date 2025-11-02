@@ -1,0 +1,17 @@
+version: 1
+config:
+  - type: physical
+    name: eth0
+    subnets:
+      - type: dhcp
+        dns_nameservers: [1.1.1.1, 9.9.9.9]
+  - type: physical
+    name: eth1
+    subnets:
+      - type: static
+        address: 10.0.5.20
+        netmask: 255.255.0.0
+        gateway: 10.0.0.1
+        dns_nameservers:
+          - 10.0.0.2
+          - 10.0.0.3

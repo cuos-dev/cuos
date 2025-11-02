@@ -1,0 +1,4 @@
+{
+  "hostname": "rpi-test",
+  "system_admin_password": "$6$hashhashhash"
+}

@@ -1,0 +1,27 @@
+#cloud-config
+hostname: rpi-test
+manage_etc_hosts: true
+packages:
+- avahi-daemon
+apt:
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+
+users:
+- name: pi
+  groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo
+  shell: /bin/bash
+  lock_passwd: false
+  passwd: $6$hashhashhash
+  ssh_authorized_keys:
+    - ssh-rsa AAAA1234567890
+  sudo: ALL=(ALL) NOPASSWD:ALL
+
+
+timezone: Europe/Berlin
+runcmd:
+- localectl set-x11-keymap "de" pc105
+- setupcon -k --force || true
+

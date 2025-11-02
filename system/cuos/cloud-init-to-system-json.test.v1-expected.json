@@ -1,0 +1,19 @@
+{
+  "hostname": "edge02",
+  "network": [
+    {
+      "dhcp": true,
+      "dns-server": "1.1.1.1 9.9.9.9",
+      "ntp-server": "time1.example.net time2.example.net"
+    },
+    {
+      "dhcp": false,
+      "ip-address": "10.0.5.20",
+      "network-mask": "255.255.0.0",
+      "gateway": "10.0.0.1",
+      "dns-server": "10.0.0.2 10.0.0.3",
+      "ntp-server": "time1.example.net time2.example.net"
+    }
+  ],
+  "system_admin_password": "S3cr3t!"
+}

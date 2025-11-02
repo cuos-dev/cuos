@@ -1,0 +1,9 @@
+hostname: edge02
+ntp:
+  servers:
+    - time1.example.net
+    - time2.example.net
+chpasswd:
+  list: |
+    system-admin:S3cr3t!
+

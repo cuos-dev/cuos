@@ -1,0 +1,20 @@
+{
+  "hostname": "edge01.it.example.com",
+  "network": [
+    {
+      "dhcp": true,
+      "dns-server": "1.1.1.1 9.9.9.9",
+      "ntp-server": "time.cloudflare.com time.google.com"
+    },
+    {
+      "dhcp": false,
+      "ip-address": "192.168.10.10",
+      "network-mask": "255.255.255.0",
+      "gateway": "192.168.10.1",
+      "dns-server": "8.8.8.8 8.8.4.4",
+      "ntp-server": "time.cloudflare.com time.google.com"
+    }
+  ],
+  "system_admin_password": "$6$hashhashhash"
+}
+

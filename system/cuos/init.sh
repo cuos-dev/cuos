@@ -40,15 +40,31 @@ ensure_system_config() {
     else
       cat "${SCRIPT_DIR}/system-default.json" >"${CONFIG_PATH}"
     fi
+
+    # Grab Cloud Init data from boot dir
     umount "/mnt/boot"
+    if [[ -f "/mnt/boot/user-data" ]]; then
+      report_info "cuos:init:cloud-init" "Found Cloud Init user-data on boot, merging with system.json"
+      if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/boot/user-data" "/mnt/boot/network-config" | \
+        jq -s '.[0] + .[1]' \
+        "${CONFIG_PATH}" -)"; then
+
+        report_alert "cuos:init:invalid_cloud_init" "Provided cloud-init file is invalid. System will reboot in 30sec"
+        "${SCRIPT_DIR}/dialog-failed.sh" "Provided cloud-init file is invalid"
+        sync
+        /sbin/reboot
+
+      fi
+      echo "${NEW_CONFIG}" >"${CONFIG_PATH}"
+    fi
 
     # Grab Cloud Init data if available
     mkdir -p "/mnt/cidata"
     mount -o ro LABEL=cidata "/mnt/cidata/"
     if [[ -f "/mnt/cidata/user-data" ]]; then
       report_info "cuos:init:cloud-init" "Found Cloud Init user-data, merging with system.json"
-      if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/cidata/user-data" /dev/stdout | \
-        jq -s '.[0] * .[1]' \
+      if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/cidata/user-data" "/mnt/cidata/network-config" | \
+        jq -s '.[0] + .[1]' \
         "${CONFIG_PATH}" -)"; then
 
         report_alert "cuos:init:invalid_cloud_init" "Provided cloud-init file is invalid. System will reboot in 30sec"
