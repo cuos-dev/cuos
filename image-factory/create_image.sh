@@ -56,7 +56,7 @@ image_version() {
 }
 
 IMAGE="/output/image.img"
-IMAGE_QCOW="/output/image.qcow2"
+#IMAGE_QCOW="/output/image.qcow2"
 #SIZE_MB=2048
 SIZE_MB=4096
 SIZE_MB=1636
@@ -170,7 +170,7 @@ echo "Image created at ${IMAGE}"
 # RAW	Universal (can be converted to others)	Simple, uncompressed, large file size
 # OVA/OVF	VMware, VirtualBox, Proxmox (via import)	Bundle of disk + metadata, easy to distribute
 
-#qemu-img convert -f raw -O qcow2 "${IMAGE}" "${IMAGE_QCOW}"
+#qemu-img convert -f raw -O qcow2 "${IMAGE}" "${IMAGE/.img/.qcow2}"
 
 #qemu-img convert -f raw -O vmdk image.img linux.vmdk
 #qemu-img convert -f raw -O vhdx image.img linux.vhdx

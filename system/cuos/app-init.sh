@@ -11,7 +11,6 @@ source "${SCRIPT_DIR}/utils.sh"
 
 HOME="${HOME:-/root}"
 export CONFIG_PATH="/system.json"
-LAST_CONFIG_PATH="/system_next.json"
 
 init_dialogs() {
   INSTALL_MENU="$(jq -r '.install_menu // false' "${CONFIG_PATH}")"
