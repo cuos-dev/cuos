@@ -19,7 +19,7 @@ export CONFIG_PATH="/system_next.json"
 
 LXC_IMAGE="$(image_url "lxc")" || \
   action_on_failure "cuos:updater:lxc_image_not_defined" "LXC image not defined"
-LXC_DIGEST="$(jq -r '.lxc_image_digest // empty' "${CONFIG_PATH}")"
+LXC_IMAGE_DIGEST="$(jq -r '.lxc_image_digest // empty' "${CONFIG_PATH}")"
 
 IMAGE_VERSION="${LXC_IMAGE}"
 IMAGE_VERSION_STRING="${LXC_IMAGE}@${LXC_DIGEST}"
