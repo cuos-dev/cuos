@@ -22,7 +22,7 @@ LXC_IMAGE="$(image_url "lxc")" || \
 LXC_IMAGE_DIGEST="$(jq -r '.lxc_image_digest // empty' "${CONFIG_PATH}")"
 
 IMAGE_VERSION="${LXC_IMAGE}"
-IMAGE_VERSION_STRING="${LXC_IMAGE}@${LXC_DIGEST}"
+IMAGE_VERSION_STRING="${LXC_IMAGE}@${LXC_IMAGE_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
 	echo "No new image version available. Exiting."
