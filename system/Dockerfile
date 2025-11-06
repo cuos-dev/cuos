@@ -82,8 +82,6 @@ RUN  mkdir -p /data && \
   rm -Rf /root/.docker && mkdir -p /data/.docker && ln -sf /data/.docker /root/.docker && \
   echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf && \
   rm /etc/network/interfaces && \
-  mkdir -p /data/shieldor && \
-  ln -sf /data/shieldor /usr/local/shieldor && \
   rm -f /etc/ssh/ssh_host_*
 
 # Install CuOS scripts (systemd required)
