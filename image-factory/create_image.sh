@@ -85,6 +85,7 @@ SIZE_MB="$(jq --arg size_mb "${SIZE_MB}" -r '.image_size_mb // $size_mb' "${CONF
 # Create empty image
 echo "Create empty image:"
 dd if=/dev/zero of="${IMAGE}" bs=1M count="${SIZE_MB}"
+sync
 
 if [[ "${TARGET}" == "rpi" ]]; then
   parted "${IMAGE}" --script \
@@ -108,9 +109,10 @@ else
   TARGET_BOOT_PARTITION_NUM=2
   TARGET_ROOT_PARTITION_NUM=3
 fi
+sync
 
 # Setup loop device
-LOOPDEV="$(losetup --find --show $IMAGE)"
+LOOPDEV="$(losetup --find --show "${IMAGE}")"
 partprobe "${LOOPDEV}"
 
 # Map partitions
