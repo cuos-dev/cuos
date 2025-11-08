@@ -60,7 +60,6 @@ docker run --rm \
   -v "/etc/image:/etc/image:ro" \
   -e "TARGET_DEVICE=${ROOT_DISK}" \
   -e "OS_ARCH=${OS_ARCH}" \
-  --name dockerboot-updater-container \
   "${UPDATE_IMAGE}" \
   "${PARTITION}" "${OS_IMAGE}" "${OS_DIGEST}"
 

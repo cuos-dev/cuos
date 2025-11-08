@@ -1,4 +1,4 @@
 #!/bin/bash
 
-IMAGE="dockerboot"
+IMAGE="cuos-system"
 docker build -t "${IMAGE}" .

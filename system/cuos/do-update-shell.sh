@@ -45,7 +45,6 @@ docker run --rm -it \
 	-v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
 	-v "/etc/image:/etc/image:ro" \
 	-e "TARGET_DEVICE=${ROOT_DISK}" \
-	--name dockerboot-updater-container \
 	--entrypoint "/usr/local/updater/shell.sh" \
 	"${UPDATE_IMAGE}"
 

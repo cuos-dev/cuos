@@ -28,10 +28,13 @@ if [[ "${INSTALLIMAGE}" != "true" ]]; then
   fi
 fi
 
-CONTAINER_NAME="dockerboot-container-${PARTITION}"
+CONTAINER_NAME_OLD="dockerboot-container-${PARTITION}"
+CONTAINER_NAME="cuos-system-${PARTITION}"
 
 # Remove old partition:
 rm -f "${TARGET_BOOT}/${PARTITION}"_* || true
+
+docker rm -f "${CONTAINER_NAME_OLD}" >/dev/null 2>/dev/null
 
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>/dev/null && \
   docker image prune -a -f
