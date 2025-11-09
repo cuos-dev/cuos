@@ -1,4 +1,4 @@
-name: Build and Push cuos-image-factory (Multi-Arch)
+name: Build and Push cuos-installer-factory (Multi-Arch)
 
 on:
   push:
@@ -8,9 +8,8 @@ on:
     tags:
       - '*'
     paths:
-      - image-factory/**
-      - updater/*.sh
-      - .github/workflows/docker-image-factory.yml
+      - installer-factory/**
+      - .github/workflows/docker-installer-factory.yml
   workflow_dispatch:
 
 jobs:
@@ -50,19 +49,19 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image - cuos-image-factory
+      - name: Build and push Docker image - cuos-installer-factory
         uses: docker/build-push-action@v6
         with:
           context: ./
-          file: ./image-factory/Dockerfile
+          file: ./installer-factory/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/cuos-image-factory:${{ steps.vars.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/cuos-installer-factory:${{ steps.vars.outputs.tag }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.run_id }}
             org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-image-factory:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-image-factory:buildcache,mode=max
+          #platforms: linux/amd64,linux/arm64,linux/arm/v7
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-installer-factory:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-installer-factory:buildcache,mode=max
