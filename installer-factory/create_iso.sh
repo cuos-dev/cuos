@@ -15,6 +15,8 @@ if [[ ! -f "${OUTPUT_DIR}/image.img" ]]; then
   exit 1
 fi
 
+export DOCKER_CONTEXT=default
+
 rm -f "${OUTPUT_DIR}/installer.iso"
 
 cp "${OUTPUT_DIR}/image.img" "${ISO_DIR}"

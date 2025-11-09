@@ -55,6 +55,8 @@ image_version() {
   echo "${version:-"latest"}"
 }
 
+export DOCKER_CONTEXT=default
+
 IMAGE="/output/image.img"
 #IMAGE_QCOW="/output/image.qcow2"
 #SIZE_MB=2048
