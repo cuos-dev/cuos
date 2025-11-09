@@ -52,7 +52,7 @@ jobs:
       - name: Build and push Docker image - cuos-installer-factory
         uses: docker/build-push-action@v6
         with:
-          context: ./
+          context: ./installer-factory
           file: ./installer-factory/Dockerfile
           push: true
           tags: |
