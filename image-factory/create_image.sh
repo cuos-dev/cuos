@@ -79,6 +79,36 @@ OS_IMAGE="$(image_url "${OS_ARCH}" || image_url "os")" || \
   action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
 OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_image_digest // empty' "${CONFIG_PATH}")"
 
+if [[ "${OS_ARCH}" == "lxc" ]]; then
+  IMAGE="${IMAGE/img/tar.gz}"
+
+  docker image pull "${OS_IMAGE}" || raise "Faild to fetch image"
+  IMAGE_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${OS_IMAGE}" 2>/dev/null | cut -d '@' -f 2)"
+  if [[ -n "${OS_DIGEST}" && "${OS_DIGEST}" != "${IMAGE_DIGEST}" ]]; then
+    echo "Image digest mismatch: ${OS_DIGEST} != ${IMAGE_DIGEST}"
+    exit 1
+  fi
+
+  CONTAINER_NAME="cuos-lxc-$$"
+  docker run -it -d \
+    --pull=never \
+    --name "${CONTAINER_NAME}" \
+    "${OS_IMAGE}" || raise "Failed to run container"
+  docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${PARTITION}" "${OS_IMAGE}" "${IMAGE_DIGEST}" \
+    || raise "Failed to run first-run script in container"
+
+  docker cp "${CONFIG_PATH}" "${CONTAINER_NAME}:/system_init.json" \
+    || raise "Failed to copy system.json"
+
+  if ! docker export "${CONTAINER_NAME}" | gzip >"${IMAGE}"; then
+    raise "Failed to export the container"
+  fi
+  docker rm -f "${CONTAINER_NAME}" \
+    || raise "Failed to remove the container"
+
+  echo "Image created at ${IMAGE}"
+  exit 0
+fi
 
 SIZE_MB="$(jq --arg size_mb "${SIZE_MB}" -r '.image_size_mb // $size_mb' "${CONFIG_PATH}")"
 

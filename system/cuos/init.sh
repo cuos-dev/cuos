@@ -24,7 +24,7 @@ ensure_system_config() {
     return
   fi
   if [[ "${VIRT_TYPE}" == "lxc" ]]; then
-    cat "${SCRIPT_DIR}/system-default.json" >"${CONFIG_PATH}"
+    cat "/system-init.json" >"${CONFIG_PATH}"
   else
     mkdir -p "/mnt/boot"
     mount -o ro -t vfat LABEL=boot "/mnt/boot"
