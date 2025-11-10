@@ -28,7 +28,13 @@ if [[ ! -f "${CONFIG_PATH}" ]]; then
 	exit 1
 fi
 
-OS_ARCH="${2:-"$(arch)"}"
+if command -v arch >/dev/null 2>&1; then
+	default_arch=$(arch)
+else
+	default_arch=$(uname -m)
+fi
+
+OS_ARCH="${2:-$default_arch}"
 
 OS_VERSION="${2:-"$(jq -r '.os_image_version // "latest"' "${CONFIG_PATH}")"}"
 
@@ -40,8 +46,22 @@ dockerlogin
 
 if [[ "${VERSION}" == "build" ]]; then
 	IMAGE_VERSION="cuos_imagebuilder"
-	docker build -f "Dockerfile" -t "${IMAGE_VERSION}" .. \
-		|| raise "Failed to build image"
+	BUILD_CONTEXT="${SCRIPT_DIR}/.."
+	if docker buildx version >/dev/null 2>&1; then
+		echo "🔧 Using docker buildx …"
+		docker buildx build \
+			-f "${SCRIPT_DIR}/Dockerfile" \
+			-t "${IMAGE_VERSION}" \
+			"${BUILD_CONTEXT}" \
+			|| raise "Failed to build image with buildx"
+	else
+		echo "⚠️  buildx not available – falling back to legacy docker build"
+		docker build \
+			-f "${SCRIPT_DIR}/Dockerfile" \
+			-t "${IMAGE_VERSION}" \
+			"${BUILD_CONTEXT}" \
+			|| raise "Failed to build image with legacy docker"
+	fi
 else
 	IMAGE_VERSION="${UPDATE_REGISTRY}${OS_IMAGE_FACTORY}:${OS_VERSION}"
 	docker image pull "${IMAGE_VERSION}" \
