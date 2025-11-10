@@ -3,7 +3,7 @@
 export DIALOGRC="${SCRIPT_DIR}/dialog.rc"
 
 VIRT_TYPE="$(systemd-detect-virt)"
-if [[ "${VIRT_TYPE}" == "lxc" ]]; then
+if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
   exit 0
 fi
 

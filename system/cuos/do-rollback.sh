@@ -10,7 +10,7 @@ if [[ ! -f "/system_next.json" ]]; then
 fi
 
 VIRT_TYPE="$(systemd-detect-virt)"
-if [[ "${VIRT_TYPE}" = "lxc" ]]; then
+if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
   "${SCRIPT_DIR}/do-rollback-lxc.sh" "$@"
   exit "$?"
 fi

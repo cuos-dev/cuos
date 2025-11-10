@@ -20,11 +20,16 @@ ensure_docker_config_json() {
 }
 
 ensure_system_config() {
+  # Exec first-run if not yet started. E.g. for testing in docker containers.
+  if [[ ! -f "/etc/partition_mode" ]]; then
+    "${SCRIPT_DIR}/first-run.sh" "A" "unknown" "unknown"
+  fi
+
   if [[ -f "${CONFIG_PATH}" ]]; then
     return
   fi
-  if [[ "${VIRT_TYPE}" == "lxc" ]]; then
-    cat "/system-init.json" >"${CONFIG_PATH}"
+  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
+    cat "/system_init.json" >"${CONFIG_PATH}"
   else
     mkdir -p "/mnt/boot"
     mount -o ro -t vfat LABEL=boot "/mnt/boot"
@@ -177,7 +182,7 @@ mask_to_prefix() {
 configure_network() {
   local interfaces_file="/etc/network/interfaces"
 
-  if [[ "${VIRT_TYPE}" == "lxc" ]]; then
+  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
     # For lxc the network is configured from outside
     return
   fi
@@ -376,7 +381,7 @@ import_custom_ca_certs() {
 }
 
 create_swap_and_resize_fs() {
-  if [[ "${VIRT_TYPE}" == "lxc" ]]; then
+  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
     # For lxc we do not manage disks or swap
     return
   fi

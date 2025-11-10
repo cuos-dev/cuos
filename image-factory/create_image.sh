@@ -59,11 +59,6 @@ export DOCKER_CONTEXT=default
 
 IMAGE="/output/image.img"
 #IMAGE_QCOW="/output/image.qcow2"
-#SIZE_MB=2048
-SIZE_MB=4096
-SIZE_MB=1636
-
-PARTITION="B"
 
 if [[ ! -d "/output" ]]; then
 	echo "Output dir not mounted"
@@ -83,6 +78,7 @@ OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_imag
 
 if [[ "${OS_ARCH}" == "lxc" ]]; then
   IMAGE="${IMAGE/img/tar.gz}"
+  PARTITION="A"
 
   docker image pull "${OS_IMAGE}" || raise "Faild to fetch image"
   IMAGE_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${OS_IMAGE}" 2>/dev/null | cut -d '@' -f 2)"
@@ -111,6 +107,12 @@ if [[ "${OS_ARCH}" == "lxc" ]]; then
   echo "Image created at ${IMAGE}"
   exit 0
 fi
+
+PARTITION="B"
+
+#SIZE_MB=2048
+SIZE_MB=4096
+SIZE_MB=1636
 
 SIZE_MB="$(jq --arg size_mb "${SIZE_MB}" -r '.image_size_mb // $size_mb' "${CONFIG_PATH}")"
 

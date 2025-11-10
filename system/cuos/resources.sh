@@ -11,7 +11,7 @@ mem_available="$(free -b | awk '/Mem:/ {print $7}')"
 
 load_average="$(awk '{print $1}' /proc/loadavg)"
 cpu_cores="$(nproc)"
-if [[ "${virt_type}" = "lxc" ]]; then
+if [[ "${virt_type}" == "lxc" || "${virt_type}" == "docker" ]]; then
   cpu_usage="$(awk '/^some/ {for(i=1;i<=NF;i++){split($i,a,"="); if(a[1]=="avg60"){print a[2]; exit}}}' /sys/fs/cgroup/cpu.pressure)"
 else
   cpu_usage="$(awk -v load="$load_average" -v cores="$cpu_cores" 'BEGIN {printf "%.2f", (load * 100) / cores}')"

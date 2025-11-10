@@ -6,7 +6,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
 export DIALOGRC="${SCRIPT_DIR}/dialog.rc"
 VIRT_TYPE="$(systemd-detect-virt)"
-if [[ "${VIRT_TYPE}" = "lxc" ]]; then
+if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
   # Dont show dialogs for lxc
   exit 0
 fi

@@ -5,7 +5,7 @@ set -x
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 VIRT_TYPE="$(systemd-detect-virt)"
-if [[ "${VIRT_TYPE}" = "lxc" ]]; then
+if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
   "${SCRIPT_DIR}/do-update-lxc.sh" "$@"
   exit "$?"
 fi
