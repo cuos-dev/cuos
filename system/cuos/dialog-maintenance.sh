@@ -53,12 +53,12 @@ install_menu() {
       "System Installation" \
       "\nSelect an option:\n " \
       20 55 7 \
-      "${extra[@]}" \
+      "${extra[@]+"${extra[@]}"}" \
       "host" "Change Hostname: $(hostname -s)" \
       "net" "Configure Network${ipaddress:+": ${ipaddress}"}" \
       - " " \
       "act" "System Actions" \
-      "diagnostics_menu" "Diagnostics" \
+      "diag" "Diagnostics" \
       - " " \
       "exit" "\Z5Continue Installation\Z0")" || return 1
     case "$choice" in

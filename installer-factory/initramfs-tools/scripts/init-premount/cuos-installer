@@ -147,8 +147,9 @@ INNEREOF
   #else
     # shellcheck disable=SC2086
     target=$(dialog --clear --backtitle "Installer" \
-      --title "Select Target Disk" \
-      --radiolist "Select disk to overwrite:" 20 70 10 \
+      --title "Select Target Disk. The disk will be OVERWRITTEN." \
+      --no-cancel \
+      --radiolist "\nUse up/down keys, select with space key and hit enter:\n " 15 70 5 \
       $DISKS 3>&1 1>&2 2>&3)
     clear
   #fi
