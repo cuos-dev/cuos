@@ -186,19 +186,74 @@ configure_network() {
     # For lxc the network is configured from outside
     return
   fi
+
   # Gather all non-lo, non-docker0 interfaces and sort them alphabetically
   shopt -s nullglob
-  local interfaces=()
+  declare -a interfaces=()
+  declare -A interfaces_mac=()
+
   # only ethernet interfaces, so not lo, docker0, wlan, bonds, br, veth, etc.
   for interface in /sys/class/net/e*; do
     local name
     name="$(basename "$interface")"
     interfaces+=("$name")
+    if [[ -r "$interface/address" ]]; then
+      mac=$(<"$interface/address")
+      interfaces_mac["$name"]=$(echo "$mac" | tr '[:upper:]' '[:lower:]')
+    else
+      interfaces_mac["$name"]=""
+    fi
   done
 
   # Read network config array from system.json using jq_config
   local configs_length
   configs_length="$(jq_config '.network | length')"
+
+  declare -A used_json=()            # json_index → 1 when already assigned
+  declare -A iface_to_json=()        # interface name → json_index
+  declare -a remaining_json=()       # indices that are still free (preserve order)
+  declare -a pending_ifaces=()       # interfaces that did NOT match name/MAC
+
+  for ((i=0; i<${#interfaces[@]}; i++)); do
+    local iface="${interfaces[$i]}"
+    local match_idx=-1
+
+    for ((j=0; j<configs_length; j++)); do
+      (( used_json[$j] )) && continue   # already taken
+
+      local entry entry_name entry_mac
+      entry=$(jq_config -r ".network[$j]")
+      entry_name=$(echo "$entry" | jq -r '.name // empty')
+      entry_mac=$(echo "$entry" | jq -r '."mac-address" // empty' | tr '[:upper:]' '[:lower:]')
+
+      if [[ -n "$entry_name" && "$entry_name" == "$iface" ]]; then
+        match_idx=$j; break
+      elif [[ -n "$entry_mac" && "$entry_mac" == "${interfaces_mac[$iface]}" ]]; then
+        match_idx=$j; break
+      fi
+    done
+
+    if (( match_idx != -1 )); then
+      used_json[$match_idx]=1
+      # store the association for later stanza generation
+      iface_to_json["$iface"]=$match_idx
+    else
+      # remember that this iface still needs a config (positional fallback)
+      pending_ifaces+=("$iface")
+    fi
+  done
+
+  # collect the indices that were not used
+  for ((j=0; j<configs_length; j++)); do
+    (( used_json[$j] )) || remaining_json+=("$j")
+  done
+
+  # assign them in order
+  for ((k=0; k<${#pending_ifaces[@]}; k++)); do
+    local iface="${pending_ifaces[$k]}"
+    local idx="${remaining_json[$k]:-}"   # may be empty if JSON shorter
+    (( idx != "" )) && iface_to_json["$iface"]=$idx
+  done
 
   {
     echo "auto lo"
@@ -208,87 +263,91 @@ configure_network() {
     # Configure each interface with corresponding config if present
     for ((i=0; i<${#interfaces[@]}; i++)); do
       local IFACE="${interfaces[$i]}"
-      local METRIC
-      METRIC=$((100 * (i+1)))
-      if [ "$i" -lt "$configs_length" ]; then
-        # Extract config for this interface
-        local config
-        config=$(jq_config -r ".network[$i]")
-        local DHCP
-        DHCP=$(echo "$config" | jq -r '.dhcp // empty')
-        local IP
-        IP=$(echo "$config" | jq -r '."ip-address" // empty')
-        local MASK
-        MASK=$(echo "$config" | jq -r '."network-mask" // empty')
-        local GW
-        GW=$(echo "$config" | jq -r '.gateway // empty')
-        local DNS
-        DNS=$(echo "$config" | jq -r '
-          if (."dns-server" | type == "array") then
-            ."dns-server" | join(" ")
-          else
-            ."dns-server" // empty
-          end')
-        local NTP
-        NTP=$(echo "$config" | jq -r '
-          if (."ntp-server" | type == "array") then
-            ."ntp-server" | join(" ")
-          else
-            ."ntp-server" // empty
-          end')
-        if [ -z "$DHCP" ] && [ -z "$IP" ] && [ -z "$MASK" ]; then
-          # No config for this interface, skip it
-          echo "iface $IFACE inet manual"
-          echo
-          continue
-        fi
-        if [ "$DHCP" = "true" ]; then
-          # DHCP configuration with metric
+      local METRIC=$((100 * (i+1)))
+
+      local json_idx="${iface_to_json[$iface]:-}"
+
+      # No JSON entry at all → original defaults (first iface DHCP, rest manual)
+      if [[ -z "$json_idx" ]]; then
+        if [[ "$IFACE" == "${interfaces[0]}" ]]; then
           echo "auto $IFACE"
           echo "iface $IFACE inet dhcp"
           echo "    metric $METRIC"
           echo
         else
-          # Static configuration
-          echo "auto $IFACE"
-          echo "iface $IFACE inet static"
-          [ -n "$IP" ] && echo "    address $IP"
-          [ -n "$MASK" ] && echo "    netmask $MASK"
-          [ -n "$GW" ] && echo "    gateway $GW"
-          [ -n "$DNS" ] && echo "    dns-nameservers $DNS"
-          [ -n "$NTP" ] && echo "    ntp-servers $NTP"
+          echo "iface $IFACE inet manual"
           echo
         fi
-        # Static routes
-        if echo "$config" | jq -e 'has("routes")' >/dev/null 2>&1; then
-          echo "$config" | jq -r '
-            .routes // empty |
-            (if type=="array" then .[] else . end) |
-            (.network // "") as $d |
-            (.gateway // "") as $g |
-            (.netmask // "") as $m |
-            [$d, $g, $m] | @tsv' |
-          while IFS=$'\t' read -r RDEST RGW RMASK; do
-            if [ -z "$RDEST" ] || [ -z "$RGW" ]; then
-              echo "IGNORE: invalid route with empty destination or gateway" >&2
-              continue
-            fi
-            PREFIX=$(mask_to_prefix "$RMASK")
-            RDEST="$RDEST${PREFIX:+"/$PREFIX"}"
-            echo "    up ip route add $RDEST via $RGW dev $IFACE"
-            echo "    down ip route del $RDEST via $RGW dev $IFACE"
-          done
-        fi
-      elif [ "$i" -eq 0 ]; then
-        # No config for the first interface, set to DHCP with metric
+        continue
+      fi
+
+      # Extract config for this interface
+      local config
+      config=$(jq_config -r ".network[$json_idx]")
+      local DHCP
+      DHCP=$(echo "$config" | jq -r '.dhcp // empty')
+      local IP
+      IP=$(echo "$config" | jq -r '."ip-address" // empty')
+      local MASK
+      MASK=$(echo "$config" | jq -r '."network-mask" // empty')
+      local GW
+      GW=$(echo "$config" | jq -r '.gateway // empty')
+      local DNS
+      DNS=$(echo "$config" | jq -r '
+        if (."dns-server" | type == "array") then
+          ."dns-server" | join(" ")
+        else
+          ."dns-server" // empty
+        end')
+      local NTP
+      NTP=$(echo "$config" | jq -r '
+        if (."ntp-server" | type == "array") then
+          ."ntp-server" | join(" ")
+        else
+          ."ntp-server" // empty
+        end')
+      if [ -z "$DHCP" ] && [ -z "$IP" ] && [ -z "$MASK" ]; then
+        # No config for this interface, skip it
+        echo "iface $IFACE inet manual"
+        echo
+        continue
+      fi
+      if [ "$DHCP" = "true" ]; then
+        # DHCP configuration with metric
         echo "auto $IFACE"
         echo "iface $IFACE inet dhcp"
         echo "    metric $METRIC"
         echo
       else
-        # No config for this interface, set to manual
-        echo "iface $IFACE inet manual"
+        # Static configuration
+        echo "auto $IFACE"
+        echo "iface $IFACE inet static"
+        [ -n "$IP" ] && echo "    address $IP"
+        [ -n "$MASK" ] && echo "    netmask $MASK"
+        [ -n "$GW" ] && echo "    gateway $GW"
+        [ -n "$DNS" ] && echo "    dns-nameservers $DNS"
+        [ -n "$NTP" ] && echo "    ntp-servers $NTP"
         echo
+      fi
+      # Static routes
+      if echo "$config" | jq -e 'has("routes")' >/dev/null 2>&1; then
+        echo "$config" | jq -r '
+          .routes // empty |
+          (if type=="array" then .[] else . end) |
+          (.network // "") as $d |
+          (.gateway // "") as $g |
+          (.netmask // "") as $m |
+          [$d, $g, $m] | @tsv' |
+        while IFS=$'\t' read -r RDEST RGW RMASK; do
+          if [ -z "$RDEST" ] || [ -z "$RGW" ]; then
+            echo "IGNORE: invalid route with empty destination or gateway" >&2
+            continue
+          fi
+          PREFIX=$(mask_to_prefix "$RMASK")
+          RDEST="$RDEST${PREFIX:+"/$PREFIX"}"
+          echo "    up ip route add $RDEST via $RGW dev $IFACE"
+          echo "    down ip route del $RDEST via $RGW dev $IFACE"
+        done
       fi
     done
   } > "${interfaces_file}.new"
