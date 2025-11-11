@@ -331,7 +331,6 @@ configure_keyboard() {
     fi
   fi
 
-
   cat > "${keyboard_config_file}" <<EOF
 # Managed by select-console-keyboard.sh
 XKBMODEL="$model"
@@ -341,10 +340,9 @@ XKBOPTIONS=""
 BACKSPACE="guess"
 EOF
 
-    DEBIAN_FRONTEND=noninteractive \
-      dpkg-reconfigure -f noninteractive keyboard-configuration || true
-    setupcon || true
-  fi
+ DEBIAN_FRONTEND=noninteractive \
+    dpkg-reconfigure -f noninteractive keyboard-configuration || true
+  setupcon || true
 }
 
 create_ssh_hostkey() {

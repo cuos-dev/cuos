@@ -60,15 +60,10 @@ edit() {
 	value="$(echo "$CONFIG_JSON" | jq -r "${field} // \"\"")"
 	while true; do
 		if ! value="$(input \
-				"Network configuration"
-				"\n${displayname}:\n " \
-				9 60 \
-				"${value}")"; then
-		#if ! value="$(term cuos_dialog \
-		#		--inputbox \
-		#		"${displayname}:" \
-		#		8 40 \
-		#		"${value}" 3>&1 1>&2 2>&3)"; then
+				"${displayname}: " \
+				"${value}" \
+				"Network configuration" \
+				9 60)"; then
 			return 1
 		fi
 		if [[ -z "${check_function}" ]] || "${check_function}" "${value}"; then
