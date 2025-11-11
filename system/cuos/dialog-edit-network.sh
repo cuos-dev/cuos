@@ -6,6 +6,8 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/utils.sh"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib-dialog.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/dialog-keyboard.sh"
 
 CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
 if [[ -n "${TEST:-}" ]]; then
@@ -57,7 +59,16 @@ edit() {
 	local value
 	value="$(echo "$CONFIG_JSON" | jq -r "${field} // \"\"")"
 	while true; do
-		if ! value="$(term cuos_dialog --inputbox "${displayname}:" 8 40 "${value}" 3>&1 1>&2 2>&3)"; then
+		if ! value="$(input \
+				"Network configuration"
+				"\n${displayname}:\n " \
+				9 60 \
+				"${value}")"; then
+		#if ! value="$(term cuos_dialog \
+		#		--inputbox \
+		#		"${displayname}:" \
+		#		8 40 \
+		#		"${value}" 3>&1 1>&2 2>&3)"; then
 			return 1
 		fi
 		if [[ -z "${check_function}" ]] || "${check_function}" "${value}"; then

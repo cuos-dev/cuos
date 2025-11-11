@@ -303,6 +303,50 @@ configure_network() {
 
 }
 
+configure_keyboard() {
+  local keyboard_config_file="/etc/default/keyboard"
+
+  # if keyboard_config exists and is older than config file
+  if [[ "${keyboard_config_file}" -ot "${CONFIG_PATH}" ]]; then
+    return
+  fi
+
+  local model
+  model=$(jq_config -r '.keyboard_model // "pc105"')
+  local layout
+  layout=$(jq_config -r '.keyboard_layout // "us"')
+  local variant
+  variant=$(jq_config -r '.keyboard_variant // "AUTODETECT"')
+
+  if [[ "${variant}" == "AUTODETECT" ]]; then
+    variant=""
+    if [[ "${layout}" == "us" ]]; then
+      variant="intl"
+    fi
+    if [[ "${layout}" == "de" ]]; then
+      variant="nodeadkeys"
+    fi
+    if [[ "${layout}" == "fr" ]]; then
+      variant="oss"
+    fi
+  fi
+
+
+  cat > "${keyboard_config_file}" <<EOF
+# Managed by select-console-keyboard.sh
+XKBMODEL="$model"
+XKBLAYOUT="$layout"
+XKBVARIANT="$variant"
+XKBOPTIONS=""
+BACKSPACE="guess"
+EOF
+
+    DEBIAN_FRONTEND=noninteractive \
+      dpkg-reconfigure -f noninteractive keyboard-configuration || true
+    setupcon || true
+  fi
+}
+
 create_ssh_hostkey() {
   shopt -s nullglob
   hostkeys=(/etc/ssh/ssh_host_*_key)
@@ -501,6 +545,8 @@ set_hostname
 configure_network
 
 import_custom_ca_certs
+
+configure_keyboard
 
 create_ssh_hostkey
 

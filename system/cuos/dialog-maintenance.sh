@@ -6,6 +6,8 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/utils.sh"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib-dialog.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/dialog-keyboard.sh"
 
 
 maintenance_menu() {
@@ -94,7 +96,7 @@ hash_admin_password() {
 change_admin_password() {
   local p1 p2
   while true; do
-    p1="$(pwbox "Enter a new password (Beware the english keyboard layout):" "Administrator Password" 10 70)" || return 1
+    p1="$(pwbox "Enter a new password (Beware the keyboard layout):" "Administrator Password" 10 70)" || return 1
     p2="$(pwbox "Confirm password:" "Administrator Password" 10 70)" || return 1
     if [[ "$p1" != "$p2" ]]; then
       msg "Passwords do not match. Please try again." "Password"
@@ -290,18 +292,25 @@ expert() {
   rm -f /tmp/edit-system.json
 }
 
+
 if [[ -f "${SCRIPT_DIR}/custom-dialog.sh" ]]; then
   # shellcheck source=/dev/null
   source "${SCRIPT_DIR}/custom-dialog.sh"
 fi
 
-change_vt
 
-if [[ "${1:-}" == "--install" ]]; then
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+  true
+elif [[ "${1:-}" == "--install" ]]; then
+  change_vt
   shift
   install_menu "$@"
   sleep 1
+elif [[ -n "${1:-}" && "$(type -t "${1}")" == "function" ]]; then
+  "${@}"
+  exit "$?"
 else
+  change_vt
   maintenance_menu "$@"
 fi
 

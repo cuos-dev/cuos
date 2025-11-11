@@ -59,9 +59,12 @@ change_vt() {
   fi
 }
 
+change_stdout_stderr() {
+  "$@" 3>&1 1>&2 2>&3
+}
 
 fmenu() {
-  term cuos_dialog \
+  change_stdout_stderr term cuos_dialog \
     --clear \
     --no-cancel \
     --cancel-label "Back" \
@@ -70,8 +73,7 @@ fmenu() {
     --title "$1" \
     --cancel-label "Back" \
     --menu "$2" "${3:-15}" "${4:-72}" "${5:-8}" \
-    "${@:6}" \
-    3>&1 1>&2 2>&3
+    "${@:6}"
 }
 msg() {
   term cuos_dialog \
@@ -79,10 +81,9 @@ msg() {
     --msgbox "$1" "${3:-9}" "${4:-70}"
 }
 input() {
-  term cuos_dialog \
+  choose_kb change_stdout_stderr term cuos_dialog \
     --title "${3:-Input}" \
-    --inputbox "$1" "${4:-9}" "${5:-70}" "${2:-}" \
-    3>&1 1>&2 2>&3
+    --inputbox "$1" "${4:-9}" "${5:-70}" "${2:-}"
 }
 prgbox(){
   term cuos_dialog \
@@ -91,10 +92,36 @@ prgbox(){
     --prgbox logs "$1" "${3:-22}" "${4:-90}"
 }
 pwbox() {
-  term cuos_dialog \
+  choose_kb change_stdout_stderr term cuos_dialog \
     --title "${2:-Password}" \
     --insecure \
-    --passwordbox "$1" "${3:-9}" "${4:-70}" 3>&1 1>&2 2>&3
+    --passwordbox "$1" "${3:-9}" "${4:-70}"
+}
+choose_kb() {
+  if [[ "$(type -t "get_keyboard")" != "function" || \
+    "$(type -t "choose_keyboard")" != "function" ]]; then "$@"; return "$?"; fi
+
+  local keyboard
+  keyboard="Keyboard: $(get_keyboard | tr '[:lower:]' '[:upper:]')"
+  local p1="$1"
+  shift
+  local p2="$1"
+  shift
+  local p3="$1"
+  shift
+  local output
+  output="$("${p1}" "${p2}" "${p3}" \
+    --help-button \
+    --help-label "${keyboard}" \
+    "$@")"
+  R="$?"
+  if [[ "$R" == "2" ]]; then
+    choose_keyboard
+    choose_kb "${p1}" "${p2}" "${p3}" "$@"
+    return "$?"
+  fi
+  echo "${output}"
+  return "${R}"
 }
 
 api_stream() {
