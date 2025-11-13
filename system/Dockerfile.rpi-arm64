@@ -125,26 +125,25 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && systemctl enable systemd-timesyncd.service \
-  && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf
+  && systemctl disable ssh \
+  && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
+  && rm -f /etc/ssh/ssh_host_* \
+  && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf \
+  ## Ensure persistence \
+  && mkdir -p /data \
+  && rm -f /etc/machine-id && ln -sf /data/machine-id /etc/machine-id \
+  && rm -Rf /var/log && ln -sf /data/log /var/log \
+  && rm -Rf /var/lib/dhcp && ln -sf /data/dhcp /var/lib/dhcp \
+  && rm -Rf /var/lib/docker && ln -sf /data/docker /var/lib/docker \
+  && rm -Rf /var/lib/containerd && ln -sf /data/containerd /var/lib/containerd \
+  && rm -Rf /root/.docker && ln -sf /data/.docker /root/.docker \
+  && rm -Rf /root && && ln -sf /data/root /root \
+  && echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf \
+  && rm /etc/network/interfaces \
+  ## RPI \
+  && rm -f /usr/lib/systemd/journald.conf.d/70-rpi-volatile-storage.conf && \
 
-# Ensure persistence
-RUN  mkdir -p /data && \
-  rm -f /etc/machine-id && ln -sf /data/machine-id /etc/machine-id && \
-  rm -Rf /var/log && ln -sf /data/log /var/log && \
-  rm -Rf /var/lib/dhcp && ln -sf /data/dhcp /var/lib/dhcp && \
-  rm -Rf /var/lib/docker && mkdir -p /data/docker && ln -sf /data/docker /var/lib/docker && \
-  rm -Rf /var/lib/containerd && mkdir -p /data/containerd && ln -sf /data/containerd /var/lib/containerd && \
-  rm -Rf /root/.docker && mkdir -p /data/.docker && ln -sf /data/.docker /root/.docker && \
-  echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf && \
-  rm -f /usr/lib/systemd/journald.conf.d/70-rpi-volatile-storage.conf && \
-  rm /etc/network/interfaces && \
-  rm -f /etc/ssh/ssh_host_*
 
 # Install CuOS scripts (systemd required)
 COPY cuos/ /usr/local/cuos/
 RUN /usr/local/cuos/install.sh
-
-# Set up SSH
-RUN echo 'root:root' | chpasswd && \
-  sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-

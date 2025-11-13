@@ -11,7 +11,12 @@ VIRT_TYPE="$(systemd-detect-virt)"
 source "${SCRIPT_DIR}/utils.sh"
 
 ensure_docker_config_json() {
-  mkdir -p /root/.docker
+  mkdir -p /data/root/
+  rm -Rf /root
+  ln -sf /data/root /root
+
+  mkdir -p /data/.docker
+  ln -sf /data/.docker /root/.docker
   rmdir /root/.docker/config.json 2>/dev/null && \
     echo "Warning: deleted config.json as dir"
   if [[ ! -f "/root/.docker/config.json" ]]; then
@@ -349,14 +354,73 @@ EOF
   setupcon || true
 }
 
+set_root_password() {
+  local root_password
+  root_password="$(jq_config -r '.os_root_password // empty')"
+
+  if [[ -z "${root_password}" ]]; then
+    usermod -L root
+    return
+  fi
+
+  # Check if password looks like a hash (contains typical hash delimiters or is too long for a plain password)
+  # Common hash formats: $1$ (MD5), $2a/$2y/$2b (bcrypt), $5$ (SHA-256), $6$ (SHA-512)
+  if [[ "${root_password}" =~ ^\$[0-9a-z]+\$ ]] || [[ ${#root_password} -gt 50 ]]; then
+    # Treat as hash - use chpasswd with -e flag for encrypted passwords
+    echo "root:${root_password}" | chpasswd -e
+  else
+    # Treat as plain password - use chpasswd without -e flag
+    echo "root:${root_password}" | chpasswd
+  fi
+
+  usermod -U root
+
+  report_info "cuos:init:root_access" "Root access is enabled"
+}
+
 create_ssh_hostkey() {
+  local SSH_PERSIST_DIR="/data/ssh-hostkeys"
+  local SSH_CONFIG_DIR="/etc/ssh"
+
   shopt -s nullglob
-  hostkeys=(/etc/ssh/ssh_host_*_key)
-  if [ ${#hostkeys[@]} -eq 0 ]; then
-    echo "Generating SSH host keys"
-    mkdir -p /etc/ssh
-    chmod 700 /etc/ssh
+  hostkeys=("${SSH_CONFIG_DIR}"/ssh_host_*_key)
+  if [ ${#hostkeys[@]} -gt 0 ]; then
+    return
+  fi
+
+  mkdir -p "${SSH_PERSIST_DIR}"
+  mkdir -p "${SSH_CONFIG_DIR}"
+  chmod 700 "${SSH_CONFIG_DIR}"
+
+  local persisted_keys=("${SSH_PERSIST_DIR}"/ssh_host_*_key)
+  if [ ${#persisted_keys[@]} -gt 0 ]; then
+    # Restore keys from persistent storage
+    report_info "cuos:init:ssh_hostkeys" "Restoring SSH host keys from ${SSH_PERSIST_DIR}"
+    cp "${SSH_PERSIST_DIR}"/ssh_host_*_key "${SSH_CONFIG_DIR}/" 2>/dev/null || true
+    cp "${SSH_PERSIST_DIR}"/ssh_host_*_key.pub "${SSH_CONFIG_DIR}/" 2>/dev/null || true
+    chmod 600 "${SSH_CONFIG_DIR}"/ssh_host_*_key
+    chmod 644 "${SSH_CONFIG_DIR}"/ssh_host_*_key.pub
+  else
+    # Generate new keys
+    report_info "cuos:init:ssh_hostkeys" "Generating SSH host keys"
     ssh-keygen -A
+
+    # Persist the newly generated keys
+    report_info "cuos:init:ssh_hostkeys" "Persisting SSH host keys to ${SSH_PERSIST_DIR}"
+    cp "${SSH_CONFIG_DIR}"/ssh_host_*_key "${SSH_PERSIST_DIR}/" 2>/dev/null || true
+    cp "${SSH_CONFIG_DIR}"/ssh_host_*_key.pub "${SSH_PERSIST_DIR}/" 2>/dev/null || true
+    chmod 600 "${SSH_PERSIST_DIR}"/ssh_host_*_key
+    chmod 644 "${SSH_PERSIST_DIR}"/ssh_host_*_key.pub
+  fi
+}
+
+configure_ssh_server() {
+  local ssh_enabled
+  ssh_enabled="$(jq_config -r '.os_ssh_server // false')"
+
+  if [[ "${ssh_enabled}" == "true" ]]; then
+    report_info "cuos:init:ssh_server" "Start SSH server"
+    systemctl start ssh
   fi
 }
 
@@ -550,7 +614,11 @@ import_custom_ca_certs
 
 configure_keyboard
 
+set_root_password
+
 create_ssh_hostkey
+
+configure_ssh_server
 
 configure_docker
 
