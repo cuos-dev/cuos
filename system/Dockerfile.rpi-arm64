@@ -136,12 +136,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && rm -Rf /var/lib/dhcp && ln -sf /data/dhcp /var/lib/dhcp \
   && rm -Rf /var/lib/docker && ln -sf /data/docker /var/lib/docker \
   && rm -Rf /var/lib/containerd && ln -sf /data/containerd /var/lib/containerd \
-  && rm -Rf /root/.docker && ln -sf /data/.docker /root/.docker \
-  && rm -Rf /root && && ln -sf /data/root /root \
+  && rm -Rf /root && ln -sf /data/root /root \
   && echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf \
   && rm /etc/network/interfaces \
   ## RPI \
-  && rm -f /usr/lib/systemd/journald.conf.d/70-rpi-volatile-storage.conf && \
+  && rm -f /usr/lib/systemd/journald.conf.d/70-rpi-volatile-storage.conf
 
 
 # Install CuOS scripts (systemd required)
