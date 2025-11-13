@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   linux-image-amd64 \
   ## cuos os dependencies \
   btrfs-progs \
+  console-setup \
   dbus \
   dbus-broker \
   docker-cli \

@@ -59,12 +59,16 @@ change_vt() {
   fi
 }
 
+input_term_dialog() {
+  change_stdout_stderr term cuos_dialog "$@"
+}
+
 change_stdout_stderr() {
   "$@" 3>&1 1>&2 2>&3
 }
 
 fmenu() {
-  change_stdout_stderr term cuos_dialog \
+  input_term_dialog \
     --clear \
     --no-cancel \
     --cancel-label "Back" \
@@ -81,7 +85,7 @@ msg() {
     --msgbox "$1" "${3:-9}" "${4:-70}"
 }
 input() {
-  choose_kb change_stdout_stderr term cuos_dialog \
+  choose_kb input_term_dialog \
     --title "${3:-Input}" \
     --inputbox "$1" "${4:-9}" "${5:-70}" "${2:-}"
 }
@@ -92,7 +96,7 @@ prgbox(){
     --prgbox logs "$1" "${3:-22}" "${4:-90}"
 }
 pwbox() {
-  choose_kb change_stdout_stderr term cuos_dialog \
+  choose_kb input_term_dialog \
     --title "${2:-Password}" \
     --insecure \
     --passwordbox "$1" "${3:-9}" "${4:-70}"
@@ -103,21 +107,17 @@ choose_kb() {
 
   local keyboard
   keyboard="Keyboard: $(get_keyboard | tr '[:lower:]' '[:upper:]')"
-  local p1="$1"
-  shift
-  local p2="$1"
-  shift
-  local p3="$1"
+  local dialog_cmd="$1"
   shift
   local output
-  output="$("${p1}" "${p2}" "${p3}" \
+  output="$("${dialog_cmd}" \
     --help-button \
     --help-label "${keyboard}" \
     "$@")"
   R="$?"
   if [[ "$R" == "2" ]]; then
     choose_keyboard
-    choose_kb "${p1}" "${p2}" "${p3}" "$@"
+    choose_kb "${dialog_cmd}" "$@"
     return "$?"
   fi
   echo "${output}"

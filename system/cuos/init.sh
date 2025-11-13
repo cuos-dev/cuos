@@ -304,6 +304,10 @@ configure_network() {
 }
 
 configure_keyboard() {
+  # For lxc we do not configure the keyboard
+  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
+    return
+  fi
   local keyboard_config_file="/etc/default/keyboard"
 
   # if keyboard_config exists and is older than config file
@@ -332,7 +336,7 @@ configure_keyboard() {
   fi
 
   cat > "${keyboard_config_file}" <<EOF
-# Managed by select-console-keyboard.sh
+# Managed by cuos/init.sh
 XKBMODEL="$model"
 XKBLAYOUT="$layout"
 XKBVARIANT="$variant"
@@ -340,7 +344,7 @@ XKBOPTIONS=""
 BACKSPACE="guess"
 EOF
 
- DEBIAN_FRONTEND=noninteractive \
+  DEBIAN_FRONTEND=noninteractive \
     dpkg-reconfigure -f noninteractive keyboard-configuration || true
   setupcon || true
 }
