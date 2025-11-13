@@ -87,6 +87,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   # iw \
   ## cuos os dependencies \
   btrfs-progs \
+  console-setup \
   dbus \
   dbus-broker \
   docker-cli \
