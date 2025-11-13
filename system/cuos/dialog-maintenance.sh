@@ -272,7 +272,7 @@ diagnostics_dns() {
   local hn
   hn="$(input "Enter hostname to resolve:" "cuos.dev" "DNS Test" 9 60)" || return 1
   valid_hostname "$hn" || { msg "Invalid hostname"; return 1; }
-  api_stream "DNS resolve" getent ahosts "$hn"
+  api_stream "DNS resolve" "getent ahosts $hn && echo DNS resolution successful. || echo DNS resolution failed."
 }
 
 expert() {
