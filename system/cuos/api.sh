@@ -12,11 +12,12 @@ export CONFIG_PATH="/system.json"
 export NEXT_CONFIG_PATH="/system_next.json"
 INPUT="{}"
 COMMAND="${1:-""}"
+shift
 
 if [[ "${COMMAND}" = "input" ]]; then
   read -r INPUT
   COMMAND="$(jq -r '.command // empty' <<< "${INPUT}")"
-elif [[ "${2:-}" == "-" ]]; then
+elif [[ "${1:-}" == "-" ]]; then
   INPUT="$(cat)"
 fi
 
@@ -192,7 +193,7 @@ EOF
 
 ## app                - Call app API
   "app")
-    echo "${INPUT}" | docker exec -i cuos-app /api/trigger
+    echo "${INPUT}" | docker exec -i cuos-app /api/trigger "$@"
   ;;
 
 ## resources          - Get resources

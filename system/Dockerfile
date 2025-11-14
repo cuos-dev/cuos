@@ -71,7 +71,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && systemctl enable systemd-timesyncd.service \
-  && systemctl disable ssh \
+  && systemctl disable ssh.socket ssh.service sshd.service \
+  && systemctl mask ssh.socket \
   && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
   && rm -f /etc/ssh/ssh_host_* \
   && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf \
