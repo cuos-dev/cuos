@@ -375,6 +375,12 @@ set_root_password() {
 
   usermod -U root
 
+  # Add ssh keys:
+  mkdir -p /root/.ssh
+  chmod 700 /root/.ssh
+  jq -r '.["os_root_authorized_keys"][]?' "/system.json" >/root/.ssh/authorized_keys
+  chmod 600 /root/.ssh/authorized_keys
+
   report_info "cuos:init:root_access" "Root access is enabled"
 }
 
@@ -420,7 +426,11 @@ configure_ssh_server() {
 
   if [[ "${ssh_enabled}" == "true" ]]; then
     report_info "cuos:init:ssh_server" "Start SSH server"
-    systemctl start ssh
+    systemctl enable ssh 2>/dev/null || true
+    iptables -I INPUT -p tcp --dport 4222 -j ACCEPT 2>/dev/null || true
+  else
+    systemctl disable ssh 2>/dev/null || true
+    iptables -D INPUT -p tcp --dport 4222 -j ACCEPT 2>/dev/null || true
   fi
 }
 
