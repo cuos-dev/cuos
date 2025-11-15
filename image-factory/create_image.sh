@@ -104,7 +104,7 @@ if [[ "${OS_ARCH}" == "lxc" ]]; then
   docker rm -f "${CONTAINER_NAME}" \
     || raise "Failed to remove the container"
 
-  echo "Image created at ${IMAGE}"
+  echo "Image created at ${IMAGE/\//}"
   exit 0
 fi
 
@@ -195,7 +195,7 @@ if [[ "${EXITCODE}" != "0" ]]; then
 	raise "Failed to run updater script"
 fi
 
-echo "Image created at ${IMAGE}"
+echo "Image created at ${IMAGE/\//}"
 
 
 # File formats:
