@@ -29,3 +29,4 @@ grub-mkrescue \
   -full-iso9660-filenames \
   "${ISO_DIR}"
 
+echo "Installer written to ${OUTPUT_DIR/\//}/installer.iso"
