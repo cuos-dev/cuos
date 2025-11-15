@@ -3,7 +3,7 @@ Description=CuOS: Init (disk resize can take a while)
 DefaultDependencies=no
 After=local-fs.target
 After=local-fs-pre.target
-Before=network-pre.target ifupdown-pre.service systemd-hostnamed.service networking.service ssh.service docker.service
+Before=network-pre.target ifupdown-pre.service systemd-hostnamed.service networking.service ssh.service sshd-keygen.service docker.service
 
 [Service]
 Type=oneshot
