@@ -424,13 +424,18 @@ configure_ssh_server() {
   local ssh_enabled
   ssh_enabled="$(jq_config -r '.os_ssh_server // false')"
 
+  local ssh_enabled_before="true"
+  [[ -f "/etc/ssh/sshd_not_to_be_run" ]] && ssh_enabled_before="false"
   if [[ "${ssh_enabled}" == "true" ]]; then
     report_info "cuos:init:ssh_server" "Start SSH server"
-    systemctl enable ssh.service 2>/dev/null || true
+    rm /etc/ssh/sshd_not_to_be_run
     iptables -I INPUT -p tcp --dport 4222 -j ACCEPT 2>/dev/null || true
   else
-    systemctl disable ssh.service 2>/dev/null || true
+    touch /etc/ssh/sshd_not_to_be_run
     iptables -D INPUT -p tcp --dport 4222 -j ACCEPT 2>/dev/null || true
+  fi
+  if [[ -n "${REINIT:-}" && "${ssh_enabled}" != "${ssh_enabled_before}" ]]; then
+    systemctl restart ssh.service
   fi
 }
 
