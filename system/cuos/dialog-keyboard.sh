@@ -30,10 +30,10 @@ choose_keyboard() {
   if [[ -n "${TEST:-}" ]]; then return; fi
 
   jq_replace \
-    --argjson layout "${layout}" \
+    --arg layout "${layout}" \
     '.keyboard_layout = $layout' \
     "${CONFIG_PATH}" || return 1
 
-  "${SCRIPT_DIR}/init.sh" configure_keyboard
+  "${SCRIPT_DIR}/init.sh" --reinit configure_keyboard
 }
 

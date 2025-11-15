@@ -315,11 +315,6 @@ configure_keyboard() {
   fi
   local keyboard_config_file="/etc/default/keyboard"
 
-  # if keyboard_config exists and is older than config file
-  if [[ "${keyboard_config_file}" -ot "${CONFIG_PATH}" ]]; then
-    return
-  fi
-
   local model
   model=$(jq_config -r '.keyboard_model // "pc105"')
   local layout
