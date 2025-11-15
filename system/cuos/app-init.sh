@@ -181,10 +181,10 @@ fi
 if [[ "${UPDATE}" -eq 1 ]]; then
   docker exec "${CONTAINER_NAME}" /api/update 2>/dev/null || true
 
-  state '.state' 'running'
-
   report_notice "cuos:update:done" "System successfully updated."
 fi
+
+state '.state' 'running'
 
 report_info "cuos:startup:done" "Operation System and Init Container successfully started."
 
