@@ -10,8 +10,9 @@ esac
 
 copy_exec /usr/bin/dialog
 copy_exec /usr/bin/lsblk
+copy_exec /usr/bin/pv
+copy_exec /bin/gzip || true
+copy_exec /usr/bin/zstd
 
 mkdir -p "$DESTDIR/usr/share/terminfo/l/"
 cp -p /usr/share/terminfo/l/linux "$DESTDIR/usr/share/terminfo/l/linux"
-
-

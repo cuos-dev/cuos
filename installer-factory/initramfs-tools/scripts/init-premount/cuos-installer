@@ -106,6 +106,44 @@ find_dev() {
   echo "$l_iso_dev"
 }
 
+extract_image() {
+  image_path="$1"
+  target="$2"
+  # Use a named pipe so dialog reads progress separately from the decompression pipeline.
+  PROG_FIFO="/tmp/imgprog.$$"
+  mkfifo "$PROG_FIFO" || return 1
+  # ensure fifo is removed on function exit
+  _cleanup() {
+    rm -f "$PROG_FIFO" 2>/dev/null || true
+  }
+  trap _cleanup EXIT
+
+  # Start dialog reading progress from the fifo in the background
+  dialog --gauge "Preparing to extract image, please wait..." 10 70 0 <"$PROG_FIFO" &
+  DIALOG_PID=$!
+
+  # Run the actual decompression/writing pipeline; pv will write numeric progress to stderr,
+  # which we redirect into the fifo so dialog displays it. Capture the pipeline exit code.
+  if echo "$image_path" | grep -qE '\.zst$'; then
+    pv -n "$image_path" 2>"$PROG_FIFO" | zstd -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror
+    RC=$?
+  elif echo "$image_path" | grep -qE '\.gz$'; then
+    pv -n "$image_path" 2>"$PROG_FIFO" | gunzip -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror
+    RC=$?
+  else
+    pv -n "$image_path" 2>"$PROG_FIFO" | dd of="/dev/$target" bs=4M conv=notrunc,noerror
+    RC=$?
+  fi
+
+  # Wait for dialog to finish reading remaining input and exit
+  wait "$DIALOG_PID" 2>/dev/null || true
+
+  # Cleanup and return the pipeline's exit code
+  trap - EXIT
+  _cleanup
+  return "$RC"
+}
+
 main() {
 
   iso_dev="$(find_dev)"
@@ -115,9 +153,19 @@ main() {
 
   mount_iso "${iso_dev}" "${mount_point}"
 
+  # Lower kernel console loglevel temporarily, so dialogs are not destroyed.
+  echo 1 > /proc/sys/kernel/printk
+
   # Loop-mount the embedded image (read-only by default)
-  if [ ! -e "$mount_point$image" ]; then
-    raise "WARN: $mount_point$image not found"
+  # Support either uncompressed image or a gzipped image on the ISO
+  if [ -e "$mount_point$image" ]; then
+    image_path="$mount_point$image"
+  elif [ -e "$mount_point${image}.zst" ]; then
+    image_path="$mount_point${image}.zst"
+  elif [ -e "$mount_point${image}.gz" ]; then
+    image_path="$mount_point${image}.gz"
+  else
+    raise "WARN: $mount_point$image or ${image}.zst/gz not found"
   fi
 
   echo "Running custom installer..."
@@ -127,6 +175,10 @@ main() {
   while read -r name type ro size model; do
     [ "$type" = "disk" ] || continue
     [ "$ro" = "0" ] || continue
+    # Filter out iso_dev
+    if [ "/dev/$name" = "$iso_dev" ]; then
+      continue
+    fi
     safe_model=$(echo "$model" | tr ' ' '_')
     label="${size}_${safe_model}"
     DISKS="$DISKS $name $label off"
@@ -141,10 +193,14 @@ INNEREOF
   if [ "$COUNT" -eq 0 ]; then
     raise "No writable disks found"
   fi
+  if [ "$COUNT" -eq 1 ]; then
+    # select it automatically, it replace off by on
+    DISKS=$(echo "$DISKS" | sed 's/ off$/ on/')
+  fi
 
-  #if [ "$COUNT" -eq 1 ]; then
-  #  target=$(echo "$DISKS" | awk '{print $1}')
-  #else
+  if [ "$COUNT" -eq 1 ] && [ -f "$mount_point/installer_auto_overwrite_disk.txt" ]; then
+    target=$(echo "$DISKS" | awk '{print $1}')
+  else
     # shellcheck disable=SC2086
     target=$(dialog --clear --backtitle "Installer" \
       --title "Select Target Disk. The disk will be OVERWRITTEN." \
@@ -152,7 +208,7 @@ INNEREOF
       --radiolist "\nUse up/down keys, select with space key and hit enter:\n " 15 70 5 \
       $DISKS 3>&1 1>&2 2>&3)
     clear
-  #fi
+  fi
 
   if [ -z "$target" ]; then
     raise "No disk selected"
@@ -161,13 +217,14 @@ INNEREOF
   echo "$target"
 
 
-  echo "Writing $image to /dev/$target... (this may take a while)"
-  if ! dd if="$mount_point$image" of="/dev/$target" bs=4M iflag=fullblock; then
+  echo "Writing $(basename "$image_path") to /dev/$target... (this may take a while)"
+  if ! extract_image "$image_path" "$target"; then
     raise "Failed writing image to disk"
   fi
 
   sync
-  echo "Done."
+  dialog --backtitle "Installer" --title "Image sucessfully written to disk" --infobox "\nThe system will reboot now.\n\nEnsure to boot from the selected disk." 10 70
+  sleep 1
   #sh
   reboot -f
 }
