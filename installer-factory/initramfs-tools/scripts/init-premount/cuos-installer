@@ -109,39 +109,28 @@ find_dev() {
 extract_image() {
   image_path="$1"
   target="$2"
-  # Use a named pipe so dialog reads progress separately from the decompression pipeline.
-  PROG_FIFO="/tmp/imgprog.$$"
-  mkfifo "$PROG_FIFO" || return 1
-  # ensure fifo is removed on function exit
-  _cleanup() {
-    rm -f "$PROG_FIFO" 2>/dev/null || true
-  }
-  trap _cleanup EXIT
 
-  # Start dialog reading progress from the fifo in the background
-  dialog --gauge "Preparing to extract image, please wait..." 10 70 0 <"$PROG_FIFO" &
-  DIALOG_PID=$!
+  (
+    if echo "$image_path" | grep -qE '\.zst$'; then
+      if ! pv -n "$image_path" | zstd -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
+        touch /tmp/extract_image_failed
+      fi
+    elif echo "$image_path" | grep -qE '\.gz$'; then
+      if ! pv -n "$image_path" | gzip -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
+        touch /tmp/extract_image_failed
+      fi
+    else
+      if ! pv -n "$image_path" | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
+        touch /tmp/extract_image_failed
+      fi
+    fi
+  ) 2>&1 | dialog --gauge "Extract the image, please wait..." 10 70 0
 
-  # Run the actual decompression/writing pipeline; pv will write numeric progress to stderr,
-  # which we redirect into the fifo so dialog displays it. Capture the pipeline exit code.
-  if echo "$image_path" | grep -qE '\.zst$'; then
-    pv -n "$image_path" 2>"$PROG_FIFO" | zstd -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror
-    RC=$?
-  elif echo "$image_path" | grep -qE '\.gz$'; then
-    pv -n "$image_path" 2>"$PROG_FIFO" | gunzip -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror
-    RC=$?
-  else
-    pv -n "$image_path" 2>"$PROG_FIFO" | dd of="/dev/$target" bs=4M conv=notrunc,noerror
-    RC=$?
+  if [ -f /tmp/extract_image_failed ]; then
+    rm -f /tmp/extract_image_failed
+    return 1
   fi
-
-  # Wait for dialog to finish reading remaining input and exit
-  wait "$DIALOG_PID" 2>/dev/null || true
-
-  # Cleanup and return the pipeline's exit code
-  trap - EXIT
-  _cleanup
-  return "$RC"
+  return 0
 }
 
 main() {
