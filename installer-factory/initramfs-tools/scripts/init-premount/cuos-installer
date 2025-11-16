@@ -128,7 +128,7 @@ extract_image() {
   # | dialog --gauge "Extract the image, please wait..." 10 70 0
 
 
-  bash
+  sh
 
   if [ -f /tmp/extract_image_failed ]; then
     rm -f /tmp/extract_image_failed
