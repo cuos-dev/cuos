@@ -145,8 +145,13 @@ else
 fi
 sync
 
+modprobe loop || true
+
 # Setup loop device
-LOOPDEV="$(losetup --find --show "${IMAGE}")"
+if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
+  raise "Failed to setup loop device. Please try again. Ensure loop module is loaded."
+fi
+
 partprobe "${LOOPDEV}"
 
 # Map partitions

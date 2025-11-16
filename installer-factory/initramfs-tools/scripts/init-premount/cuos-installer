@@ -213,7 +213,7 @@ INNEREOF
 
   sync
   dialog --backtitle "Installer" --title "Image sucessfully written to disk" --infobox "\nThe system will reboot now.\n\nEnsure to boot from the selected disk." 10 70
-  sleep 1
+  sleep 2
   #sh
   reboot -f
 }
