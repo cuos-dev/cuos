@@ -112,23 +112,19 @@ extract_image() {
 
   (
     if echo "$image_path" | grep -qE '\.zst$'; then
-      if ! pv -n "$image_path" | zstd -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
+      if ! pv -i 0.5 -n "$image_path" | zstd -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
         touch /tmp/extract_image_failed
       fi
     elif echo "$image_path" | grep -qE '\.gz$'; then
-      if ! pv -n "$image_path" | gzip -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
+      if ! pv -i 0.5 -n "$image_path" | gzip -d -c | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
         touch /tmp/extract_image_failed
       fi
     else
-      if ! pv -n "$image_path" | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
+      if ! pv -i 0.5 -n "$image_path" | dd of="/dev/$target" bs=4M conv=notrunc,noerror; then
         touch /tmp/extract_image_failed
       fi
     fi
-  ) 2>&1
-  # | dialog --gauge "Extract the image, please wait..." 10 70 0
-
-
-  sh
+  ) 2>&1 | dialog --gauge "Extract the image, please wait..." 10 70 0
 
   if [ -f /tmp/extract_image_failed ]; then
     rm -f /tmp/extract_image_failed
