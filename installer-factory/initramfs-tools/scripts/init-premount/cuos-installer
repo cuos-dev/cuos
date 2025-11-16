@@ -124,7 +124,11 @@ extract_image() {
         touch /tmp/extract_image_failed
       fi
     fi
-  ) 2>&1 | dialog --gauge "Extract the image, please wait..." 10 70 0
+  ) 2>&1
+  # | dialog --gauge "Extract the image, please wait..." 10 70 0
+
+
+  bash
 
   if [ -f /tmp/extract_image_failed ]; then
     rm -f /tmp/extract_image_failed
@@ -204,7 +208,6 @@ INNEREOF
   fi
 
   echo "$target"
-
 
   echo "Writing $(basename "$image_path") to /dev/$target... (this may take a while)"
   if ! extract_image "$image_path" "$target"; then
