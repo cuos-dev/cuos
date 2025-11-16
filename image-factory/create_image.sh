@@ -147,6 +147,10 @@ sync
 
 modprobe loop || true
 
+for i in $(seq 0 7); do
+  [ -e /dev/loop$i ] || mknod -m 660 /dev/loop$i b 7 $i && chown root:disk /dev/loop$i
+done
+
 # Setup loop device
 if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
   raise "Failed to setup loop device. Please try again. Ensure loop module is loaded."
