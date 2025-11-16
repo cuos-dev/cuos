@@ -20,10 +20,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     grub-common \
     grub-efi-amd64-bin \
     grub-pc-bin \
-    kmod \
-    mtools \
     isolinux \
+    jq \
+    kmod \
     linux-image-amd64 \
+    mtools \
     selinux-policy-default \
     syslinux \
     xorriso \
