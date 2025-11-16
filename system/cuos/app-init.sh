@@ -128,10 +128,13 @@ UPDATE=0
 if [[ -f "/data/run-update" ]]; then
   UPDATE=1
   rm -f "/data/run-update"
+elif [[ -f "/data/run-update-app" ]]; then
+  UPDATE=2
+  rm -f "/data/run-update-app"
 fi
 export UPDATE
 
-if [[ "${UPDATE}" = "1" || -z "${IMAGE_RUNNING}" ]]; then
+if [[ "${UPDATE}" != "0" || -z "${IMAGE_RUNNING}" ]]; then
   if download_image "${INITIAL_IMAGE}" "${INITIAL_DIGEST}"; then
     docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
   fi

@@ -85,7 +85,7 @@ EOF
       "${SCRIPT_DIR}/init.sh" --reinit
 
       # we need to check, if app container needs update
-      touch "/data/run-update"
+      touch "/data/run-update-app"
       systemctl restart cuos-app-init.service
     fi
   ;;
@@ -119,10 +119,6 @@ EOF
 
     # apply changes to current partition
     "${SCRIPT_DIR}/init.sh" --reinit
-
-    # retrigger application
-    touch "/data/run-update"
-    systemctl restart cuos-app-init.service
   ;;
 
 ## patch-network    - Patch the network. Provide config object.
