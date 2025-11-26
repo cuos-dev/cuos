@@ -138,18 +138,28 @@ apply_configuration_network() {
   "${SCRIPT_DIR}/init.sh" --reinit configure_network
 }
 
+trigger_network_change() {
+}
+
+trigger_hostname_change() {
+}
+
 main_edit_network() {
   edit_network
   confirm_save
 
   save_configuration
   apply_configuration_network
+
+  echo "$CONFIG_JSON" | jq -r ".hostname" | trigger_network_change
 }
 main_edit_hostname() {
   edit_hostname
 
   save_configuration
   apply_configuration_hostname
+
+  echo "$CONFIG_JSON" | trigger_hostname_change
 }
 
 
