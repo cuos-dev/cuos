@@ -195,7 +195,7 @@ EOF
 else
   # Generate GRUB entry
   ( cat <<EOF > "${TARGET_BOOT}/${PARTITION}_grub.cfg"
-menuentry 'CuOS Partition ${PARTITION} - Linux $version' {
+menuentry 'CuOS Partition ${PARTITION} - Linux $version' --unrestricted {
     insmod gzio
     insmod part_gpt
     insmod fat
@@ -217,6 +217,11 @@ EOF
 set timeout=1
 load_video
 set gfxpayload=keep
+
+set superusers="root"
+# No user set, so no authentication possible
+#password root password
+
 EOF
       cat "${TARGET_BOOT}"/{A,B}_grub.cfg 2>/dev/null
 
