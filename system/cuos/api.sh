@@ -166,7 +166,13 @@ EOF
   "reboot")
     report_notice "cuos:useraction:reboot" "Manual reboot triggered by the user"
     state '.state' 'starting'
+
+    # disable live-restore for proper stop of all containers
+    jq_replace '."live-restore" = false' /etc/docker/daemon.json
+    systemctl reload docker
+
     sync
+
     echo "Rebooting ..."
     reboot
   ;;
@@ -175,6 +181,14 @@ EOF
   "shutdown")
     report_notice "cuos:useraction:shutdown" "Manual shutdown triggered by the user"
     state '.state' 'starting'
+
+    # disable live-restore for proper stop of all containers
+    jq_replace '."live-restore" = false' /etc/docker/daemon.json
+    systemctl reload docker
+
+    sync
+
+    echo "Shutting down ..."
     shutdown -h now
   ;;
 
