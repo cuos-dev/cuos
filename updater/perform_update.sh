@@ -90,7 +90,9 @@ filename_kernel="${PARTITION}_$(basename "${kernel}")"
 filename_initrd="${PARTITION}_$(basename "${initrd}")"
 
 if [[ "${OS_ARCH}" == "rpi"* ]]; then
-
+  rm -Rf "${TARGET_BOOT}/firmware_prev"
+  mkdir -p "${TARGET_BOOT}/firmware_prev"
+  mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.txt,initramfs*,kernel*.img,overlays,start*.elf} "${TARGET_BOOT}/firmware_prev/"
   docker cp "${CONTAINER_NAME}:/boot/firmware/." "${TARGET_BOOT}" \
     || raise "Failed to copy kernel"
 

@@ -48,10 +48,12 @@ state '.update_state' "rollback to partition ${PARTITION} (${REASON})"
 
 if [[ "${OS_ARCH}" == "rpi"* ]]; then
 
-  if [[ -f "${TARGET_BOOT}"/cmdline-previous.txt ]]; then
-    mv "${TARGET_BOOT}"/cmdline.txt "${TARGET_BOOT}"/cmdline-tmp.txt
-    mv "${TARGET_BOOT}"/cmdline-previous.txt "${TARGET_BOOT}"/cmdline.txt
-    mv "${TARGET_BOOT}"/cmdline-tmp.txt "${TARGET_BOOT}"/cmdline-previous.txt
+  if [[ -d "${TARGET_BOOT}"/firmware_prev ]]; then
+    mkdir -p "${TARGET_BOOT}/firmware_next"
+    mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.txt,initramfs*,kernel*.img,overlays,start*.elf} "${TARGET_BOOT}/firmware_next/"
+    mv "${TARGET_BOOT}"/firmware_prev/* "${TARGET_BOOT}/"
+    rm -Rf "${TARGET_BOOT}/firmware_prev"
+    mv "${TARGET_BOOT}/firmware_next" "${TARGET_BOOT}/firmware_prev"
   fi
 
 else
@@ -65,6 +67,10 @@ else
 set timeout=1
 load_video
 set gfxpayload=keep
+
+set superusers="root"
+# No user set, so no authentication possible                                    #password root password
+
 EOF
     cat "${TARGET_BOOT}"/{A,B}_grub.cfg 2>/dev/null
 
