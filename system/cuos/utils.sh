@@ -156,3 +156,12 @@ image_version() {
   local version="${image##*:}"
   echo "${version:-"latest"}"
 }
+
+rename_function() {
+  local func_name="$1"
+  local new_name="$2"
+
+  if declare -f "${func_name}" >/dev/null; then
+    eval "$(declare -f "${func_name}" | sed '1s/'"${func_name}"'/'"${new_name}"'/')"
+  fi
+}
