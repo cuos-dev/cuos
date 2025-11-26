@@ -151,7 +151,7 @@ main_edit_network() {
   save_configuration
   apply_configuration_network
 
-  echo "$CONFIG_JSON" | jq -r ".hostname" | trigger_network_change
+  echo "$CONFIG_JSON" | trigger_network_change
 }
 main_edit_hostname() {
   edit_hostname
