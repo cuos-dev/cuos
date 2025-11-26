@@ -58,6 +58,7 @@ docker run --rm \
   -v "/root/.docker/config.json:/root/.docker/config.json:ro" \
   -v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
   -v "/etc/image:/etc/image:ro" \
+  -v "${CONFIG_PATH}:/system.json" \
   -e "TARGET_DEVICE=${ROOT_DISK}" \
   -e "OS_ARCH=${OS_ARCH}" \
   "${UPDATE_IMAGE}" \
