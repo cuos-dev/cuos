@@ -9,13 +9,14 @@ raise() {
 	exit 1
 }
 
-export CONFIG_PATH="/system.json"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/utils.sh"
 
 UPDATE_IMAGE="$(image_url "updater")" || \
   action_on_failure "cuos:updater:image_not_defined" "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
 
-"${SCRIPT_DIR}/docker-login.sh" || raise "Docker login failed"
+"${SCRIPT_DIR}/utils-docker-login.sh" || raise "Docker login failed"
 
 docker image pull "${UPDATE_IMAGE}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${UPDATE_IMAGE}" 2>/dev/null | cut -d '@' -f 2)
