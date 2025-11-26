@@ -2,6 +2,8 @@
 
 set -x
 
+export CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
+
 raise() {
   echo "Error: $*" >&2
   exit 1
@@ -177,6 +179,16 @@ if [[ "${OS_ARCH}" == "rpi"* ]]; then
   cat <<EOF > "${TARGET_BOOT}/cmdline.txt"
 console=serial0,115200 console=tty1 rootwait root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} fsck.repair=yes ro loglevel=3 noresume apparmor=0
 EOF
+
+  # Attach options from system.json
+  if [[ -f "${CONFIG_PATH}" ]]; then
+    jq -r '
+      .rpi_firmware_config
+      | if . == null then ""
+        elif type=="array" then join("\n")
+        else . end
+    ' "${CONFIG_PATH}" >>"${TARGET_BOOT}/config.txt"
+  fi
 
   echo "PI configuration updated for kernel version $version."
 

@@ -65,7 +65,7 @@ if [[ ! -d "/output" ]]; then
 	exit 1
 fi
 
-CONFIG_PATH="/output/system.json"
+export CONFIG_PATH="/output/system.json"
 if [[ ! -f "${CONFIG_PATH}" ]]; then
 	echo "Config file not found: ${CONFIG_PATH}"
 	exit 1
