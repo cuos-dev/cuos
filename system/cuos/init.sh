@@ -441,7 +441,7 @@ configure_ssh_server() {
   [[ -f "/etc/ssh/sshd_not_to_be_run" ]] && ssh_enabled_before="false"
   if [[ "${ssh_enabled}" == "true" ]]; then
     report_info "cuos:init:ssh_server" "Start SSH server"
-    rm /etc/ssh/sshd_not_to_be_run
+    rm -f /etc/ssh/sshd_not_to_be_run
     iptables -I INPUT -p tcp --dport 4222 -j ACCEPT 2>/dev/null || true
   else
     touch /etc/ssh/sshd_not_to_be_run

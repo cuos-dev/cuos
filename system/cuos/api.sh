@@ -89,6 +89,9 @@ EOF
       systemctl restart cuos-app-init.service
     fi
   ;;
+  "pull")
+    echo "Pull not jet implemented."
+  ;;
   "trigger-update")
     docker exec cuos-app /api/cuos-trigger-update
     R="$?"
