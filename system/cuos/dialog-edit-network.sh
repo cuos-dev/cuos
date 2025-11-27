@@ -139,9 +139,11 @@ apply_configuration_network() {
 }
 
 trigger_network_change() {
+  :
 }
 
 trigger_hostname_change() {
+  :
 }
 
 main_edit_network() {
