@@ -368,6 +368,12 @@ EOF
 }
 
 set_root_password() {
+  # Add ssh keys:
+  mkdir -p /root/.ssh
+  chmod 700 /root/.ssh
+  jq -r '.["os_root_authorized_keys"][]?' "/system.json" >/root/.ssh/authorized_keys
+  chmod 600 /root/.ssh/authorized_keys
+
   local root_password
   root_password="$(jq_config -r '.os_root_password // empty')"
 
@@ -387,12 +393,6 @@ set_root_password() {
   fi
 
   usermod -U root
-
-  # Add ssh keys:
-  mkdir -p /root/.ssh
-  chmod 700 /root/.ssh
-  jq -r '.["os_root_authorized_keys"][]?' "/system.json" >/root/.ssh/authorized_keys
-  chmod 600 /root/.ssh/authorized_keys
 
   report_info "cuos:init:root_access" "Root access is enabled"
 }
