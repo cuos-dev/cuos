@@ -56,16 +56,22 @@ image_version() {
 }
 
 export DOCKER_CONTEXT=default
+OUTPUT_DIR="/output"
 
-IMAGE="/output/image.img"
-#IMAGE_QCOW="/output/image.qcow2"
+if [[ ! -d "${OUTPUT_DIR}" ]]; then
+  echo "Build dir does not exist."
+  exit 1
+fi
 
-if [[ ! -d "/output" ]]; then
+IMAGE_NAME="${IMAGE_NAME:-"image"}"
+IMAGE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
+
+if [[ ! -d "${OUTPUT_DIR}" ]]; then
 	echo "Output dir not mounted"
 	exit 1
 fi
 
-export CONFIG_PATH="/output/system.json"
+export CONFIG_PATH="${OUTPUT_DIR}/${IMAGE_NAME}.json"
 if [[ ! -f "${CONFIG_PATH}" ]]; then
 	echo "Config file not found: ${CONFIG_PATH}"
 	exit 1
