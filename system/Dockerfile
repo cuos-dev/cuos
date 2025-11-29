@@ -90,5 +90,3 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # Install CuOS scripts (systemd required)
 COPY cuos/ /usr/local/cuos/
 RUN /usr/local/cuos/install.sh
-
-RUN echo "root:root" | chpasswd

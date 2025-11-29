@@ -384,7 +384,7 @@ configure_network() {
     done
   } > "${interfaces_file_new}"
 
-  if [[ -n "${TEST}" ]]; then return; fi
+  if [[ -n "${TEST:-}" ]]; then return; fi
 
   if [[ -n "${REINIT:-}" && "$(sha256sum "${interfaces_file}" | cut -d ' ' -f1)" != "$(sha256sum "${interfaces_file_new}" | cut -d ' ' -f1)" ]]; then
     systemctl stop networking
