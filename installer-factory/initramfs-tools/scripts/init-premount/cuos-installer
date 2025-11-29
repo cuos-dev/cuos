@@ -7,7 +7,7 @@ case "$1" in
   ;;
 esac
 
-set -x
+#set -x
 
 # shellcheck source=/dev/null
 . /scripts/functions
@@ -86,7 +86,7 @@ mount_iso() {
 
 find_dev() {
   wait_for_udev 10
-  sleep 5
+  sleep 1
 
   l_iso_dev="$(find_dev_by_label)"
 
@@ -137,7 +137,14 @@ main() {
 
   iso_dev="$(find_dev)"
   if [ -z "${iso_dev:-}" ]; then
-    raise "ERROR: Could not locate ISO device (label=$iso_label)"
+    iso_dev="$(find_dev)"
+    if [ -z "${iso_dev:-}" ]; then
+      sleep 10
+      iso_dev="$(find_dev)"
+      if [ -z "${iso_dev:-}" ]; then
+        raise "ERROR: Could not locate ISO device (label=$iso_label)"
+      fi
+    fi
   fi
 
   mount_iso "${iso_dev}" "${mount_point}"
