@@ -518,36 +518,6 @@ configure_ssh_server() {
   fi
 }
 
-calculate_bip() {
-  local docker_net_space="$1"
-  local docker_target_size="$2"
-
-  # Extract base IP and prefix
-  local base_ip="${docker_net_space%/*}"
-  local prefix="${docker_net_space#*/}"
-
-  # Convert IP to integer
-  IFS=. read -r o1 o2 o3 o4 <<< "$base_ip"
-  local base_int=$(( (o1 << 24) + (o2 << 16) + (o3 << 8) + o4 ))
-
-  # Calculate number of addresses in original and target subnet
-  local orig_size=$(( 32 - prefix ))
-  local target_size=$(( 32 - docker_target_size ))
-  local orig_count=$(( 1 << orig_size ))
-  local target_count=$(( 1 << target_size ))
-
-  # Calculate last subnet start address
-  local last_start=$(( base_int + orig_count - target_count ))
-
-  # Convert back to dotted decimal
-  local o1=$(( (last_start >> 24) & 255 ))
-  local o2=$(( (last_start >> 16) & 255 ))
-  local o3=$(( (last_start >> 8) & 255 ))
-  local o4=$(( last_start & 255 ))
-
-  echo "$o1.$o2.$o3.$o4/${docker_target_size}"
-}
-
 configure_docker() {
   local file_docker_daemon="${T_FILE_DOCKER_DAEMON:-"/etc/docker/daemon.json"}"
   local docker_net_space
@@ -556,14 +526,8 @@ configure_docker() {
   docker_net_space_size="$(jq -r '.docker_net_space_size // 26' "${CONFIG_PATH}")"
   # /20 with /26 networks: 60 networks a 62 hosts
 
-  local docker_bip_size
-  docker_bip_size="$(jq -r '.docker_bip_size // 24' "${CONFIG_PATH}")"
-  local bip
-  bip="$(jq -r '.docker_bip // empty' "${CONFIG_PATH}")"
-  bip="${bip:-"$(calculate_bip "${docker_net_space}" "${docker_bip_size}")"}"
   # 1 network a 254 hosts
   jq -n \
-    --arg docker_bip "${bip}" \
     --arg docker_net_space "${docker_net_space}" \
     --arg docker_net_space_size "${docker_net_space_size}" \
     '{
@@ -573,7 +537,6 @@ configure_docker() {
       },
       "storage-driver": "overlay2",
       "data-root": "/data/docker",
-      "bip": $docker_bip,
       "default-address-pools": [
         {
           "base": $docker_net_space,
@@ -771,6 +734,6 @@ if [[ -f "${SCRIPT_DIR}/custom-init.sh" ]]; then
 fi
 
 # Execute main only if script is run, not sourced
-#if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   main "$@"
-#fi
+fi
