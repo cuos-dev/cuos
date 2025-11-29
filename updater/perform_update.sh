@@ -19,6 +19,18 @@ fi
 IMAGE="${2}"
 IMAGE_DIGEST="${3:-""}"
 
+PRODUCT_NAME="CuOS"
+if [[ -f "${CONFIG_PATH}" ]]; then
+  PRODUCT_NAME="$(jq -r '.product_name // empty' "${CONFIG_PATH}")"
+  if [[ -z "${PRODUCT_NAME}" ]]; then
+    if jq -r '.init_image' "${CONFIG_PATH}" | grep -q 'cuos-iac'; then
+      PRODUCT_NAME="CuOS IaC"
+    else
+      PRODUCT_NAME="CuOS"
+    fi
+  fi
+fi
+
 
 if [[ "${INSTALLIMAGE}" != "true" ]]; then
   # Only perform update if available space in TARGET_ROOT is >2GB
@@ -139,8 +151,8 @@ EOF
 docker cp /etc/fstab "${CONTAINER_NAME}:/etc/fstab"
 
 if [[ "${INSTALLIMAGE}" = "true" ]]; then
-  if [[ -f "/output/system.json" ]]; then
-    cp "/output/system.json" "${TARGET_BOOT}/system.json" \
+  if [[ -f "${CONFIG_PATH}" ]]; then
+    cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
       || raise "Failed to copy system.json from dir"
   else
     docker cp "${CONTAINER_NAME}:/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
@@ -196,8 +208,9 @@ EOF
 
 else
   # Generate GRUB entry
+  SLOT_NAME="${PRODUCT_NAME} Slot ${PARTITION} - Linux $version"
   ( cat <<EOF > "${TARGET_BOOT}/${PARTITION}_grub.cfg"
-menuentry 'CuOS Partition ${PARTITION} - Linux $version' --unrestricted {
+menuentry '${SLOT_NAME}' --unrestricted {
     insmod gzio
     insmod part_gpt
     insmod fat
@@ -227,7 +240,7 @@ set superusers="root"
 EOF
       cat "${TARGET_BOOT}"/{A,B}_grub.cfg 2>/dev/null
 
-      echo "set default=\"CuOS Partition ${PARTITION} - Linux $version\""
+      echo "set default='${SLOT_NAME}'"
     } > "${TARGET_BOOT}/grub/grub.cfg"
   ) || raise "Failed to configure grub"
 
