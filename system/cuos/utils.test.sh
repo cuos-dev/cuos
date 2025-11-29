@@ -5,24 +5,8 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/utils.sh"
 
-pass=0; fail=0
-expect() {
-  local label="$1"; shift
-  local EXPECTED="$1"; shift
-  local GOT
-  GOT="$("$@")" || true
-  if [ "$GOT" = "$EXPECTED" ]; then
-    printf 'OK   %s\n' "$label"
-    pass=$((pass+1))
-  else
-    printf 'FAIL %s\n  got:      %q\n  expected: %q\n' "$label" "$GOT" "$EXPECTED"
-    fail=$((fail+1))
-  fi
-}
-summary() {
-  printf '\nSummary: %d passed, %d failed\n' "$pass" "$fail"
-  [ "$fail" -eq 0 ] || exit 1
-}
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib-test.sh"
 
 export CONFIG_PATH="/dev/stdin"
 

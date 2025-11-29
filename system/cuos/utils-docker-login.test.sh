@@ -15,28 +15,8 @@ export CONFIG_PATH="${TEST_DIR}/system.json"
 export DOCKER_CONFIG_FILE="${TEST_DIR}/.docker/config.json"
 export BASE64_CMD="base64"  # Ensure we use standard base64
 
-pass=0; fail=0
-expect() {
-  local label="$1"; shift
-  local EXPECTED="$1"; shift
-  local GOT
-  GOT="$("$@")"
-  EXIT_CODE="$?"
-  if [[ -z "$GOT" ]]; then
-    GOT="$EXIT_CODE"
-  fi
-  if [ "$GOT" = "$EXPECTED" ]; then
-    printf 'OK   %s\n' "$label"
-    pass=$((pass+1))
-  else
-    printf 'FAIL %s\n  got:      %q\n  expected: %q\n' "$label" "$GOT" "$EXPECTED"
-    fail=$((fail+1))
-  fi
-}
-summary() {
-  printf '\nSummary: %d passed, %d failed\n' "$pass" "$fail"
-  [ "$fail" -eq 0 ] || exit 1
-}
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib-test.sh"
 
 setup() {
   rm -rf "${TEST_DIR:?}/.docker"

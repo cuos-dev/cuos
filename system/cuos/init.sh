@@ -2,8 +2,6 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-set -x
-
 export CONFIG_PATH="/system.json"
 VIRT_TYPE="$(systemd-detect-virt)"
 
@@ -203,7 +201,8 @@ mask_to_prefix() {
 }
 
 configure_network() {
-  local interfaces_file="/etc/network/interfaces"
+  local interfaces_file="${T_FILE_INTERFACES:-"/etc/network/interfaces"}"
+  local interfaces_file_new="${T_FILE_INTERFACES_NEW:-"${interfaces_file}.new"}"
 
   if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
     # For lxc the network is configured from outside
@@ -215,8 +214,10 @@ configure_network() {
   declare -a interfaces=()
   declare -A interfaces_mac=()
 
+  local netdir="${T_DIR_SYS_CLASS_NET:-/sys/class/net}"
+
   # only ethernet interfaces, so not lo, docker0, wlan, bonds, br, veth, etc.
-  for interface in /sys/class/net/e*; do
+  for interface in "$netdir"/e*; do
     local name
     name="$(basename "$interface")"
     interfaces+=("$name")
@@ -227,6 +228,7 @@ configure_network() {
       interfaces_mac["$name"]=""
     fi
   done
+
 
   # Read network config array from system.json using jq_config
   local configs_length
@@ -249,9 +251,9 @@ configure_network() {
       entry_name=$(echo "$entry" | jq -r '.name // empty')
       entry_mac=$(echo "$entry" | jq -r '."mac-address" // empty' | tr '[:upper:]' '[:lower:]')
 
-      if [[ -n "$entry_name" && "$entry_name" == "$iface" ]]; then
+      if [[ -n "$entry_mac" && "$entry_mac" == "${interfaces_mac[$iface]}" ]]; then
         match_idx=$j; break
-      elif [[ -n "$entry_mac" && "$entry_mac" == "${interfaces_mac[$iface]}" ]]; then
+      elif [[ -z "$entry_mac" && -n "$entry_name" && "$entry_name" == "$iface" ]]; then
         match_idx=$j; break
       fi
     done
@@ -268,14 +270,20 @@ configure_network() {
 
   # collect the indices that were not used
   for ((j=0; j<configs_length; j++)); do
-    (( used_json[$j] )) || remaining_json+=("$j")
+    entry=$(jq_config -r ".network[$j]")
+    entry_name=$(echo "$entry" | jq -r '.name // empty')
+    entry_mac=$(echo "$entry" | jq -r '."mac-address" // empty' | tr '[:upper:]' '[:lower:]')
+
+    if [[ -z "$entry_mac" && -z "$entry_name" ]]; then
+      (( used_json[$j] )) || remaining_json+=("$j")
+    fi
   done
 
   # assign them in order
   for ((k=0; k<${#pending_ifaces[@]}; k++)); do
     local iface="${pending_ifaces[$k]}"
     local idx="${remaining_json[$k]:-}"   # may be empty if JSON shorter
-    (( idx != "" )) && iface_to_json["$iface"]=$idx
+    [[ -n "${idx}" ]] && iface_to_json["$iface"]=$idx
   done
 
   {
@@ -283,22 +291,21 @@ configure_network() {
     echo "iface lo inet loopback"
     echo
 
-    # Configure each interface with corresponding config if present
+    # Configure eAch interface with corresponding config if present
     for ((i=0; i<${#interfaces[@]}; i++)); do
-      local IFACE="${interfaces[$i]}"
-      local METRIC=$((100 * (i+1)))
-
+      local iface="${interfaces[$i]}"
+      local metric=$((100 * (i+1)))
       local json_idx="${iface_to_json[$iface]:-}"
 
       # No JSON entry at all → original defaults (first iface DHCP, rest manual)
       if [[ -z "$json_idx" ]]; then
-        if [[ "$IFACE" == "${interfaces[0]}" ]]; then
-          echo "auto $IFACE"
-          echo "iface $IFACE inet dhcp"
-          echo "    metric $METRIC"
+        if [[ -z "${!used_json[@]}" && "$i" == "0" ]]; then
+          echo "auto $iface"
+          echo "iface $iface inet dhcp"
+          echo "    metric $metric"
           echo
         else
-          echo "iface $IFACE inet manual"
+          echo "iface $iface inet manual"
           echo
         fi
         continue
@@ -307,49 +314,51 @@ configure_network() {
       # Extract config for this interface
       local config
       config=$(jq_config -r ".network[$json_idx]")
-      local DHCP
-      DHCP=$(echo "$config" | jq -r '.dhcp // empty')
-      local IP
-      IP=$(echo "$config" | jq -r '."ip-address" // empty')
-      local MASK
-      MASK=$(echo "$config" | jq -r '."network-mask" // empty')
-      local GW
-      GW=$(echo "$config" | jq -r '.gateway // empty')
-      local DNS
-      DNS=$(echo "$config" | jq -r '
+      local dhcp
+      dhcp=$(echo "$config" | jq -r '.dhcp // empty')
+      local iP
+      ip=$(echo "$config" | jq -r '."ip-address" // empty')
+      local mask
+      mask=$(echo "$config" | jq -r '."network-mask" // empty')
+      local gw
+      gw=$(echo "$config" | jq -r '.gateway // empty')
+      local dns
+      dns=$(echo "$config" | jq -r '
         if (."dns-server" | type == "array") then
           ."dns-server" | join(" ")
         else
           ."dns-server" // empty
         end')
-      local NTP
-      NTP=$(echo "$config" | jq -r '
+      local ntp
+      ntp=$(echo "$config" | jq -r '
         if (."ntp-server" | type == "array") then
           ."ntp-server" | join(" ")
         else
           ."ntp-server" // empty
         end')
-      if [ -z "$DHCP" ] && [ -z "$IP" ] && [ -z "$MASK" ]; then
+      metric="$(echo "$config" | jq -r '.metric // empty')"
+      metric="${metric:-"$((10 * (json_idx+1)))"}"
+      if [ -z "$dhcp" ] && [ -z "$ip" ] && [ -z "$mask" ]; then
         # No config for this interface, skip it
-        echo "iface $IFACE inet manual"
+        echo "iface $iface inet manual"
         echo
         continue
       fi
-      if [ "$DHCP" = "true" ]; then
+      if [ "$dhcp" = "true" ]; then
         # DHCP configuration with metric
-        echo "auto $IFACE"
-        echo "iface $IFACE inet dhcp"
-        echo "    metric $METRIC"
+        echo "auto $iface"
+        echo "iface $iface inet dhcp"
+        echo "    metric $metric"
         echo
       else
         # Static configuration
-        echo "auto $IFACE"
-        echo "iface $IFACE inet static"
-        [ -n "$IP" ] && echo "    address $IP"
-        [ -n "$MASK" ] && echo "    netmask $MASK"
-        [ -n "$GW" ] && echo "    gateway $GW"
-        [ -n "$DNS" ] && echo "    dns-nameservers $DNS"
-        [ -n "$NTP" ] && echo "    ntp-servers $NTP"
+        echo "auto $iface"
+        echo "iface $iface inet static"
+        [ -n "$ip" ] && echo "    address $ip"
+        [ -n "$mask" ] && echo "    netmask $mask"
+        [ -n "$gw" ] && echo "    gateway $gw"
+        [ -n "$dns" ] && echo "    dns-nameservers $dns"
+        [ -n "$ntp" ] && echo "    ntp-servers $ntp"
         echo
       fi
       # Static routes
@@ -368,19 +377,21 @@ configure_network() {
           fi
           PREFIX=$(mask_to_prefix "$RMASK")
           RDEST="$RDEST${PREFIX:+"/$PREFIX"}"
-          echo "    up ip route add $RDEST via $RGW dev $IFACE"
-          echo "    down ip route del $RDEST via $RGW dev $IFACE"
+          echo "    up ip route add $RDEST via $RGW dev $iface"
+          echo "    down ip route del $RDEST via $RGW dev $iface"
         done
       fi
     done
-  } > "${interfaces_file}.new"
+  } > "${interfaces_file_new}"
 
-  if [[ -n "${REINIT:-}" && "$(sha256sum "${interfaces_file}" | cut -d ' ' -f1)" != "$(sha256sum "${interfaces_file}.new" | cut -d ' ' -f1)" ]]; then
+  if [[ -n "${TEST}" ]]; then return; fi
+
+  if [[ -n "${REINIT:-}" && "$(sha256sum "${interfaces_file}" | cut -d ' ' -f1)" != "$(sha256sum "${interfaces_file_new}" | cut -d ' ' -f1)" ]]; then
     systemctl stop networking
-    mv "${interfaces_file}.new" "${interfaces_file}"
+    mv "${interfaces_file_new}" "${interfaces_file}"
     systemctl start networking
   else
-    mv "${interfaces_file}.new" "${interfaces_file}"
+    mv "${interfaces_file_new}" "${interfaces_file}"
   fi
 
 }
@@ -390,7 +401,7 @@ configure_keyboard() {
   if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
     return
   fi
-  local keyboard_config_file="/etc/default/keyboard"
+  local keyboard_config_file="${T_FILE_KEYBOARD:-"/etc/default/keyboard"}"
 
   local model
   model=$(jq_config -r '.keyboard_model // "pc105"')
@@ -460,17 +471,14 @@ create_ssh_hostkey() {
   local SSH_PERSIST_DIR="/data/ssh-hostkeys"
   local SSH_CONFIG_DIR="/etc/ssh"
 
-  shopt -s nullglob
-  hostkeys=("${SSH_CONFIG_DIR}"/ssh_host_*_key)
-  if [ ${#hostkeys[@]} -gt 0 ]; then
-    return
-  fi
-
   mkdir -p "${SSH_PERSIST_DIR}"
   mkdir -p "${SSH_CONFIG_DIR}"
   chmod 700 "${SSH_CONFIG_DIR}"
 
+  shopt -s nullglob
+  local hostkeys=("${SSH_CONFIG_DIR}"/ssh_host_*_key)
   local persisted_keys=("${SSH_PERSIST_DIR}"/ssh_host_*_key)
+
   if [ ${#persisted_keys[@]} -gt 0 ]; then
     # Restore keys from persistent storage
     report_info "cuos:init:ssh_hostkeys" "Restoring SSH host keys from ${SSH_PERSIST_DIR}"
@@ -511,20 +519,66 @@ configure_ssh_server() {
   fi
 }
 
+calculate_bip() {
+  local docker_net_space="$1"
+  local docker_target_size="$2"
+
+  # Extract base IP and prefix
+  local base_ip="${docker_net_space%/*}"
+  local prefix="${docker_net_space#*/}"
+
+  # Convert IP to integer
+  IFS=. read -r o1 o2 o3 o4 <<< "$base_ip"
+  local base_int=$(( (o1 << 24) + (o2 << 16) + (o3 << 8) + o4 ))
+
+  # Calculate number of addresses in original and target subnet
+  local orig_size=$(( 32 - prefix ))
+  local target_size=$(( 32 - docker_target_size ))
+  local orig_count=$(( 1 << orig_size ))
+  local target_count=$(( 1 << target_size ))
+
+  # Calculate last subnet start address
+  local last_start=$(( base_int + orig_count - target_count ))
+
+  # Convert back to dotted decimal
+  local o1=$(( (last_start >> 24) & 255 ))
+  local o2=$(( (last_start >> 16) & 255 ))
+  local o3=$(( (last_start >> 8) & 255 ))
+  local o4=$(( last_start & 255 ))
+
+  echo "$o1.$o2.$o3.$o4/${docker_target_size}"
+}
+
 configure_docker() {
-  jq '{
+  local file_docker_daemon="${T_FILE_DOCKER_DAEMON:-"/etc/docker/daemon.json"}"
+  local docker_net_space
+  docker_net_space="$(jq -r '.docker_net_space // "10.235.240.0/20"' "${CONFIG_PATH}")"
+  local docker_net_space_size
+  docker_net_space_size="$(jq -r '.docker_net_space_size // 26' "${CONFIG_PATH}")"
+  # /20 with /26 networks: 60 networks a 62 hosts
+
+  local docker_bip_size
+  docker_bip_size="$(jq -r '.docker_bip_size // 24' "${CONFIG_PATH}")"
+  local bip
+  bip="$(jq -r '.docker_bip // empty' "${CONFIG_PATH}")"
+  bip="${bip:-"$(calculate_bip "${docker_net_space}" "${docker_bip_size}")"}"
+  # 1 network a 254 hosts
+  jq -n \
+    --arg docker_bip "${bip}" \
+    --arg docker_net_space "${docker_net_space}" \
+    --arg docker_net_space_size "${docker_net_space_size}" \
+    '{
       "log-driver": "journald",
       "log-opts": {
         "tag": "{{.Name}}"
       },
       "storage-driver": "overlay2",
       "data-root": "/data/docker",
-      "bip": (.docker_bridge_net // "10.235.255.1/24"),
+      "bip": $docker_bip,
       "default-address-pools": [
         {
-          "base": (.docker_net_space // "10.235.128.0/17"),
-          "size": (.docker_net_space_size // 26) #=64 different CTs
-          # total: 4*128 = 512 networks
+          "base": $docker_net_space,
+          "size": $docker_net_space_size | tonumber
         }
       ],
       "max-concurrent-downloads": 3,
@@ -540,7 +594,7 @@ configure_docker() {
         }
       },
       "seccomp-profile": "/etc/docker/seccomp-default.json"
-  }' "${CONFIG_PATH}" >/etc/docker/daemon.json
+  }' >"${file_docker_daemon}"
 }
 
 # Import custom CA certificates from system.json (if present)
@@ -670,46 +724,54 @@ create_swap_and_resize_fs() {
   fi
 }
 
+main() {
+  set -x
+
+  if [[ "${1:-}" = "--reinit" ]]; then
+    export REINIT=1
+
+    if [[ -n "${2:-}" && "$(type -t "${2}")" == "function" ]]; then
+      "${2}"
+      exit "$?"
+    fi
+  else
+    report_info "cuos:init:start" "System startup"
+    state jq '.start_date = (now | todate)'
+  fi
+
+  prepare_data_volume
+
+  ensure_docker_config_json
+
+  ensure_system_config
+
+  set_hostname
+
+  configure_network
+
+  import_custom_ca_certs
+
+  configure_keyboard
+
+  set_root_password
+
+  create_ssh_hostkey
+
+  configure_ssh_server
+
+  configure_docker
+
+  create_swap_and_resize_fs
+
+  exit 0
+}
+
 if [[ -f "${SCRIPT_DIR}/custom-init.sh" ]]; then
   # shellcheck source=/dev/null
   source "${SCRIPT_DIR}/custom-init.sh"
 fi
 
-if [[ "${1:-}" = "--reinit" ]]; then
-  export REINIT=1
-
-  if [[ -n "${2:-}" && "$(type -t "${2}")" == "function" ]]; then
-    "${2}"
-    exit "$?"
-  fi
-else
-  report_info "cuos:init:start" "System startup"
-  state jq '.start_date = (now | todate)'
+# Execute main only if script is run, not sourced
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
 fi
-
-prepare_data_volume
-
-ensure_docker_config_json
-
-ensure_system_config
-
-set_hostname
-
-configure_network
-
-import_custom_ca_certs
-
-configure_keyboard
-
-set_root_password
-
-create_ssh_hostkey
-
-configure_ssh_server
-
-configure_docker
-
-create_swap_and_resize_fs
-
-exit 0
-
