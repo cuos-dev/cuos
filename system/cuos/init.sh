@@ -299,7 +299,7 @@ configure_network() {
 
       # No JSON entry at all → original defaults (first iface DHCP, rest manual)
       if [[ -z "$json_idx" ]]; then
-        if [[ -z "${!used_json[@]}" && "$i" == "0" ]]; then
+        if [[ -z "${!used_json[*]}" && "$i" == "0" ]]; then
           echo "auto $iface"
           echo "iface $iface inet dhcp"
           echo "    metric $metric"
@@ -316,7 +316,7 @@ configure_network() {
       config=$(jq_config -r ".network[$json_idx]")
       local dhcp
       dhcp=$(echo "$config" | jq -r '.dhcp // empty')
-      local iP
+      local ip
       ip=$(echo "$config" | jq -r '."ip-address" // empty')
       local mask
       mask=$(echo "$config" | jq -r '."network-mask" // empty')
@@ -476,7 +476,6 @@ create_ssh_hostkey() {
   chmod 700 "${SSH_CONFIG_DIR}"
 
   shopt -s nullglob
-  local hostkeys=("${SSH_CONFIG_DIR}"/ssh_host_*_key)
   local persisted_keys=("${SSH_PERSIST_DIR}"/ssh_host_*_key)
 
   if [ ${#persisted_keys[@]} -gt 0 ]; then

@@ -29,7 +29,7 @@ change_vt
 
 # open subshell for own trap
 (
-  # shellcheck disable=SC2317
+  # shellcheck disable=SC2317,SC2329
   cleanup() {
     [[ -n "${tmpfile}" ]] && rm -f "$tmpfile"
   }
