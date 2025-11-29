@@ -23,8 +23,13 @@ cat <<EOF >"${ISO_DIR}/boot/grub/grub.cfg"
 set timeout=0
 set default=0
 
-menuentry "CuOS Installer" {
-    linux /boot/vmlinuz
+load_video
+set gfxpayload=keep
+
+set superusers="root"
+
+menuentry "Installer" {
+    linux /boot/vmlinuz ro quiet loglevel=3 noresume apparmor=0
     initrd /boot/initrd.img
 }
 EOF
