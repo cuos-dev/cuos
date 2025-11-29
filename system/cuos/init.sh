@@ -771,6 +771,6 @@ if [[ -f "${SCRIPT_DIR}/custom-init.sh" ]]; then
 fi
 
 # Execute main only if script is run, not sourced
-if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+#if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   main "$@"
-fi
+#fi
