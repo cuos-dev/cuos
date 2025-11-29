@@ -153,7 +153,13 @@ sync
 
 # Setup loop device
 if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
-  raise "Failed to setup loop device. Please try again. Ensure loop module is loaded."
+  sleep 2
+  if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
+    sleep 5
+    if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
+      raise "Failed to setup loop device. Are you inside a LXC container? Ensure loop module is loaded."
+    fi
+  fi
 fi
 
 partprobe "${LOOPDEV}"
