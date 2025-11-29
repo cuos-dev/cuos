@@ -22,7 +22,7 @@ Core building blocks:
 | Update Layer | Updater image (`updater_image`) | Prepare new subvolume + boot switch, digest checks |
 | Persistence | BTRFS subvolumes `@os`, `@data`, `@swap` | Separate replaceable system from stable data |
 | Config files | `/system.json`, `/system_next.json` | Active vs staged (rollback) configuration |
-| Status files | `/data/state.json`, `/etc/partition_mode` | Runtime state + active slot indicator |
+| Status files | `/data/state.json`, `/etc/active_slot` | Runtime state + active slot indicator |
 
 ---
 
@@ -32,7 +32,7 @@ Core building blocks:
 |------|---------|
 | `/usr/local/cuos/` | CuOS scripts (install, update, API, init) |
 | `/etc/image` | Current system image reference |
-| `/etc/partition_mode` | Logical slot (A/B) |
+| `/etc/active_slot` | Logical slot (A/B) |
 | `/system.json` | Active configuration |
 | `/system_next.json` | Staging / rollback configuration |
 | `/data/` | Persistent data (logs, docker, state) |

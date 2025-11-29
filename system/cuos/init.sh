@@ -24,7 +24,7 @@ ensure_docker_config_json() {
 
 ensure_system_config() {
   # Exec first-run if not yet started. E.g. for testing in docker containers.
-  if [[ ! -f "/etc/partition_mode" ]]; then
+  if [[ ! -f "/etc/active_slot" ]]; then
     "${SCRIPT_DIR}/first-run.sh" "A" "unknown" "unknown"
   fi
 

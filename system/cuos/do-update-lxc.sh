@@ -9,10 +9,10 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/utils.sh"
 
 
-CURRENT_PARTITION="$(cat "/etc/partition_mode" 2>/dev/null || echo "A")"
-PARTITION="A"
-if [[ "${CURRENT_PARTITION}" == "A" ]]; then
-    PARTITION="B"
+CURRENT_SLOT="$(cat "/etc/active_slot" 2>/dev/null || echo "A")"
+SLOT="A"
+if [[ "${CURRENT_SLOT}" == "A" ]]; then
+    SLOT="B"
 fi
 
 export CONFIG_PATH="/system_next.json"
@@ -59,7 +59,7 @@ cd /next || exit 127
 rm -Rf .dockerenv sys dev proc data
 cd / || exit 127
 
-chroot /next /usr/local/cuos/first-run.sh "${PARTITION}" "${IMAGE_VERSION}" "${NEW_DIGEST}" \
+chroot /next /usr/local/cuos/first-run.sh "${SLOT}" "${IMAGE_VERSION}" "${NEW_DIGEST}" \
 	|| raise "Failed to run first-run script in container"
 
 if [[ -d "/next${SCRIPT_DIR}/lxc-swaproot/" ]]; then
@@ -91,7 +91,7 @@ chmod a+x /sbin/init
 touch "/data/run-update"
 state '.state' 'updating'
 state jq '.last_update_date = (now | todate)'
-state '.update_state' 'updated partition '"${PARTITION}"' to '"${LXC_IMAGE}"
+state '.update_state' 'updated slot '"${SLOT}"' to '"${LXC_IMAGE}"
 sync
 echo "Rebooting ..."
 reboot

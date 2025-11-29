@@ -3,7 +3,7 @@
 set -x
 set -o pipefail
 
-PARTITION="A"
+SLOT="A"
 
 raise() {
 	echo "Error: $*" >&2
@@ -73,7 +73,7 @@ docker run -it -d \
 	--restart=always \
 	--name "${CONTAINER_NAME}" \
 	"${IMAGE_VERSION}" || raise "Failed to run container"
-docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${PARTITION}" "${IMAGE_VERSION}" "${NEW_DIGEST}" \
+docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${SLOT}" "${IMAGE_VERSION}" "${NEW_DIGEST}" \
 	|| raise "Failed to run first-run script in container"
 
 docker cp "${CONFIG_PATH}" "${CONTAINER_NAME}:/data/system_A.json" \

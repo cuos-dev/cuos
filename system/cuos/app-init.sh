@@ -151,12 +151,9 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
     DOCKER_ARGS="$(docker inspect --format '{{ index .Config.Labels "dev.cuos.app_command" }}' "${INITIAL_IMAGE}")"
     if [[ -z "${DOCKER_ARGS}" ]]; then
       DOCKER_ARGS="\
-        --device /dev/tty7 \
-        --network=host \
         --volume /var/run/docker.sock:/var/run/docker.sock  \
         --volume /root/.docker/config.json:/root/.docker/config.json:ro  \
         --volume /system.json:/system.json:ro  \
-        --volume /etc/partition_mode:/etc/partition_mode:ro  \
         --volume /var/run/cuos.sock:/var/run/cuos.sock  \
         --volume /usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro"
     fi

@@ -13,7 +13,7 @@ A minimal CuOS-based system consists of:
 
 Key Features:
 - Minimal OS based on Debian
-- A/B partition scheme for safe updates
+- A/B slot scheme for safe updates
 - BTRFS filesystem for snapshots
 - Full systemd integration
 - Network configuration support

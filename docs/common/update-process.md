@@ -136,7 +136,7 @@ Rollback actions:
 | `/system.json` | Active configuration |
 | `/system_next.json` | Staging / rollback source |
 | `/etc/image` | Active OS image label |
-| `/etc/partition_mode` | Active slot indicator |
+| `/etc/active_slot` | Active slot indicator, A or B |
 | `/data/run-update` | App restart trigger |
 | `/data/state.json` | Runtime state |
 

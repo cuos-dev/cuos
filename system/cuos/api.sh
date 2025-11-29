@@ -47,11 +47,11 @@ EOF
     VERSION="$(cat "/etc/image")"
     VERSION="${VERSION/*\//}"
     VERSION="${VERSION/@*/}"
-    PARTITION="$(cat "/etc/partition_mode")"
+    SLOT="$(cat "/etc/active_slot")"
     jq \
-      --arg partition "${PARTITION}" \
+      --arg slot "${SLOT}" \
       --arg version "${VERSION}" \
-      '.partition = $partition | .version = $version' \
+      '.slot = $slot | .version = $version' \
        "/data/state.json"
   ;;
 
@@ -120,7 +120,7 @@ EOF
         "${CONFIG_PATH}" || exit 0
     fi
 
-    # apply changes to current partition
+    # apply changes to current slot
     "${SCRIPT_DIR}/init.sh" --reinit
   ;;
 

@@ -11,7 +11,7 @@ A minimal CuOS-based system consists of:
 
 Key Features:
 - Minimal OS based on Debian
-- A/B partition scheme for safe updates
+- A/B slot scheme for safe updates
 - BTRFS filesystem for snapshots
 - Full systemd integration
 - Network configuration support
@@ -178,15 +178,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 ### Update Mechanism
 
-The update system uses an A/B partition scheme for safe system updates. This allows for:
+The update system uses an A/B slot scheme for safe system updates. This allows for:
 - Low-downtime updates
 - Automatic rollback on failure
 - Verified boot process
 
 #### Update Process
 
-1. System determines current active partition (A or B)
-2. Downloads new image to inactive partition
+1. System determines current active slot (A or B)
+2. Downloads new image to inactive slot
 3. Updates boot configuration
 4. Reboots into new system
 5. Verifies boot success or rolls back
@@ -203,12 +203,12 @@ docker run \
   -v /root/.docker/config.json:/root/.docker/config.json:ro \
   -v /etc/image:/etc/image:ro \
   -e "TARGET_DEVICE=${TARGET_DEVICE}" \
-  ghcr.io/cuos-dev/cuos-updater:latest "${PARTITION}" "${IMAGE_VERSION}" "${IMAGE_DIGEST}"
+  ghcr.io/cuos-dev/cuos-updater:latest "${SLOT}" "${IMAGE_VERSION}" "${IMAGE_DIGEST}"
 ```
 
 Parameters:
 - **TARGET_DEVICE**: Block device to update (e.g., `/dev/sda`)
-- **PARTITION**: Current active partition ("A" or "B")
+- **SLOT**: Current active slot ("A" or "B")
 - **IMAGE_VERSION**: Full image reference to install
 - **IMAGE_DIGEST**: SHA256 digest for verification (optional)
 

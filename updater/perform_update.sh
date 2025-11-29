@@ -10,10 +10,10 @@ raise() {
 }
 
 # Check parameters:
-PARTITION="A"
-# $1 is current partition:
+SLOT="A"
+# $1 is current slot:
 if [[ "$1" = "A" ]]; then
-  PARTITION="B"
+  SLOT="B"
 fi
 
 IMAGE="${2}"
@@ -42,11 +42,11 @@ if [[ "${INSTALLIMAGE}" != "true" ]]; then
   fi
 fi
 
-CONTAINER_NAME_OLD="dockerboot-container-${PARTITION}"
-CONTAINER_NAME="cuos-system-${PARTITION}"
+CONTAINER_NAME_OLD="dockerboot-container-${SLOT}"
+CONTAINER_NAME="cuos-system-${SLOT}"
 
-# Remove old partition:
-rm -f "${TARGET_BOOT}/${PARTITION}"_* || true
+# Remove old slot:
+rm -f "${TARGET_BOOT}/${SLOT}"_* || true
 
 docker rm -f "${CONTAINER_NAME_OLD}" >/dev/null 2>/dev/null
 
@@ -69,7 +69,7 @@ if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image 2>/dev/null)" ]]; then
   exit 2
 fi
 
-echo "INFO: Updating OS partition ${PARTITION} to ${IMAGE}"
+echo "INFO: Updating OS slot ${SLOT} to ${IMAGE}"
 
 echo "disc free (root): $(df -h "${DOCKER_DIR}" | tail -n 1)"
 
@@ -82,10 +82,10 @@ docker run -it -d \
   --restart=always \
   --name "${CONTAINER_NAME}" \
   "${IMAGE}" || raise "Failed to run container"
-docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${PARTITION}" "${IMAGE}" "${DIGEST}" \
+docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${SLOT}" "${IMAGE}" "${DIGEST}" \
   || raise "Failed to run first-run script in container"
 
-# Copy latest kernel and initrd to boot partition
+# Copy latest kernel and initrd to boot slot
 kernel=$(docker exec "${CONTAINER_NAME}" bash -c 'ls /boot/vmlinuz-*' 2>/dev/null | sort -V | tail -n1) \
   || raise "Faild to detect kernel file"
 initrd=$(docker exec "${CONTAINER_NAME}" bash -c 'ls /boot/initrd.img-*' 2>/dev/null | sort -V | tail -n1) \
@@ -98,8 +98,8 @@ if [[ -z "${initrd}" ]]; then
   raise "No matching initrd file found."
 fi
 
-filename_kernel="${PARTITION}_$(basename "${kernel}")"
-filename_initrd="${PARTITION}_$(basename "${initrd}")"
+filename_kernel="${SLOT}_$(basename "${kernel}")"
+filename_initrd="${SLOT}_$(basename "${initrd}")"
 
 if [[ "${OS_ARCH}" == "rpi"* ]]; then
   rm -Rf "${TARGET_BOOT}/firmware_prev"
@@ -208,8 +208,8 @@ EOF
 
 else
   # Generate GRUB entry
-  SLOT_NAME="${PRODUCT_NAME} Slot ${PARTITION} - Linux $version"
-  ( cat <<EOF > "${TARGET_BOOT}/${PARTITION}_grub.cfg"
+  SLOT_NAME="${PRODUCT_NAME} Slot ${SLOT} - Linux $version"
+  ( cat <<EOF > "${TARGET_BOOT}/${SLOT}_grub.cfg"
 menuentry '${SLOT_NAME}' --unrestricted {
     insmod gzio
     insmod part_gpt
@@ -223,7 +223,7 @@ menuentry '${SLOT_NAME}' --unrestricted {
 }
 
 EOF
-  ) || raise "Failed to configure grub (partition)"
+  ) || raise "Failed to configure grub (slot)"
 
 
   (

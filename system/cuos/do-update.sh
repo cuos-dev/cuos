@@ -13,7 +13,7 @@ fi
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/utils.sh"
 
-PARTITION="$(cat "/etc/partition_mode")"
+SLOT="$(cat "/etc/active_slot")"
 
 export CONFIG_PATH="/system_next.json"
 
@@ -62,20 +62,20 @@ docker run --rm \
   -e "TARGET_DEVICE=${ROOT_DISK}" \
   -e "OS_ARCH=${OS_ARCH}" \
   "${UPDATE_IMAGE}" \
-  "${PARTITION}" "${OS_IMAGE}" "${OS_DIGEST}"
+  "${SLOT}" "${OS_IMAGE}" "${OS_DIGEST}"
 
 DOCKER_EXIT_CODE="$?"
 
 echo "Exit Code: ${DOCKER_EXIT_CODE}"
 
-PARTITION_NEXT="A"
-[[ "${PARTITION}" == "A" ]] && PARTITION_NEXT="B"
+SLOT_NEXT="A"
+[[ "${SLOT}" == "A" ]] && SLOT_NEXT="B"
 
 if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
   touch "/data/run-update"
   state '.state' 'updating'
   state jq '.last_update_date = (now | todate)'
-  state '.update_state' 'updated partition '"${PARTITION_NEXT}"' to '"${OS_IMAGE}"
+  state '.update_state' 'updated slot '"${SLOT_NEXT}"' to '"${OS_IMAGE}"
   report_info "cuos:update:restart" "Update requires reboot. Rebooting"
   echo "Rebooting ..."
 
@@ -88,7 +88,7 @@ elif [[ "${DOCKER_EXIT_CODE}" = "3" ]]; then
   echo "Not enough free disk space available"
   report_info "cuos:update:no_space" "Not enough free disk space available"
 else
-  state '.update_state' "update of partition ${PARTITION_NEXT} to ${OS_IMAGE} failed"
+  state '.update_state' "update of slot ${SLOT_NEXT} to ${OS_IMAGE} failed"
   report_err "cuos:update:failed" "Update failed. Exit code ${DOCKER_EXIT_CODE}"
 fi
 

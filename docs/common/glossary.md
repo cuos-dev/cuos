@@ -23,7 +23,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | State File | `/data/state.json` persisted state metadata | Mutated by core scripts |
 | Config File | `/system.json` active configuration | Source of truth after merges/patches |
 | Next Config File | `/system_next.json` rollback / staging config | Swapped during updates |
-| Partition Mode File | `/etc/partition_mode` indicating active slot name | Used by update & rollback logic |
+| Active Slot File | `/etc/active_slot` indicating active slot name | Used by update & rollback logic |
 | Trigger File | `/data/run-update` forces app container refresh | Created by API patch/update logic |
 | API Socket | `/var/run/cuos.sock` UNIX domain socket for commands | JSON line based protocol |
 | Resources Command | `cuos resources` JSON system metrics | CPU / memory / disk / network summary |
@@ -56,7 +56,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | `/data/` | Persistent root (logs, docker, state) |
 | `/data/log/` | Journald persistent logs (via symlink) |
 | `/etc/image` | Current active system image reference string |
-| `/etc/partition_mode` | Current active slot indicator (logical A/B) |
+| `/etc/active_slot` | Current active slot indicator (logical A/B) |
 | `/var/run/cuos.sock` | API communication socket |
 | `/usr/local/cuos/` | Core CuOS scripts and helpers |
 

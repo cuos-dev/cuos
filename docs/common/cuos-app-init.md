@@ -43,12 +43,9 @@ Its value replaces the default Docker run argument block (still augmented with s
 Default:
 
 ```shell
---device /dev/tty7 \
---network host \
 --volume /var/run/docker.sock:/var/run/docker.sock \
 --volume /root/.docker/config.json:/root/.docker/config.json:ro \
 --volume /system.json:/system.json:ro \
---volume /etc/partition_mode:/etc/partition_mode:ro \
 --volume /var/run/cuos.sock:/var/run/cuos.sock \
 --volume /usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro
 ```
@@ -60,6 +57,7 @@ Suggestions for more parameters:
 --user myuser:mygroup \
 --read-only \
 --tmpfs /etc/ssl/certs:rw,noexec,nosuid,size=16m
+--tmpfs /tmp:rw,size=64m
 ```
 
 ### Entrypoint

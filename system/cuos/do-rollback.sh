@@ -30,21 +30,21 @@ mount -t vfat "${TARGET_BOOT_PARTITION}" "${TARGET_BOOT}" || {
   exit 1
 }
 
-CURRENT_PARTITION="$(cat "/etc/partition_mode" 2>/dev/null || echo "A")"
-PARTITION="A"
-PARTITION_ID=0
-if [[ "${CURRENT_PARTITION}" == "A" ]]; then
-  PARTITION="B"
-  PARTITION_ID=1
+CURRENT_SLOT="$(cat "/etc/active_slot" 2>/dev/null || echo "A")"
+SLOT="A"
+SLOT_ID=0
+if [[ "${CURRENT_SLOT}" == "A" ]]; then
+  SLOT="B"
+  SLOT_ID=1
 fi
 
 REASON="$1"
-"${SCRIPT_DIR}/dialog.sh" "CRITICAL: Perfoming Rollback to partition ${PARTITION}: ${REASON}"
+"${SCRIPT_DIR}/dialog.sh" "CRITICAL: Perfoming Rollback to slot ${SLOT}: ${REASON}"
 
 # set update state: Rollback because of ${REASON}"
 state '.state' 'rollback'
 state jq '.last_update_date = (now | todate)'
-state '.update_state' "rollback to partition ${PARTITION} (${REASON})"
+state '.update_state' "rollback to slot ${SLOT} (${REASON})"
 
 if [[ "${OS_ARCH}" == "rpi"* ]]; then
 
@@ -57,9 +57,9 @@ if [[ "${OS_ARCH}" == "rpi"* ]]; then
   fi
 
 else
-  PARTITION_NAME="$(grep "menuentry " "${TARGET_BOOT}/${PARTITION}_grub.cfg" | head -n 1 | cut -d "'" -f 2)"
-  if [[ -z "${PARTITION_NAME}" ]]; then
-      PARTITION_NAME="${PARTITION_ID}"
+  SLOT_NAME="$(grep "menuentry " "${TARGET_BOOT}/${SLOT}_grub.cfg" | head -n 1 | cut -d "'" -f 2)"
+  if [[ -z "${SLOT_NAME}" ]]; then
+      SLOT_NAME="${SLOT_ID}"
   fi
 
   {
@@ -74,7 +74,7 @@ set superusers="root"
 EOF
     cat "${TARGET_BOOT}"/{A,B}_grub.cfg 2>/dev/null
 
-    echo "set default=\"${PARTITION_NAME}\""
+    echo "set default=\"${SLOT_NAME}\""
   } > "$GRUB_CFG_PATH"
 fi
 

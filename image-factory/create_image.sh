@@ -84,7 +84,7 @@ OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_imag
 
 if [[ "${OS_ARCH}" == "lxc" ]]; then
   IMAGE="${IMAGE/img/tar.gz}"
-  PARTITION="A"
+  SLOT="A"
 
   docker image pull "${OS_IMAGE}" || raise "Faild to fetch image"
   IMAGE_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${OS_IMAGE}" 2>/dev/null | cut -d '@' -f 2)"
@@ -98,7 +98,7 @@ if [[ "${OS_ARCH}" == "lxc" ]]; then
     --pull=never \
     --name "${CONTAINER_NAME}" \
     "${OS_IMAGE}" || raise "Failed to run container"
-  docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${PARTITION}" "${OS_IMAGE}" "${IMAGE_DIGEST}" \
+  docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${SLOT}" "${OS_IMAGE}" "${IMAGE_DIGEST}" \
     || raise "Failed to run first-run script in container"
 
   docker cp "${CONFIG_PATH}" "${CONTAINER_NAME}:/system_init.json" \
@@ -114,7 +114,7 @@ if [[ "${OS_ARCH}" == "lxc" ]]; then
   exit 0
 fi
 
-PARTITION="B"
+SLOT="B"
 
 #SIZE_MB=2048
 SIZE_MB=4096
@@ -194,7 +194,7 @@ umount /mnt/root
 
 export INSTALLIMAGE=true
 /usr/local/updater/updater.sh \
-	"${PARTITION}" \
+	"${SLOT}" \
 	"${OS_IMAGE}" \
 	"${OS_DIGEST}"
 
