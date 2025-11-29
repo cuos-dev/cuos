@@ -26,8 +26,6 @@ set default=0
 load_video
 set gfxpayload=keep
 
-set superusers="root"
-
 menuentry "Installer" {
     linux /boot/vmlinuz ro quiet loglevel=3 noresume apparmor=0
     initrd /boot/initrd.img
