@@ -72,6 +72,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && systemctl enable systemd-timesyncd.service \
   && systemctl mask ssh.socket \
+  && systemctl mask sshd-keygen.service \
   && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
   && rm -f /etc/ssh/ssh_host_* \
   && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf \

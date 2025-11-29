@@ -51,10 +51,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   # No timesyncd for LXC \
   && systemctl mask ssh.socket \
+  && systemctl mask sshd-keygen.service \
   && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
   && rm -f /etc/ssh/ssh_host_* \
   && echo "net.ipv4.ip_forward=1" >>/etc/sysctl.conf \
-  ## Ensure persistence \
+  ## Ensure persistence in /data \
   && mkdir -p /data \
   && rm -f /etc/machine-id && ln -sf /data/machine-id /etc/machine-id \
   && rm -Rf /var/log && ln -sf /data/log /var/log \
