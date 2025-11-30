@@ -464,7 +464,7 @@ set_root_password() {
 
   usermod -U root
 
-  report_info "cuos:init:root_access" "Root access is enabled"
+  [[ -z "${REINIT:-}" ]] && report_info "cuos:init:root_access" "Root access is enabled"
 }
 
 create_ssh_hostkey() {
@@ -480,18 +480,17 @@ create_ssh_hostkey() {
 
   if [ ${#persisted_keys[@]} -gt 0 ]; then
     # Restore keys from persistent storage
-    report_info "cuos:init:ssh_hostkeys" "Restoring SSH host keys from ${SSH_PERSIST_DIR}"
+    echo "Restoring SSH host keys from ${SSH_PERSIST_DIR}"
     cp "${SSH_PERSIST_DIR}"/ssh_host_*_key "${SSH_CONFIG_DIR}/" 2>/dev/null || true
     cp "${SSH_PERSIST_DIR}"/ssh_host_*_key.pub "${SSH_CONFIG_DIR}/" 2>/dev/null || true
     chmod 600 "${SSH_CONFIG_DIR}"/ssh_host_*_key
     chmod 644 "${SSH_CONFIG_DIR}"/ssh_host_*_key.pub
   else
     # Generate new keys
-    report_info "cuos:init:ssh_hostkeys" "Generating SSH host keys"
+    echo "Generating SSH host keys"
     ssh-keygen -A
 
     # Persist the newly generated keys
-    report_info "cuos:init:ssh_hostkeys" "Persisting SSH host keys to ${SSH_PERSIST_DIR}"
     cp "${SSH_CONFIG_DIR}"/ssh_host_*_key "${SSH_PERSIST_DIR}/" 2>/dev/null || true
     cp "${SSH_CONFIG_DIR}"/ssh_host_*_key.pub "${SSH_PERSIST_DIR}/" 2>/dev/null || true
     chmod 600 "${SSH_PERSIST_DIR}"/ssh_host_*_key
@@ -506,7 +505,7 @@ configure_ssh_server() {
   local ssh_enabled_before="true"
   [[ -f "/etc/ssh/sshd_not_to_be_run" ]] && ssh_enabled_before="false"
   if [[ "${ssh_enabled}" == "true" ]]; then
-    report_info "cuos:init:ssh_server" "Start SSH server"
+    [[ -z "${REINIT:-}" ]] && report_info "cuos:init:ssh_server" "Start SSH server"
     rm -f /etc/ssh/sshd_not_to_be_run
     iptables -I INPUT -p tcp --dport 4222 -j ACCEPT 2>/dev/null || true
   else

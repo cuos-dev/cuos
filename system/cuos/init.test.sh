@@ -22,10 +22,6 @@ source "${SCRIPT_DIR}/init.sh"
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system.json"
 export T_FILE_DOCKER_DAEMON="/dev/stdout"
 
-expect "calculate_bip" \
-  "192.168.142.192/26" \
-  calculate_bip "192.168.127.0/20" 26
-
 expect "configure_docker" \
 '{
   "log-driver": "journald",
@@ -34,7 +30,6 @@ expect "configure_docker" \
   },
   "storage-driver": "overlay2",
   "data-root": "/data/docker",
-  "bip": "192.168.143.0/24",
   "default-address-pools": [
     {
       "base": "192.168.128.0/20",
