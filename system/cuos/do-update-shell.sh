@@ -29,17 +29,10 @@ fi
 ROOT_DEV="$(findmnt -n -o SOURCE -T "/" | sed 's/\[.*\]//')"
 ROOT_DISK="/dev/$(lsblk -no PKNAME "$ROOT_DEV" | head -n1)"
 
-docker network rm cuos-internet
-docker network create \
-	--driver=bridge \
-	--opt com.docker.network.bridge.enable_icc=false \
-	--opt com.docker.network.bridge.enable_ip_masquerade=true \
-	cuos-internet
-
 touch "/root/.docker/config.json"
 docker run --rm -it \
 	--pull=never \
-	--network=cuos-internet \
+	--log-driver=journald \
 	--privileged \
 	--device "${ROOT_DISK}" \
 	-v "/root/.docker/config.json:/root/.docker/config.json:ro" \
