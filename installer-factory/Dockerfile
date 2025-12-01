@@ -36,4 +36,4 @@ COPY initramfs-tools/ /etc/initramfs-tools/
 
 RUN /prepare_iso.sh
 
-COPY create_iso.sh /
+COPY create_iso.sh patch_iso.sh /
