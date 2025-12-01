@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # Call with:
-# IMAGE_NAME="" #name of iso file without iso
+# IMAGE_NAME="new_installer" #name of iso file without iso
+# echo $NEW_CONFIG >output/new_installer.json
 # docker run -it --rm \
 #  --entrypoint /bin/bash \
 #  -v ./output:/output \
 #  -e "IMAGE_NAME=${IMAGE_NAME}" \
 #  ghcr.io/cuos-dev/cuos-installer-factory:development \
-#  /update_iso.sh
+#  /update_iso.sh "existing_installer.iso"
 
 set -ex
 
@@ -37,3 +38,6 @@ xorriso \
   -boot_image any replay \
   -compliance no_emul_toc \
   -padding included
+
+echo "ISO patching complete."
+echo "Installer written to ${INSTALLER/\//}"
