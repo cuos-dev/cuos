@@ -49,17 +49,6 @@ if [[ -f "${CONFIG_PATH}" ]]; then
   fi
 fi
 
-VOLID="$(echo "${PRODUCT_NAME}" | \
-  iconv -t ASCII//TRANSLIT 2>/dev/null | \
-  tr -cd '[:print:]' | \
-  tr '[:lower:]' '[:upper:]' | \
-  sed -E 's/[^A-Z0-9]+/_/g' | \
-  sed -E 's/_+/_/g' | \
-  sed -E 's/^[_]+|[_]+$//g' | \
-  cut -c1-32)"
-VOLID="${VOLID:-"CUOS"}"
-
-
 grub-mkrescue \
   -o "${INSTALLER}" \
   -V "${VOLID}" \
