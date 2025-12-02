@@ -698,6 +698,7 @@ main() {
   else
     report_info "cuos:startup:start" "System starting up ..."
     state jq '.start_date = (now | todate)'
+    state jq '.starting = true'
   fi
 
   prepare_data_volume
