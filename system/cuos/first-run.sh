@@ -23,4 +23,6 @@ if [[ -f "${SCRIPT_DIR}/custom-first-run.sh" ]]; then
   source "${SCRIPT_DIR}/custom-first-run.sh"
 fi
 
+/usr/sbin/fake-hwclock save force
+
 exit 0

@@ -53,25 +53,46 @@ mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii
 #	exit 1
 #fi
 
-# Start dockerd and wait until it is ready:
-dockerd \
-	--storage-driver btrfs \
-	--iptables=false \
-	--ip6tables=false \
-	--ip-forward=false \
-	--ip-masq=false \
-	--bridge=none \
-	--data-root "${DOCKER_DIR}" &
-DOCKERD_PID="$!"
-echo "Waiting for Docker to be ready..."
-counter=0
-until docker info >/dev/null 2>&1; do
-	counter="$((counter + 1))"
-	if [[ "${counter}" -gt 100 ]]; then
-		raise "Could not start dockerd"
+
+start_dockerd() {
+
+	# Start dockerd and wait until it is ready:
+	dockerd \
+		--storage-driver btrfs \
+		--iptables=false \
+		--ip6tables=false \
+		--ip-forward=false \
+		--ip-masq=false \
+		--bridge=none \
+		--data-root "${DOCKER_DIR}" &
+	DOCKERD_PID="$!"
+	echo "Waiting for Docker to be ready..."
+	counter=0
+	until docker info >/dev/null 2>&1; do
+		counter="$((counter + 1))"
+		if [[ "${counter}" -gt 100 ]]; then
+			raise "Could not start dockerd"
+		fi
+		sleep 1
+		if ! kill -0 "$DOCKERD_PID"; then
+			return 1
+		fi
+	done
+	if ! docker info >/dev/null 2>&1; then
+		return 1
 	fi
-	sleep 1
-done
+	return 0
+}
+
+if ! start_dockerd; then
+	if ! start_dockerd; then
+		if ! start_dockerd; then
+			if ! start_dockerd; then
+				exit 1
+			fi
+		fi
+	fi
+fi
 
 docker info
 
