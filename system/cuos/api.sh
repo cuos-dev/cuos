@@ -204,6 +204,20 @@ EOF
     }' | jq -s .
   ;;
 
+## report_app_ready    - App announces itself as ready.
+  "report_app_ready")
+    message="$(echo "${INPUT}" | jq -r '.message // ""')"
+    report_info "cuos:startup:done" "Startup complete${message+" – ${message}"}"
+  ;;
+## report              - Write a report
+  "report")
+    id="$(echo "${INPUT}" | jq -r '.id // "cuos:userreport:other"')"
+    message="$(echo "${INPUT}" | jq -r '.message // ""')"
+    level="$(echo "${INPUT}" | jq -r '.level // ""')"
+
+    logger -t cuos -p "daemon.${level}" "${id}" "${message}"
+  ;;
+
 ## app                - Call app API
   "app")
     echo "${INPUT}" | docker exec -i cuos-app /api/trigger "$@"

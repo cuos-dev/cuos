@@ -186,6 +186,6 @@ fi
 
 state '.state' 'running'
 
-report_info "cuos:startup:done" "Operation System and Init Container successfully started."
+report_info "cuos:startup:ready" "Operation system ready. Starting applications ..."
 
 sleep infinity & wait

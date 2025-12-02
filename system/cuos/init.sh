@@ -696,7 +696,7 @@ main() {
       exit "$?"
     fi
   else
-    report_info "cuos:init:start" "System startup"
+    report_info "cuos:startup:start" "System starting up ..."
     state jq '.start_date = (now | todate)'
   fi
 
