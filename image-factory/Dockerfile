@@ -1,4 +1,4 @@
-FROM docker:28.5.1-alpine3.22
+FROM docker:29.1.1-alpine3.22
 
 # WARNING: This Dockerfile is intended to be built from the parent directory.
 
