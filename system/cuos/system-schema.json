@@ -26,6 +26,16 @@
       "items": {
         "type": "object",
         "properties": {
+          "name": {
+            "type": "string",
+            "description": "Interface name for interface identification",
+            "pattern": "^e[0-9A-Za-z]+$"
+          },
+          "mac-address": {
+            "type": "string",
+            "description": "MAC address for interface identification",
+            "pattern": "^(?:[0-9A-Fa-f]{2}([-:])(?:[0-9A-Fa-f]{2}\\1){4}[0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})$"
+          },
           "dhcp": {
             "type": "boolean",
             "default": false,
@@ -104,18 +114,6 @@
         }
       }
     },
-    "docker_net_prefix": {
-      "type": "string",
-      "description": "First two octets of the Docker network IP range (e.g., '10.235')",
-      "pattern": "^\\d{1,3}\\.\\d{1,3}$",
-      "default": "10.235"
-    },
-    "docker_bridge_net": {
-      "type": "string",
-      "description": "CIDR notation for Docker bridge network (e.g., '10.235.255.1/24')",
-      "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}$",
-      "default": "10.235.255.1/24"
-    },
     "docker_net_space": {
       "type": "string",
       "description": "CIDR notation for Docker container network space (e.g., '10.235.128.0/18')",
@@ -183,6 +181,29 @@
     "os_image_digest": {
       "type": "string",
       "description": "Digest of the OS image for integrity check (optional)"
+    },
+    "keyboard_model": {
+      "type": "string",
+      "description": "Keyboard Model",
+      "pattern": "^[A-Za-z]+[0-9]+$"
+    },
+    "keyboard_layout": {
+      "type": "string",
+      "description": "Keyboard Layout",
+      "pattern": "^[A-Za-z]{2}$"
+    },
+    "keyboard_variant": {
+      "type": "string",
+      "description": "Keyboard Variant",
+      "pattern": "^[A-Za-z0-9_-]{1,32}$"
+    },
+    "os_root_password": {
+      "type": "string",
+      "description": "Root Password for the operating system: local login or SSH - hash or password"
+    },
+    "os_ssh_server": {
+      "type": "boolean",
+      "description": "Activate SSH server for the operating system"
     }
   }
 }
