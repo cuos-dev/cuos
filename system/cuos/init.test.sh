@@ -90,7 +90,7 @@ expect \
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system2.json"
 expect \
   "configure_network 2: eth0: 155.7, eth1: dhcp" \
-  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2\n\nauto eth1\niface eth1 inet dhcp\n    metric 20' \
+  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2\n\n    up ip route add 192.168.77.0/11 via 255.255.255.0 dev eth0\n    down ip route del 192.168.77.0/11 via 255.255.255.0 dev eth0\nauto eth1\niface eth1 inet dhcp\n    metric 20' \
   configure_network
 
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system3.json"
