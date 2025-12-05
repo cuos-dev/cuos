@@ -82,17 +82,17 @@
                     "description": "Alias for destination (used by CuOS)",
                     "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}(/\\d{1,2})?$"
                   },
-                  "gateway": {
-                    "type": "string",
-                    "description": "Next-hop IPv4 address for the route",
-                    "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$"
-                  },
-                  "netmask": {
+                  "network-mask": {
                     "description": "Subnet mask for the destination. Accepts dotted-decimal (e.g. '255.255.255.0') or numeric prefix (e.g. 24).",
                     "oneOf": [
                       { "type": "string", "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$" },
                       { "type": "integer", "minimum": 0, "maximum": 32 }
                     ]
+                  },
+                  "gateway": {
+                    "type": "string",
+                    "description": "Next-hop IPv4 address for the route",
+                    "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$"
                   }
                 },
                 "additionalProperties": false
@@ -103,8 +103,8 @@
                   "type": "object",
                   "properties": {
                     "network": { "type": "string", "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}(/\\d{1,2})?$" },
-                    "gateway": { "type": "string", "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$" },
-                    "netmask": { "oneOf": [ { "type": "string", "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$" }, { "type": "integer", "minimum": 0, "maximum": 32 } ] }
+                    "network-mask": { "oneOf": [ { "type": "string", "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$" }, { "type": "integer", "minimum": 0, "maximum": 32 } ] },
+                    "gateway": { "type": "string", "pattern": "^\\d{1,3}(\\.\\d{1,3}){3}$" }
                   },
                   "additionalProperties": false
                 }

@@ -367,8 +367,8 @@ configure_network() {
           .routes // empty |
           (if type=="array" then .[] else . end) |
           (.network // "") as $d |
+          (."network-mask" // "") as $m |
           (.gateway // "") as $g |
-          (.netmask // "") as $m |
           [$d, $g, $m] | @tsv' |
         while IFS=$'\t' read -r RDEST RGW RMASK; do
           if [ -z "$RDEST" ] || [ -z "$RGW" ]; then
