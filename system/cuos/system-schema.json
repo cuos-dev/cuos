@@ -34,7 +34,7 @@
           "mac-address": {
             "type": "string",
             "description": "MAC address for interface identification",
-            "pattern": "^(?:[0-9A-Fa-f]{2}([-:])(?:[0-9A-Fa-f]{2}\\1){4}[0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})$"
+            "pattern": "^(?:[0-9A-Fa-f]{2}[-:](?:[0-9A-Fa-f]{2}[-:]){4}[0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})$"
           },
           "dhcp": {
             "type": "boolean",

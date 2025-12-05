@@ -88,7 +88,7 @@ jq_replace() {
 
 state() {
   local key="$1"
-  local value="$2"
+  local value="${2:-}"
   local state_file="/data/state.json"
   local new_state
 
