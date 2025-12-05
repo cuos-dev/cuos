@@ -208,7 +208,7 @@ EOF
   "report_app_ready")
     if [[ "$(state '.starting')" == "true" ]]; then
       message="$(echo "${INPUT}" | jq -r '.message // ""')"
-      report_info "cuos:startup:done" "Startup complete${message+" – ${message}"}"
+      report_info "cuos:startup:done" "Startup complete${message+" - ${message}"}"
       state jq '.starting = false'
     fi
   ;;
