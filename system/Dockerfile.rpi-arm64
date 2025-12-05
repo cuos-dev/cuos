@@ -141,6 +141,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf \
   && rm /etc/network/interfaces \
   ## RPI \
+  && rm -f /etc/fake-hwclock.data && ln -sf /data/fake-hwclock.data /etc/fake-hwclock.data \
   && rm -f /usr/lib/systemd/journald.conf.d/70-rpi-volatile-storage.conf
 
 
