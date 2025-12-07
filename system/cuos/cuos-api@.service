@@ -7,4 +7,4 @@ After=network.target
 ExecStart=/usr/local/cuos/api.sh input
 StandardInput=socket
 StandardOutput=socket
-StandardError=socket
+StandardError=journal

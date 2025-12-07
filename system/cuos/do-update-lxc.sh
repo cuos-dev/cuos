@@ -12,7 +12,7 @@ source "${SCRIPT_DIR}/utils.sh"
 CURRENT_SLOT="$(cat "/etc/active_slot" 2>/dev/null || echo "A")"
 SLOT="A"
 if [[ "${CURRENT_SLOT}" == "A" ]]; then
-    SLOT="B"
+  SLOT="B"
 fi
 
 export CONFIG_PATH="/system_next.json"
@@ -25,8 +25,15 @@ IMAGE_VERSION="${LXC_IMAGE}"
 IMAGE_VERSION_STRING="${LXC_IMAGE}@${LXC_IMAGE_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
-	echo "No new image version available. Exiting."
-	exit 2
+  echo "No new image version available. Exiting."
+  exit 22
+fi
+
+AVAIL_BYTES=$(df -B1 "/" | awk 'NR==2 {print $4}')
+REQUIRED_BYTES=$((2 * 1024 * 1024 * 1024))
+if [ "$AVAIL_BYTES" -le "$REQUIRED_BYTES" ]; then
+  echo "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update." >&2
+  exit 21
 fi
 
 state jq '.last_update_check = (now | todate)'
@@ -36,13 +43,13 @@ state jq '.last_update_check = (now | todate)'
 docker image pull "${IMAGE_VERSION}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_VERSION}" 2>/dev/null | cut -d '@' -f 2)
 if [[ -n "${LXC_IMAGE_DIGEST}" && "${LXC_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-	echo "Image digest mismatch: ${LXC_IMAGE_DIGEST} != ${NEW_DIGEST}"
-	exit 1
+  echo "Image digest mismatch: ${LXC_IMAGE_DIGEST} != ${NEW_DIGEST}"
+  exit 30
 fi
 
 if [[ "${IMAGE_VERSION}@${NEW_DIGEST}" == "$(cat /etc/image)" ]]; then
-	echo "No new image version available (post). Exiting."
-	exit 2
+  echo "No new image version available (post). Exiting."
+  exit 22
 fi
 
 rm -Rf /next /prev
@@ -50,31 +57,31 @@ mkdir -p /next
 
 CONTAINER="$(docker create "${IMAGE_VERSION}")"
 if ! docker export "${CONTAINER}" | (cd /next && tar xf -); then
-	raise "Failed to export the container"
+  raise "Failed to export the container"
 fi
 docker rm "${CONTAINER}" \
-	|| raise "Failed to remove the container"
+  || raise "Failed to remove the container"
 
 cd /next || exit 127
 rm -Rf .dockerenv sys dev proc data
 cd / || exit 127
 
 chroot /next /usr/local/cuos/first-run.sh "${SLOT}" "${IMAGE_VERSION}" "${NEW_DIGEST}" \
-	|| raise "Failed to run first-run script in container"
+  || raise "Failed to run first-run script in container"
 
 if [[ -d "/next${SCRIPT_DIR}/lxc-swaproot/" ]]; then
-	cp -R "/next${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
-		|| raise "Failed to copy swaproot scripts"
+  cp -R "/next${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
+    || raise "Failed to copy swaproot scripts"
 else
-	cp -R "${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
-		|| raise "Failed to copy swaproot scripts"
+  cp -R "${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
+    || raise "Failed to copy swaproot scripts"
 fi
 if [[ -f "/next/bin/busybox" ]]; then
-	cp /next/bin/busybox /swaproot/ \
-		|| raise "Failed to copy busybox"
+  cp /next/bin/busybox /swaproot/ \
+    || raise "Failed to copy busybox"
 else
-	cp /bin/busybox /swaproot/ \
-		|| raise "Failed to copy busybox"
+  cp /bin/busybox /swaproot/ \
+    || raise "Failed to copy busybox"
 fi
 
 mv /sbin/init /sbin/init-old

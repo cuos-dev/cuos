@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export TEST=1
+
 pass=0; fail=0
 expect() {
   local label="$1"; shift

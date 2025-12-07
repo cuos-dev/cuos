@@ -2,8 +2,6 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-export TEST=1
-
 # mocks:
 systemd-detect-virt() {
   echo "test"

@@ -31,7 +31,7 @@ IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
   echo "No new image version available. Exiting."
-  exit 2
+  exit 22
 fi
 
 state jq '.last_update_check = (now | todate)'
@@ -42,7 +42,7 @@ docker image pull "${UPDATE_IMAGE}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${UPDATE_IMAGE}" 2>/dev/null | cut -d '@' -f 2)
 if [[ -n "${UPDATE_IMAGE_DIGEST}" && "${UPDATE_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
   echo "Image digest mismatch: ${UPDATE_IMAGE_DIGEST} != ${NEW_DIGEST}"
-  exit 1
+  exit 30
 fi
 
 # Get Root Disk:
@@ -81,10 +81,10 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
 
   sync
   reboot
-elif [[ "${DOCKER_EXIT_CODE}" = "2" ]]; then
+elif [[ "${DOCKER_EXIT_CODE}" = "20" ]]; then
   echo "No new image version available."
   report_info "cuos:update:not_needed" "No new image version available"
-elif [[ "${DOCKER_EXIT_CODE}" = "3" ]]; then
+elif [[ "${DOCKER_EXIT_CODE}" = "22" ]]; then
   echo "Not enough free disk space available"
   report_info "cuos:update:no_space" "Not enough free disk space available"
 else

@@ -5,8 +5,16 @@ set -x
 export CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
 
 raise() {
+  local code="${1:-"1"}"
+  shift
   echo "Error: $*" >&2
-  exit 1
+  exit "${code}"
+}
+raise_info() {
+  local code="${1:-"1"}"
+  shift
+  echo "Info: $*" >&2
+  exit "${code}"
 }
 
 # Check parameters:
@@ -38,7 +46,7 @@ if [[ "${INSTALLIMAGE}" != "true" ]]; then
   REQUIRED_BYTES=$((2 * 1024 * 1024 * 1024))
   if [ "$AVAIL_BYTES" -le "$REQUIRED_BYTES" ]; then
     echo "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update." >&2
-    exit 3
+    raise 101 "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update."
   fi
 fi
 
@@ -48,25 +56,24 @@ CONTAINER_NAME="cuos-system-${SLOT}"
 # Remove old slot:
 rm -f "${TARGET_BOOT}/${SLOT}"_* || true
 
-docker rm -f "${CONTAINER_NAME_OLD}" >/dev/null 2>/dev/null
+docker rm -f "${CONTAINER_NAME_OLD}" >/dev/null 2>/dev/null || true
 
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>/dev/null && \
-  docker image prune -a -f
+  docker image prune -a -f || true
 
 # Load new image
 docker image pull "${IMAGE}" >/dev/null \
-  || raise "Faild to fetch system image"
+  || raise 103 "Faild to fetch system image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" 2>/dev/null | cut -d '@' -f 2)
 
 if [[ -n "${IMAGE_DIGEST}" && "${IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-  raise "Image digest mismatch: ${IMAGE_DIGEST} != ${NEW_DIGEST}"
+  raise 104 "Image digest mismatch: ${IMAGE_DIGEST} != ${NEW_DIGEST}"
 fi
 
 IMAGE_VERSION_STRING="${IMAGE}@${NEW_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image 2>/dev/null)" ]]; then
-  echo "No new image version available. Exiting."
-  exit 2
+  raise_info 102 "No OS update failable"
 fi
 
 echo "INFO: Updating OS slot ${SLOT} to ${IMAGE}"
@@ -74,46 +81,46 @@ echo "INFO: Updating OS slot ${SLOT} to ${IMAGE}"
 echo "disc free (root): $(df -h "${DOCKER_DIR}" | tail -n 1)"
 
 DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" | cut -d '@' -f 2) \
-  || raise "Failed to get image digest"
+  || raise 105 "Failed to get image digest"
 
 docker run -it -d \
   --pull=never \
   --network=none \
   --restart=always \
   --name "${CONTAINER_NAME}" \
-  "${IMAGE}" || raise "Failed to run container"
+  "${IMAGE}" || raise 106 "Failed to run container"
 docker exec "${CONTAINER_NAME}" /usr/local/cuos/first-run.sh "${SLOT}" "${IMAGE}" "${DIGEST}" \
-  || raise "Failed to run first-run script in container"
+  || raise 107 "Failed to run first-run script in container"
 
 # Copy latest kernel and initrd to boot slot
 kernel=$(docker exec "${CONTAINER_NAME}" bash -c 'ls /boot/vmlinuz-*' 2>/dev/null | sort -V | tail -n1) \
-  || raise "Faild to detect kernel file"
+  || raise 108 "Faild to detect kernel file"
 initrd=$(docker exec "${CONTAINER_NAME}" bash -c 'ls /boot/initrd.img-*' 2>/dev/null | sort -V | tail -n1) \
-  || raise "Faild to detect initrd file"
+  || raise 109 "Faild to detect initrd file"
 
 if [[ -z "${kernel}" ]]; then
-  raise "No matching kernel file found."
+  raise 110 "No matching kernel file found."
 fi
 if [[ -z "${initrd}" ]]; then
-  raise "No matching initrd file found."
+  raise 111 "No matching initrd file found."
 fi
 
 filename_kernel="${SLOT}_$(basename "${kernel}")"
 filename_initrd="${SLOT}_$(basename "${initrd}")"
 
 if [[ "${OS_ARCH}" == "rpi"* ]]; then
-  rm -Rf "${TARGET_BOOT}/firmware_prev"
-  mkdir -p "${TARGET_BOOT}/firmware_prev"
-  mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.txt,initramfs*,kernel*.img,overlays,start*.elf} "${TARGET_BOOT}/firmware_prev/"
+  rm -Rf "${TARGET_BOOT}/firmware_prev" || true
+  mkdir -p "${TARGET_BOOT}/firmware_prev" || true
+  mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.txt,initramfs*,kernel*.img,overlays,start*.elf} "${TARGET_BOOT}/firmware_prev/" || true
   docker cp "${CONTAINER_NAME}:/boot/firmware/." "${TARGET_BOOT}" \
-    || raise "Failed to copy kernel"
+    || raise 112 "Failed to copy kernel"
 
 else
 
   docker cp "${CONTAINER_NAME}":"${kernel}" "${TARGET_BOOT}/${filename_kernel}" \
-    || raise "Failed to copy kernel"
+    || raise 113 "Failed to copy kernel"
   docker cp "${CONTAINER_NAME}":"${initrd}" "${TARGET_BOOT}/${filename_initrd}" \
-    || raise "Failed to copy initrd"
+    || raise 114 "Failed to copy initrd"
 
 fi
 
@@ -121,18 +128,18 @@ echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
 
 # Get container information
 CONTAINER_ID="$(docker inspect --format '{{ .Id }}' "${CONTAINER_NAME}")" \
-  || raise "Failed to get container id"
+  || raise 115 "Failed to get container id"
 
 if [ -z "${CONTAINER_ID}" ]; then
-  raise "Container not found: ${CONTAINER_NAME}"
+  raise 116 "Container not found: ${CONTAINER_NAME}"
 fi
 
 CONTAINER_ROOTFS_FS="$(jq -r '.config.rootfs' \
   "/var/run/docker/runtime-runc/moby/${CONTAINER_ID}/state.json")" \
-  || raise "Failed to get container rootfs"
+  || raise 117 "Failed to get container rootfs"
 
 if [ -z "${CONTAINER_ROOTFS_FS}" ]; then
-  raise "Rootfs not found: ${CONTAINER_NAME}"
+  raise 118 "Rootfs not found: ${CONTAINER_NAME}"
 fi
 
 CONTAINER_ROOTFS="@os/docker/${CONTAINER_ROOTFS_FS#"${DOCKER_DIR}/"}"
@@ -148,15 +155,17 @@ LABEL=system  /data  btrfs  rw,relatime,discard=async,space_cache=v2,subvol=@dat
 #LABEL=boot  /boot  vfat  rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro  0 2
 EOF
 
-docker cp /etc/fstab "${CONTAINER_NAME}:/etc/fstab"
+docker cp /etc/fstab "${CONTAINER_NAME}:/etc/fstab" \
+  || raise 119 "Failed to copy fstab"
+
 
 if [[ "${INSTALLIMAGE}" = "true" ]]; then
   if [[ -f "${CONFIG_PATH}" ]]; then
     cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
-      || raise "Failed to copy system.json from dir"
+      || raise 120 "Failed to copy system.json from dir"
   else
     docker cp "${CONTAINER_NAME}:/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
-      || raise "Failed to copy system.json from container"
+      || raise 121 "Failed to copy system.json from container"
   fi
 
 
@@ -171,13 +180,13 @@ if [[ "${INSTALLIMAGE}" = "true" ]]; then
       --no-nvram \
       --root-directory="${CONTAINER_ROOTFS_FS}" \
       "${TARGET_DEVICE}" \
-      || raise "Failed to install grub (UEFI)"
+      || raise 122 "Failed to install grub (UEFI)"
     grub-install \
       --target=i386-pc \
       --boot-directory="${TARGET_BOOT}" \
       --root-directory="${CONTAINER_ROOTFS_FS}" \
       "${TARGET_DEVICE}" \
-      || raise "Failed to install grub"
+      || raise 123 "Failed to install grub"
 
     echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
 
@@ -223,7 +232,7 @@ menuentry '${SLOT_NAME}' --unrestricted {
 }
 
 EOF
-  ) || raise "Failed to configure grub (slot)"
+  ) || raise 124 "Failed to configure grub (slot)"
 
 
   (
@@ -242,7 +251,7 @@ EOF
 
       echo "set default='${SLOT_NAME}'"
     } > "${TARGET_BOOT}/grub/grub.cfg"
-  ) || raise "Failed to configure grub"
+  ) || raise 125 "Failed to configure grub"
 
   echo "GRUB configuration updated for kernel version $version."
 

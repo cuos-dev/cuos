@@ -24,25 +24,63 @@ EOF
 
 ## state              - Show current OS system state
 api_command_state() {
+  local file_state="${T_FILE_STATE:-"/data/state.json"}"
+  local file_slot="${T_FILE_SLOT:-"/etc/active_slot"}"
+  local file_version="${T_FILE_VERSION:-"/etc/image"}"
+
   local version
-  version="$(cat "/etc/image")"
+  version="$(cat "${file_version}")"
   version="${version/*\//}"
   version="${version/@*/}"
   local slot
-  slot="$(cat "/etc/active_slot")"
+  slot="$(cat "${file_slot}")"
   jq \
     --arg slot "${slot}" \
     --arg version "${version}" \
     '.slot = $slot | .version = $version' \
-     "/data/state.json"
+     "${file_state}"
 }
 
 ## version            - Show current system version
 api_command_version() {
   cat "/etc/image"
 }
+api_command_version_json() {
+  jq -nc \
+    --arg version "$(api_command_version)" \
+    '{"version": $version}'
+}
 
-## update             - PerForm OS update
+api_handle_code() {
+  local exit_code="${1:-}"
+  # we only report potential user errors:
+  if [[ "${exit_code}" == "0" ]]; then
+    jq -nc \
+      '{"err": 0, "message": "os update successful"}'
+    echo "R"
+  elif [[ "${exit_code}" == "60" ]]; then
+    jq -nc \
+      --arg code "${exit_code}" \
+      '{"err": $code, "message": "Invalid configuration provided"}'
+  elif [[ "${exit_code}" == "61" ]]; then
+    jq -nc \
+      --arg code "${exit_code}" \
+      '{"err": $code, "message": "Invalid JSON provided"}'
+  elif [[ "${exit_code}" == "101" || "${exit_code}" == "21" ]]; then
+    jq -nc \
+      --arg code "${exit_code}" \
+      '{"err": $code, "message": "Not enough free disk space available"}'
+  elif [[ "${exit_code}" == "102" || "${exit_code}" == "22" ]]; then
+    jq -nc \
+      '{"err": 0, "message": "No update available"}'
+  else
+    jq -nc \
+      --arg code "${exit_code}" \
+      '{"err": $code, "message": "OS update failed"}'
+  fi
+}
+
+## update             - Perform OS update
 api_command_update() {
   local input
   input="$(cat)"
@@ -53,12 +91,12 @@ api_command_update() {
   if ! echo "${config}" | check_config; then
     report_err "cuos:update:err_invalid_config" "Update: Invalid configuration provided."
     echo "Invalid configuration provided."
-    exit 0
+    return 60
   fi
 
   # update and swap configuration (config -> new)
   local new_config
-  new_config="$(echo "${config}" | jq -s '.[0] * .[1]' "${CONFIG_PATH}" -)" || exit 0
+  new_config="$(echo "${config}" | jq -s '.[0] * .[1]' "${CONFIG_PATH}" -)" || return 61
   local old_config
   old_config="$(cat "${CONFIG_PATH}")"
   echo "${new_config}" >"${NEXT_CONFIG_PATH}"
@@ -68,7 +106,7 @@ api_command_update() {
   local update_exit_code="$?"
 
   # if system container did not need an update
-  if [[ "${update_exit_code}" = "2" ]]; then
+  if [[ "${update_exit_code}" = "22" || "${update_exit_code}" = "102" ]]; then
     # apply new configuration to CURRENT system:
     echo "${new_config}" >"${CONFIG_PATH}"
     # and save old configuration for rollback
@@ -80,12 +118,20 @@ api_command_update() {
     # we need to check, if app container needs update
     touch "/data/run-update-app"
     systemctl restart cuos-app-init.service
+
+    return "${update_exit_code}"
   fi
 
+  return "${update_exit_code}"
+}
+api_command_update_json() {
+  api_command_update >&2
+  api_handle_code "$?"
 }
 
 api_command_pull() {
   echo "Pull not jet implemented."
+  return 1
 }
 
 api_command_trigger-update() {
@@ -98,7 +144,7 @@ api_command_trigger-update() {
 }
 
 ## patch              - Patch the current system. Provide config object.
-api_command_patch() {
+api_command_patch_func() {
   local input
   input="$(cat)"
 
@@ -109,7 +155,7 @@ api_command_patch() {
     if ! echo "${config}" | check_config; then
       report_err "cuos:update:err_invalid_config" "Update: Invalid configuration provided."
       echo "Invalid configuration provided."
-      exit 0
+      return 60
     fi
     # save current config for rollback:
     cat "${CONFIG_PATH}" >"${NEXT_CONFIG_PATH}"
@@ -117,15 +163,19 @@ api_command_patch() {
     jq_replace \
       --argjson config "${config}" \
       '. * $config' \
-      "${CONFIG_PATH}" || exit 0
+      "${CONFIG_PATH}" || return 61
   fi
 
   # apply changes to current slot
   "${SCRIPT_DIR}/init.sh" --reinit
 }
+api_command_patch() {
+  api_command_patch_func >&2
+  api_handle_code "$?"
+}
 
 ## patch-network      - Patch the network. Provide config object.
-api_command_patch-network() {
+api_command_patch-network_func() {
   local input
   input="$(cat)"
 
@@ -139,13 +189,18 @@ api_command_patch-network() {
       --argjson config "${config}" \
       --arg network_id "${network_id}" \
       '.network[$network_id | tonumber] = $config' \
-      "${CONFIG_PATH}" || exit 0
+      "${CONFIG_PATH}" || return 61
+
     "${SCRIPT_DIR}/init.sh" --reinit configure_network
   fi
 }
+api_command_patch-network() {
+  api_command_patch-network_func >&2
+  api_handle_code "$?"
+}
 
 ## patch-hostname     - Patch the hostname. Provide config object.
-api_command_patch-hostname() {
+api_command_patch-hostname_func() {
   local input
   input="$(cat)"
 
@@ -156,9 +211,14 @@ api_command_patch-hostname() {
     jq_replace \
       --argjson config "${config}" \
       '.hostname = $config' \
-      "${CONFIG_PATH}" || exit 0
+      "${CONFIG_PATH}" || return 61
+
     "${SCRIPT_DIR}/init.sh" --reinit set_hostname
   fi
+}
+api_command_patch-hostname() {
+  api_command_patch-hostname_func >&2
+  api_handle_code "$?"
 }
 
 ## rollback           - Rollback last OS update
@@ -211,7 +271,6 @@ api_command_log() {
     level: ({"0":"EMERGENCY","1":"ALERT","2":"CRITICAL","3":"ERROR","4":"WARNING","5":"NOTICE","6":"INFO","7":"DEBUG"}[.PRIORITY] // "INFO"),
     message: .MESSAGE
   }' | jq -s .
-
 }
 
 ## report_app_ready   - App announces itself as ready.
@@ -257,28 +316,31 @@ api_command_resources() {
 }
 
 api_main() {
-  INPUT="{}"
-  COMMAND="${1:-""}"
+  local input="{}"
+  local command="${1:-""}"
   shift
 
-  if [[ "${COMMAND}" = "input" ]]; then
-    read -r INPUT
-    COMMAND="$(jq -r '.command // empty' <<< "${INPUT}")"
+  if [[ "${command}" = "input" ]]; then
+    read -r input
+    command="$(jq -r '.command // empty' <<< "${input}")"
   elif [[ "${1:-}" == "-" ]]; then
-    INPUT="$(cat)"
+    input="$(cat)"
   fi
 
-  case "${COMMAND}" in
-    ""|"help"|"--help") COMMAND=help ;;
+  case "${command}" in
+    ""|"help"|"--help") command=help ;;
   esac
 
-  FCOMMAND="$(echo "api_command_${COMMAND}" | sed -e 's/-/_/g')"
-  if [[ "$(type -t "${FCOMMAND}")" != "function" ]]; then
+  local fcommand
+  fcommand="$(echo "api_command_${command}" | sed -e 's/[:-]/_/g')"
+  if [[ "$(type -t "${fcommand}")" != "function" ]]; then
     echo "No valid command provided. Exiting."
+    return 0
   fi
 
-  echo "${INPUT}" | "${FCOMMAND}" "$@"
-  exit "$?"
+  echo "${input}" | "${fcommand}" "$@"
+  # exit with 0, because systemd socket activation otherwise stop working
+  return 0
 }
 
 if [[ -f "${SCRIPT_DIR}/custom-api.sh" ]]; then

@@ -3,8 +3,10 @@
 set -x
 
 raise() {
+	local code="${1:-1}"
+	shift
 	echo "Error: $*" >&2
-	exit 1
+	exit "${code}"
 }
 
 # shellcheck disable=SC2329 disable=SC2317
@@ -32,19 +34,19 @@ export DOCKER_DIR="${TARGET_ROOT}/docker"
 
 if [[ "${INSTALLGRUB}" = "true" && ! -b "${TARGET_DEVICE}" ]]; then
 	echo "No target device found: ${TARGET_DEVICE}"
-	exit 1
+	raise 90 "No target device found"
 fi
 
 # Mount devices
 mkdir -p "${TARGET_ROOT}"
 mount -t btrfs -o subvol=@os "${TARGET_ROOT_PARTITION}" "${TARGET_ROOT}" \
-	|| raise "Could not mount @os subvolume"
+	|| raise 91 "Could not mount @os subvolume"
 
 mkdir -p "${DOCKER_DIR}"
 
 mkdir -p "${TARGET_BOOT}"
 mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro" "${TARGET_BOOT_PARTITION}" "${TARGET_BOOT}" \
-	|| raise "Could not mount boot partition"
+	|| raise 92 "Could not mount boot partition"
 
 
 
@@ -71,7 +73,7 @@ start_dockerd() {
 	until docker info >/dev/null 2>&1; do
 		counter="$((counter + 1))"
 		if [[ "${counter}" -gt 100 ]]; then
-			raise "Could not start dockerd"
+			raise 93 "Could not start dockerd"
 		fi
 		sleep 1
 		if ! kill -0 "$DOCKERD_PID"; then
@@ -88,7 +90,7 @@ if ! start_dockerd; then
 	if ! start_dockerd; then
 		if ! start_dockerd; then
 			if ! start_dockerd; then
-				exit 1
+				raise 94 "Could not start dockerd after three trys"
 			fi
 		fi
 	fi
