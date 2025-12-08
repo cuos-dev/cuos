@@ -26,6 +26,7 @@ IMAGE_VERSION_STRING="${LXC_IMAGE}@${LXC_IMAGE_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
   echo "No new image version available. Exiting."
+  report_info "cuos:update:not_needed" "The system is up-to-date"
   exit 22
 fi
 
@@ -33,6 +34,7 @@ AVAIL_BYTES=$(df -B1 "/" | awk 'NR==2 {print $4}')
 REQUIRED_BYTES=$((2 * 1024 * 1024 * 1024))
 if [ "$AVAIL_BYTES" -le "$REQUIRED_BYTES" ]; then
   echo "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update." >&2
+  report_info "cuos:update:no_space" "Not enough free disk space available"
   exit 21
 fi
 
@@ -49,6 +51,7 @@ fi
 
 if [[ "${IMAGE_VERSION}@${NEW_DIGEST}" == "$(cat /etc/image)" ]]; then
   echo "No new image version available (post). Exiting."
+  report_info "cuos:update:not_needed" "The system is up-to-date"
   exit 22
 fi
 

@@ -73,7 +73,7 @@ fi
 IMAGE_VERSION_STRING="${IMAGE}@${NEW_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image 2>/dev/null)" ]]; then
-  raise_info 102 "No OS update failable"
+  raise_info 102 "No OS update available"
 fi
 
 echo "INFO: Updating OS slot ${SLOT} to ${IMAGE}"

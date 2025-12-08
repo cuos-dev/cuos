@@ -30,7 +30,8 @@ OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_imag
 IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
-  echo "No new image version available. Exiting."
+  echo "No new image version available. Exiting (pre)"
+  report_info "cuos:update:not_needed" "The system is up-to-date"
   exit 22
 fi
 
@@ -81,10 +82,11 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
 
   sync
   reboot
-elif [[ "${DOCKER_EXIT_CODE}" = "20" ]]; then
+elif [[ "${DOCKER_EXIT_CODE}" = "102" ]]; then
   echo "No new image version available."
-  report_info "cuos:update:not_needed" "No new image version available"
-elif [[ "${DOCKER_EXIT_CODE}" = "22" ]]; then
+  report_info "cuos:update:not_needed" "The system is up-to-date"
+
+elif [[ "${DOCKER_EXIT_CODE}" = "101" ]]; then
   echo "Not enough free disk space available"
   report_info "cuos:update:no_space" "Not enough free disk space available"
 else
