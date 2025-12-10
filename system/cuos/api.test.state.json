@@ -1,0 +1,7 @@
+{
+  "start_date": "2025-12-07T12:33:51Z",
+  "last_update_check": "2025-12-01T22:59:28Z",
+  "state": "running",
+  "last_update_date": "2025-12-01T23:00:03Z",
+  "update_state": "updated partition B to ghcr.io/cuos-dev/cuos-system-lxc:v0.4.0"
+}
