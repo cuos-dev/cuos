@@ -145,7 +145,12 @@ fi
 if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
   # Check whether the container exists (but is stopped)
   if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
-    docker start "${CONTAINER_NAME}"
+    touch "${HOME}/.docker/config.json"
+    if ! docker start "${CONTAINER_NAME}"; then
+      docker rm -f "${CONTAINER_NAME}" || true
+      report_err "cuos:application:failed" "Failed to start initial container with image ${INITIAL_IMAGE}"
+      action_on_failure
+    fi
   else
 
     DOCKER_ARGS="$(docker inspect --format '{{ index .Config.Labels "dev.cuos.app_command" }}' "${INITIAL_IMAGE}")"
