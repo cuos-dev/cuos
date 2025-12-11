@@ -27,6 +27,7 @@ api_command_state() {
   local file_state="${T_FILE_STATE:-"/data/state.json"}"
   local file_slot="${T_FILE_SLOT:-"/etc/active_slot"}"
   local file_version="${T_FILE_VERSION:-"/etc/image"}"
+  local virt_type="$(systemd-detect-virt)"
 
   local version
   version="$(cat "${file_version}")"
@@ -37,7 +38,8 @@ api_command_state() {
   jq \
     --arg slot "${slot}" \
     --arg version "${version}" \
-    '.slot = $slot | .version = $version' \
+    --arg virt_type "${virt_type}" \
+    '. + {"slot": $slot, "version": $version, "virt_type": $virt_type}' \
      "${file_state}"
 }
 
