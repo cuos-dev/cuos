@@ -27,7 +27,8 @@ api_command_state() {
   local file_state="${T_FILE_STATE:-"/data/state.json"}"
   local file_slot="${T_FILE_SLOT:-"/etc/active_slot"}"
   local file_version="${T_FILE_VERSION:-"/etc/image"}"
-  local virt_type="$(systemd-detect-virt)"
+  local virt_type
+  virt_type="$(systemd-detect-virt)"
 
   local version
   version="$(cat "${file_version}")"
