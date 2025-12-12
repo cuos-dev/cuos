@@ -122,6 +122,7 @@ prepare_data_volume() {
     rm -f /data/machine-id
     systemd-machine-id-setup --commit
   fi
+  systemd-machine-id-setup
   mkdir -p /data/{docker,containerd,dhcp,log,shieldor,.docker}
   mkdir -p /data/log/journal
   chattr -R +C /data/log/journal
