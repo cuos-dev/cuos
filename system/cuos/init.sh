@@ -117,7 +117,11 @@ check_schema_system_json() {
 }
 
 prepare_data_volume() {
-  systemd-machine-id-setup
+  if mount | grep -q "/data/machine-id"; then
+    umount /data/machine-id
+    rm -f /data/machine-id
+    systemd-machine-id-setup --commit
+  fi
   mkdir -p /data/{docker,containerd,dhcp,log,shieldor,.docker}
   mkdir -p /data/log/journal
   chattr -R +C /data/log/journal
