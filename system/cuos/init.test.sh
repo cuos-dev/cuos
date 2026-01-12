@@ -16,6 +16,29 @@ source "${SCRIPT_DIR}/lib-test.sh"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/init.sh"
 
+expect "mask_to_prefix cdr" \
+  "25" \
+  mask_to_prefix "25"
+
+expect "mask_to_prefix 16" "16" mask_to_prefix "255.255.0.0"
+expect "mask_to_prefix 17" "17" mask_to_prefix "255.255.128.0"
+expect "mask_to_prefix 18" "18" mask_to_prefix "255.255.192.0"
+expect "mask_to_prefix 19" "19" mask_to_prefix "255.255.224.0"
+expect "mask_to_prefix 20" "20" mask_to_prefix "255.255.240.0"
+expect "mask_to_prefix 21" "21" mask_to_prefix "255.255.248.0"
+expect "mask_to_prefix 22" "22" mask_to_prefix "255.255.252.0"
+expect "mask_to_prefix 23" "23" mask_to_prefix "255.255.254.0"
+expect "mask_to_prefix 24" "24" mask_to_prefix "255.255.255.0"
+expect "mask_to_prefix 25" "25" mask_to_prefix "255.255.255.128"
+expect "mask_to_prefix 26" "26" mask_to_prefix "255.255.255.192"
+expect "mask_to_prefix 27" "27" mask_to_prefix "255.255.255.224"
+expect "mask_to_prefix 28" "28" mask_to_prefix "255.255.255.240"
+expect "mask_to_prefix 29" "29" mask_to_prefix "255.255.255.248"
+expect "mask_to_prefix 30" "30" mask_to_prefix "255.255.255.252"
+expect "mask_to_prefix 31" "31" mask_to_prefix "255.255.255.254"
+expect "mask_to_prefix 32" "32" mask_to_prefix "255.255.255.255"
+
+expect "mask_to_prefix invalid" "" mask_to_prefix "255.255.252.128"
 
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system.json"
 export T_FILE_DOCKER_DAEMON="/dev/stdout"

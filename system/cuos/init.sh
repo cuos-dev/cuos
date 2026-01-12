@@ -197,18 +197,28 @@ mask_to_prefix() {
       echo ""
       return
     fi
-    # convert to binary and count bits
-    local bin
-    bin=$(printf '%08d' "$(bc <<< "obase=2;$oct")" 2>/dev/null || true)
-    # fallback if bc missing: use printf + awk (POSIX-friendly)
-    if [ -z "$bin" ] || [ "$bin" = "00000000" ]; then
-      # portable conversion
-      bin=$(printf '%08d' "$(echo "obase=2;$oct" | bc)" 2>/dev/null || printf '%08d' "$oct")
+    if [[ "$bits" != 0 && "$bits" != 8 && "$bits" != 16 && "$bits" != 24 && $oct != 0 ]]; then
+        # invalid/non-contiguous octet (e.g., 127, 3, 31)
+        echo ""
+        return
     fi
-    # Count ones
-    local ones
-    ones=$(echo -n "$bin" | tr -cd '1' | wc -c)
-    bits=$((bits + ones))
+    # count ones in the octet
+    case $oct in
+      0)  bits=$((bits+0)) ;;
+      128) bits=$((bits+1)) ;;
+      192) bits=$((bits+2)) ;;
+      224) bits=$((bits+3)) ;;
+      240) bits=$((bits+4)) ;;
+      248) bits=$((bits+5)) ;;
+      252) bits=$((bits+6)) ;;
+      254) bits=$((bits+7)) ;;
+      255) bits=$((bits+8)) ;;
+      *)
+        # invalid/non-contiguous octet (e.g., 127, 3, 31)
+        echo ""
+        return
+        ;;
+    esac
   done
   echo "$bits"
 }
