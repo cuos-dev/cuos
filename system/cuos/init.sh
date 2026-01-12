@@ -22,6 +22,13 @@ ensure_docker_config_json() {
   fi
 }
 
+wait_for_lxc_system_init() {
+  while [[ ! -f "/system_init.json" ]]; do
+    echo "waiting for /system_init.json"
+    sleep 1
+  done
+}
+
 ensure_system_config() {
   # Exec first-run if not yet started. E.g. for testing in docker containers.
   if [[ ! -f "/etc/active_slot" ]]; then
@@ -32,6 +39,7 @@ ensure_system_config() {
     return
   fi
   if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
+    wait_for_lxc_system_init
     cat "/system_init.json" >"${CONFIG_PATH}"
   else
     mkdir -p "/mnt/boot"
