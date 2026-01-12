@@ -191,6 +191,6 @@ fi
 
 state '.state' 'running'
 
-report_info "cuos:startup:ready" "Operation system ready. Starting applications ..."
+report_info "cuos:startup:ready" "Operating system ready. Starting applications ..."
 
 sleep infinity & wait

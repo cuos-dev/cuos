@@ -111,7 +111,7 @@ filename_initrd="${SLOT}_$(basename "${initrd}")"
 if [[ "${OS_ARCH}" == "rpi"* ]]; then
   rm -Rf "${TARGET_BOOT}/firmware_prev" || true
   mkdir -p "${TARGET_BOOT}/firmware_prev" || true
-  mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.txt,initramfs*,kernel*.img,overlays,start*.elf} "${TARGET_BOOT}/firmware_prev/" || true
+  mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.txt,initramfs*,kernel*.img,overlays,start*.elf} "${TARGET_BOOT}/firmware_prev/" 2>/dev/null || true
   docker cp "${CONTAINER_NAME}:/boot/firmware/." "${TARGET_BOOT}" \
     || raise 112 "Failed to copy kernel"
 
@@ -197,7 +197,7 @@ version="$(basename "${kernel}" | sed 's/vmlinuz-//')"
 
 if [[ "${OS_ARCH}" == "rpi"* ]]; then
 
-  mv "${TARGET_BOOT}"/cmdline.txt "${TARGET_BOOT}"/cmdline-previous.txt
+  mv "${TARGET_BOOT}"/cmdline.txt "${TARGET_BOOT}"/cmdline-previous.txt 2>/dev/null || true
 
   cat <<EOF > "${TARGET_BOOT}/cmdline.txt"
 console=serial0,115200 console=tty1 rootwait root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} fsck.repair=yes ro loglevel=3 noresume apparmor=0

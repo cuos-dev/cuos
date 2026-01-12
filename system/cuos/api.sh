@@ -137,7 +137,7 @@ api_command_pull() {
   return 1
 }
 
-api_command_trigger-update() {
+api_command_trigger_update() {
   docker exec cuos-app /api/cuos-trigger-update
   R="$?"
   # if Container not started or API it not defined, perform cuos update
@@ -178,7 +178,7 @@ api_command_patch() {
 }
 
 ## patch-network      - Patch the network. Provide config object.
-api_command_patch-network_func() {
+api_command_patch_network_func() {
   local input
   input="$(cat)"
 
@@ -197,13 +197,13 @@ api_command_patch-network_func() {
     "${SCRIPT_DIR}/init.sh" --reinit configure_network
   fi
 }
-api_command_patch-network() {
-  api_command_patch-network_func >&2
+api_command_patch_network() {
+  api_command_patch_network_func >&2
   api_handle_code "$?"
 }
 
 ## patch-hostname     - Patch the hostname. Provide config object.
-api_command_patch-hostname_func() {
+api_command_patch_hostname_func() {
   local input
   input="$(cat)"
 
@@ -219,8 +219,8 @@ api_command_patch-hostname_func() {
     "${SCRIPT_DIR}/init.sh" --reinit set_hostname
   fi
 }
-api_command_patch-hostname() {
-  api_command_patch-hostname_func >&2
+api_command_patch_hostname() {
+  api_command_patch_hostname_func >&2
   api_handle_code "$?"
 }
 
@@ -231,7 +231,7 @@ api_command_rollback() {
 }
 
 ## factory-reset      - Factory reset
-api_command_factory-reset() {
+api_command_factory_reset() {
   report_notice "cuos:useraction:factory-reset" "Factory reset triggered by the user"
   setsid "${SCRIPT_DIR}/do-factory-reset.sh" >/data/log/factory-reset.log 2>&1 &
   tail -f /data/log/factory-reset.log
