@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   ## hypervisor guest tools \
   qemu-guest-agent \
   open-vm-tools \
+  hyperv-daemons \
   ## cuos os dependencies \
   btrfs-progs \
   console-setup \
@@ -75,6 +76,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && systemctl disable qemu-guest-agent.service \
   && systemctl disable open-vm-tools.service \
+  && systemctl disable hv-kvp-daemon.service \
+  && systemctl disable hv-vss-daemon.service \
   && systemctl enable systemd-timesyncd.service \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \

@@ -718,6 +718,10 @@ start_guest_tools() {
     kvm|qemu|bochs)
       systemctl enable qemu-guest-agent.service
       ;;
+    microsoft|hyperv)
+      systemctl enable hv-kvp-daemon.service
+      systemctl enable hv-vss-daemon.service
+      ;;
   esac
 }
 
