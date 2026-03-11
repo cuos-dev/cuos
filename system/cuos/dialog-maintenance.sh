@@ -11,6 +11,8 @@ source "${SCRIPT_DIR}/dialog-keyboard.sh"
 
 
 maintenance_menu() {
+  maintenance_menu_check_login || return 1
+
   while true; do
     local ipaddress
     ipaddress="$(ip -4 addr show | awk '/inet/ && !/127.0.0.1/ {print $2}' | head -n1)"
@@ -77,6 +79,20 @@ install_menu() {
   done
 }
 
+maintenance_menu_check_login() {
+  local console_password
+  console_password="$(jq_config '.console_password // ""')"
+  if [ -z "${console_password}" ]; then return 0; fi
+
+  local confirm
+  confirm=$(pwbox "The maintenance menu is protected by a password:" "Maintenance Menu") || return 1
+  if ! check_password "${console_password}" "${confirm}"; then
+    DIALOGRC="${SCRIPT_DIR}/dialog-red.rc" msg "Password does not match. Aborting." "Maintenance Menu"
+    return 1
+  fi
+
+  return 0
+}
 
 hash_admin_password() {
   local password="$1"
@@ -275,13 +291,40 @@ diagnostics_dns() {
   api_stream "DNS resolve" "getent ahosts $hn && echo DNS resolution successful. || echo DNS resolution failed."
 }
 
+check_password() {
+  local hash
+  hash="$1"
+  local pass
+  pass="$2"
+
+  if [[ "${hash}" =~ ^\$[0-9a-z]+\$ ]] || [[ ${#hash} -gt 50 ]]; then
+    local salt
+    salt="$(printf '%s' "$hash" | sed -E 's/^(\$6\$[^$]+\$).*$/\1/')"
+
+    # Recreate and compare
+    test_hash="$(printf '%s' "$pass" | openssl passwd -6 -salt "${salt#\$6\$}" -stdin)"
+
+    if [ "$test_hash" = "$hash" ]; then
+      return 0
+    fi
+  else
+    if [ "$pass" = "$hash" ]; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
 expert() {
   local console_expert_password
-  console_expert_password="$(jq_config '.console_expert_password')"
+  console_expert_password="$(jq_config '.console_expert_password // ""')"
   console_expert_password="${console_expert_password:-"CuOS"}"
   local confirm
-  confirm=$(DIALOGRC="${SCRIPT_DIR}/dialog-red.rc" term cuos_dialog --title "Expert Settings" --insecure --passwordbox "You found the hidden expert settings.\nOnly continue, when you know what you are doing." 13 72 3>&1 1>&2 2>&3) || return 1
-  if [[ "$confirm" != "${console_expert_password}" ]]; then msg "Aborted." "Expert Settings"; return 1; fi
+  confirm=$(DIALOGRC="${SCRIPT_DIR}/dialog-red.rc" pwbox "You found the hidden expert settings.\nOnly continue, when you know what you are doing." "Expert Settings") || return 1
+  if ! check_password "${console_expert_password}" "${confirm}"; then
+    DIALOGRC="${SCRIPT_DIR}/dialog-red.rc" msg "Password does not match. Aborting." "Expert Settings"
+    return 1
+  fi
   cp "/system.json" /tmp/edit-system.json
   chown nobody:nogroup /tmp/edit-system.json
   term_all sudo -u nobody rvim /tmp/edit-system.json
