@@ -60,7 +60,6 @@ api_handle_code() {
   if [[ "${exit_code}" == "0" ]]; then
     jq -nc \
       '{"err": 0, "message": "os update successful"}'
-    echo "R"
   elif [[ "${exit_code}" == "60" ]]; then
     jq -nc \
       --arg code "${exit_code}" \
