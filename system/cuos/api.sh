@@ -269,11 +269,27 @@ api_command_shutdown() {
 
 ## log                - Get reports
 api_command_log() {
-  journalctl -t cuos -n 100 -o json | jq '{
+  journalctl -t cuos -n 100 -o json | jq -c '{
     date: (.["__REALTIME_TIMESTAMP"] | tonumber / 1000000 | strftime("%Y-%m-%dT%H:%M:%S")),
     level: ({"0":"EMERGENCY","1":"ALERT","2":"CRITICAL","3":"ERROR","4":"WARNING","5":"NOTICE","6":"INFO","7":"DEBUG"}[.PRIORITY] // "INFO"),
     message: .MESSAGE
   }' | jq -s .
+}
+
+api_command_log_follow() {
+  local input
+  input="$(cat)"
+  local since
+  since="$(echo "${input}" | jq -r '.message // ""')"
+  local journalctl_args=(-t cuos -n 100 -o json -f)
+  if [ -n "$since" ]; then
+    since_args+=(--since "$since")
+  fi
+  journalctl "${journalctl_args[@]}" | jq -c '{
+    date: (.["__REALTIME_TIMESTAMP"] | tonumber / 1000000 | strftime("%Y-%m-%dT%H:%M:%S")),
+    level: ({"0":"EMERGENCY","1":"ALERT","2":"CRITICAL","3":"ERROR","4":"WARNING","5":"NOTICE","6":"INFO","7":"DEBUG"}[.PRIORITY] // "INFO"),
+    message: .MESSAGE
+  }'
 }
 
 ## report_app_ready   - App announces itself as ready.
