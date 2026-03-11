@@ -708,6 +708,19 @@ create_swap_and_resize_fs() {
   fi
 }
 
+start_guest_tools() {
+  if [[ -n "${REINIT:-}" ]]; then return; fi
+
+  case "${VIRT_TYPE}" in
+    vmware)
+      systemctl enable open-vm-tools.service
+      ;;
+    kvm|qemu|bochs)
+      systemctl enable qemu-guest-agent.service
+      ;;
+  esac
+}
+
 main() {
   set -x
 
@@ -747,6 +760,8 @@ main() {
   configure_docker
 
   create_swap_and_resize_fs
+
+  start_guest_tools
 
   exit 0
 }

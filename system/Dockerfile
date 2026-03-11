@@ -31,6 +31,9 @@ EOF
 RUN apt-get update && apt-get install --no-install-recommends -y \
   ## cuos system dependencies (kernel) \
   linux-image-amd64 \
+  ## hypervisor guest tools \
+  qemu-guest-agent \
+  open-vm-tools \
   ## cuos os dependencies \
   btrfs-progs \
   console-setup \
@@ -70,6 +73,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   openssh-server \
   vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
+  && systemctl disable qemu-guest-agent.service \
+  && systemctl disable open-vm-tools.service \
   && systemctl enable systemd-timesyncd.service \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \
