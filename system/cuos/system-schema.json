@@ -204,6 +204,10 @@
     "os_ssh_server": {
       "type": "boolean",
       "description": "Activate SSH server for the operating system"
+    },
+    "console_expert_password": {
+      "type": "string",
+      "description": "Password for the expert menu of the console interface"
     }
   }
 }
