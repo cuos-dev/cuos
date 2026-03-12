@@ -1,4 +1,4 @@
-FROM debian:trixie-slim
+FROM debian:13.3-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
