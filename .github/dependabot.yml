@@ -1,23 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: ".github/workflows/"
+    directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "development"
-    assignees:
-      - "simonwalz"
-  - package-ecosystem: "docker"
-    directory: "/system"
-    schedule:
-      interval: "daily"
-    target-branch: "development"
-    assignees:
-      - "simonwalz"
-  - package-ecosystem: "docker"
-    directory: "/updater"
-    schedule:
-      interval: "daily"
     target-branch: "development"
     assignees:
       - "simonwalz"
@@ -30,6 +16,27 @@ updates:
       - "simonwalz"
   - package-ecosystem: "docker"
     directory: "/installer-factory"
+    schedule:
+      interval: "daily"
+    target-branch: "development"
+    assignees:
+      - "simonwalz"
+  - package-ecosystem: "docker"
+    directory: "/system"
+    schedule:
+      interval: "daily"
+    target-branch: "development"
+    assignees:
+      - "simonwalz"
+  - package-ecosystem: "docker"
+    directory: "/system-raspberry"
+    schedule:
+      interval: "daily"
+    target-branch: "development"
+    assignees:
+      - "simonwalz"
+  - package-ecosystem: "docker"
+    directory: "/updater"
     schedule:
       interval: "daily"
     target-branch: "development"
