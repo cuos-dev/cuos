@@ -93,7 +93,7 @@ prgbox(){
   term cuos_dialog \
     --title "${2:-}" \
     --scrollbar \
-    --prgbox logs "$1" "${3:-22}" "${4:-90}"
+    --prgbox "" "$1" "${3:-22}" "${4:-90}"
 }
 pwbox() {
   choose_kb input_term_dialog \
@@ -138,6 +138,35 @@ api_stream_size() {
   local h="$1"; shift
   local w="$1"; shift
   prgbox "$*" "$title" "$h" "$w"
+}
+
+api_stream_background() {
+  local title="$1"; shift
+
+  # open subshell for own trap
+  (
+    local tmpfile
+
+    # shellcheck disable=SC2317,SC2329
+    cleanup() {
+      [[ -n "${tmpfile}" ]] && rm -f "$tmpfile"
+    }
+    trap cleanup EXIT
+
+    tmpfile=$(mktemp)
+    echo -n "${DIALOG_HEADER:-""}" >"$tmpfile"
+
+    "$@" >> "$tmpfile" 2>&1 &
+    local command_pid=$!
+
+    term cuos_dialog \
+      --exit-label "OK" \
+      --title "$title" \
+      --tailbox "$tmpfile" 22 90
+
+    kill "$command_pid" >/dev/null 2>&1
+    rm -f "$tmpfile"
+  )
 }
 
 yesno() {

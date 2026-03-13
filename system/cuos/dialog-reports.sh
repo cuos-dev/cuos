@@ -8,9 +8,8 @@ source "${SCRIPT_DIR}/lib-dialog.sh"
 dialog_reports_header() {
   cat <<EOF
 
-## Operating System started successfully.
+## Host: $(hostname)
 
-Host: $(hostname)
 Start Time:  $(jq -r '.start_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
 Last Update: $(jq -r '.last_update_date | sub("T"; " ") | sub("Z"; " UTC")' /data/state.json)
 
@@ -66,7 +65,7 @@ change_vt
 
   if [[ "${EXIT_CODE_DIALOG}" == "0" ]]; then
     "${SCRIPT_DIR}/dialog-maintenance.sh"
-    term dialog --clear
+    term dialog --infobox "..." 3 20
     sleep 1
   else
     sleep 5
