@@ -12,7 +12,7 @@ raise() {
 
 dockerlogin() {
 	## docker login:
-	UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
+	UPDATE_REGISTRY="$(jq -r '.update_registry_proxy // .update_registry' "${CONFIG_PATH}")"
 	# just the server name:
 	UPDATE_REGISTRY_SERVER="${UPDATE_REGISTRY//\/*}"
 
@@ -53,7 +53,7 @@ fi
 
 dockerlogin
 
-UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
+UPDATE_REGISTRY="$(jq -r '.update_registry_proxy // .update_registry' "${CONFIG_PATH}")"
 LXC_IMAGE="$(jq -r '.lxc_image' "${CONFIG_PATH}")"
 LXC_VERSION="$(jq -r '.lxc_image_version // "latest"' "${CONFIG_PATH}")"
 LXC_IMAGE_DIGEST="$(jq -r '.lxc_image_digest // empty' "${CONFIG_PATH}")"

@@ -6,7 +6,11 @@
   "properties": {
     "update_registry": {
       "type": "string",
-      "description": "URL of the registry used for system updates (e.g., https://update.example.com/v2)"
+      "description": "URL of the registry used for system updates (e.g., https://update.example.com)"
+    },
+    "update_registry_proxy": {
+      "type": "string",
+      "description": "URL of the registry proxy used for system updates"
     },
     "update_registry_user": {
       "type": "string",

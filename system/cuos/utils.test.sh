@@ -49,6 +49,26 @@ cat <<EOF | expect "image_url: version in image" "ghcr.io/cuos-dev/cuos-system:l
 }
 EOF
 
+cat <<EOF | expect "image_url: user proxy" "proxy.example.com/cuos-system:latest" \
+  image_url "os"
+{
+  "update_registry_proxy": "proxy.example.com",
+  "os_image": "cuos-system:latest",
+  "os_image_version": "",
+  "os_image_digest": ""
+}
+EOF
+
+cat <<EOF | expect "image_url: user proxy" "proxy.example.com/cuos-system:latest" \
+  image_url "os"
+{
+  "update_registry_proxy": "proxy.example.com/",
+  "os_image": "/cuos-system:latest",
+  "os_image_version": "",
+  "os_image_digest": ""
+}
+EOF
+
 cat <<EOF | expect "image_url: just image" "ghcr.io/cuos-dev/cuos-system:latest" \
   image_url "os"
 {

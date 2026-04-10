@@ -129,7 +129,7 @@ image_url() {
     (
       if (.[$prefix + "_image"] | (type == "string" and . != "" and
           ((startswith("/")) or (contains(".") | not)))) then
-        .update_registry + .[$prefix + "_image"]
+        (.update_registry_proxy // .update_registry) + "/" + .[$prefix + "_image"]
       else
         .[$prefix + "_image"]
       end
@@ -139,7 +139,7 @@ image_url() {
       else
         ""
       end
-    )
+    ) | gsub("/+"; "/")
     ' "${CONFIG_PATH}")"
   if [[ -z "${image}" ]]; then return 1; fi
   echo "${image}"

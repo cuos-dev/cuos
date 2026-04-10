@@ -87,7 +87,7 @@ load_update_registry() {
   local update_registry_user
   local update_registry_password
 
-  update_registry="$(jq -r '.update_registry' "$config_file")"
+  update_registry="$(jq -r '.update_registry_mirror // .update_registry' "$config_file")"
   update_registry_server="${update_registry//\/*}"
   update_registry_user="$(jq -r '.update_registry_user // .update_server_user // ""' "$config_file")"
   update_registry_password="$(jq -r '.update_registry_password // .update_server_password // ""' "$config_file")"

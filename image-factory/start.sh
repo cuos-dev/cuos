@@ -38,7 +38,8 @@ OS_ARCH="${2:-$default_arch}"
 
 OS_VERSION="${2:-"$(jq -r '.os_image_version // "latest"' "${CONFIG_PATH}")"}"
 
-UPDATE_REGISTRY="$(jq -r '.update_registry' "${CONFIG_PATH}")"
+UPDATE_REGISTRY="$(jq -r '.update_registry_proxy // .update_registry' "${CONFIG_PATH}")"
+UPDATE_REGISTRY="${UPDATE_REGISTRY%/}/"
 OS_IMAGE_FACTORY="cuos-image-factory"
 
 
