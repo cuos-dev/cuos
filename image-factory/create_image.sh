@@ -20,6 +20,8 @@ cleanup() {
 trap cleanup EXIT
 
 # functions from system/cuos/utils.sh
+# dont use update_registry_proxy here, because we are not yet in the
+# target infrastructure. Thus the proxy might not be reachable.
 image_url() {
   local image
   image="$(jq -r \
@@ -27,7 +29,7 @@ image_url() {
     (
       if (.[$prefix + "_image"] | (type == "string" and . != "" and
           ((startswith("/")) or (contains(".") | not)))) then
-        (.update_registry_proxy // .update_registry) + "/" + .[$prefix + "_image"]
+        (.update_registry) + "/" + .[$prefix + "_image"]
       else
         .[$prefix + "_image"]
       end
