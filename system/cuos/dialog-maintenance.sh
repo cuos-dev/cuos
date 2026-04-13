@@ -230,7 +230,7 @@ diagnostics_menu() {
       resources) check_resources ;;
       clogs) term_all cuos_logs ;;
       logs) term_all view_logs ;;
-      docker) api_stream_size "docker ps" 30 120 docker ps ;;
+      docker) api_stream_size "docker ps -a" 30 120 docker ps ;;
       ping) diagnostics_ping ;;
       dns) diagnostics_dns ;;
       "expert") expert ;;

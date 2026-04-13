@@ -225,8 +225,8 @@ api_command_patch_hostname() {
 
 ## rollback           - Rollback last OS update
 api_command_rollback() {
-  report_notice "cuos:useraction:rollback" "Manual rollback triggerd by the user"
-  "${SCRIPT_DIR}/do-rollback.sh" "Manual rollback triggerd by the user"
+  report_notice "cuos:useraction:rollback" "Manual rollback triggered by the user"
+  "${SCRIPT_DIR}/do-rollback.sh" "Manual rollback triggered by the user"
 }
 
 ## factory-reset      - Factory reset
