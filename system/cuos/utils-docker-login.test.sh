@@ -26,25 +26,25 @@ setup() {
 
 # Test _b64 function
 expect "_b64: simple string" "dGVzdA==" _b64 "test"
-expect "_b64: empty string" 0 _b64 ""
+expect "_b64: empty string" "" _b64 ""
 expect "_b64: special chars" "dGVzdDphYmM=" _b64 "test:abc"
 
 # Test init_docker_config
 init_docker_config "$DOCKER_CONFIG_FILE"
-expect "init_docker_config: creates config" 0 test -f "$DOCKER_CONFIG_FILE"
+expect_rc "init_docker_config: creates config" 0 test -f "$DOCKER_CONFIG_FILE"
 expect "init_docker_config: correct permissions" "600" stat -f "%Lp" "$DOCKER_CONFIG_FILE"
 expect "init_docker_config: valid json" "{}" cat "$DOCKER_CONFIG_FILE"
 
 # Test docker_login with invalid inputs
 setup
-expect "docker_login: empty server" "1" docker_login "" "user" "pass" "$DOCKER_CONFIG_FILE" 2>/dev/null
-expect "docker_login: empty user" "1" docker_login "server" "" "pass" "$DOCKER_CONFIG_FILE" 2>/dev/null
-expect "docker_login: empty password" "1" docker_login "server" "user" "" "$DOCKER_CONFIG_FILE" 2>/dev/null
+expect_rc "docker_login: empty server" "1" docker_login "" "user" "pass" "$DOCKER_CONFIG_FILE" 2>/dev/null
+expect_rc "docker_login: empty user" "1" docker_login "server" "" "pass" "$DOCKER_CONFIG_FILE" 2>/dev/null
+expect_rc "docker_login: empty password" "1" docker_login "server" "user" "" "$DOCKER_CONFIG_FILE" 2>/dev/null
 
 # Test docker_login with valid inputs
 setup
 init_docker_config "$DOCKER_CONFIG_FILE"
-expect "docker_login: valid login" "0" docker_login "registry.example.com" "testuser" "testpass" "$DOCKER_CONFIG_FILE" 2>/dev/null
+expect_rc "docker_login: valid login" "0" docker_login "registry.example.com" "testuser" "testpass" "$DOCKER_CONFIG_FILE" 2>/dev/null
 expect "docker_login: check auth exists" "true" \
   jq -r --arg s "registry.example.com" 'if .auths[$s].auth then "true" else "false" end' "$DOCKER_CONFIG_FILE"
 
@@ -97,7 +97,7 @@ cat > "$CONFIG_PATH" <<EOF
 }
 EOF
 
-expect "load_docker_registries: incomplete entry" "1" load_docker_registries "$CONFIG_PATH" 2>/dev/null
+expect_rc "load_docker_registries: incomplete entry" "1" load_docker_registries "$CONFIG_PATH" 2>/dev/null
 
 # Test the main functionality (script execution)
 setup

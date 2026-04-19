@@ -57,7 +57,7 @@ docker_login() {
   auth="$(_b64 "${user}:${password}")"
 
   # Skip if auth already exists for server
-  if jq -e --arg s "$server" '.auths[$s].auth? // empty' "$config_file" | grep -q . >/dev/null 2>&1; then
+  if [[ "$(jq -r --arg s "$server" '.auths[$s].auth? // empty' "$config_file")" == "${auth}" ]]; then
     echo "Credentials for $server already existing. Skipped login."
     return 0
   fi

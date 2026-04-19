@@ -16,6 +16,21 @@ expect() {
     fail=$((fail+1))
   fi
 }
+expect_rc() {
+  local label="$1"; shift
+  local EXPECTED="$1"; shift
+  local GOT
+  "$@" >/dev/null
+  GOT="$?"
+  if [ "$GOT" = "$EXPECTED" ]; then
+    printf 'OK   %s\n' "$label"
+    pass=$((pass+1))
+  else
+    printf 'FAIL %s\n  got:      %q\n  expected: %q\n' "$label" "$GOT" "$EXPECTED"
+    fail=$((fail+1))
+  fi
+}
+
 summary() {
   printf '\nSummary: %d passed, %d failed\n' "$pass" "$fail"
   [ "$fail" -eq 0 ] || exit 1
