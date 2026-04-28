@@ -77,9 +77,8 @@ jq_config() {
 jq_replace() {
   # Usage: jq_replace jq_expression file
   # like jq, but with inplace edit function
-  local args=("$@")
+  local args=("${@:1:$#-1}")
   local file="${!#}"
-  unset 'args[-1]'
 
   (
     #lock the execution

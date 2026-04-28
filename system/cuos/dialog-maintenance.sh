@@ -41,12 +41,7 @@ session_timeout() {
 }
 
 maintenance_menu() {
-  maintenance_menu_check_login || {
-    report_err "cuos:console:login_failed" "Login to console interface failed"
-    return 1
-  }
-
-  report_notice "cuos:console:login" "Login to console interface"
+  maintenance_menu_check_login || return 1
 
   while true; do
     local ipaddress
@@ -117,16 +112,26 @@ install_menu() {
 maintenance_menu_check_login() {
   local console_password
   console_password="$(jq_config '.console_password // ""')"
-  if [ -z "${console_password}" ]; then return 0; fi
+  if [ -z "${console_password}" ]; then
+    report_notice "cuos:console:login" "Login to console interface"
+    return 0
+  fi
 
   local confirm
   confirm=$(pwbox "The maintenance menu is protected by a password:" "Maintenance Menu") || return 1
   if ! check_password "${console_password}" "${confirm}"; then
+    report_err "cuos:console:login_failed" "Login to console interface failed"
     DIALOGRC="${SCRIPT_DIR}/dialog-red.rc" msg "Password does not match. Aborting." "Maintenance Menu"
     return 1
   fi
 
+  report_notice "cuos:console:login" "Login to console interface"
   return 0
+}
+
+hash_password() {
+  local password="$1"
+  echo "${password}" | openssl passwd -6 -stdin
 }
 
 hash_admin_password() {
@@ -164,7 +169,34 @@ change_admin_password() {
         '.system_admin_password = $password' \
         "${CONFIG_PATH}"
     )
+    report_notice "cuos:system:admin_password" "Administrator password changed"
     msg "Administrator password set." "Password"
+    return 0
+  done
+}
+
+change_console_password() {
+  local p1 p2
+  while true; do
+    p1="$(pwbox "Enter a new password (Beware the keyboard layout):" "Console Password" 10 70)" || return 1
+    p2="$(pwbox "Confirm password:" "Console Password" 10 70)" || return 1
+    if [[ "$p1" != "$p2" ]]; then
+      msg "Passwords do not match. Please try again." "Password"
+      continue
+    fi
+    if [[ ${#p1} -lt 8 ]]; then
+      msg "Password too short. Minimum 8 characters." "Password"
+      continue
+    fi
+    (
+      set +x
+      jq_replace \
+        --arg password "$(hash_password "$p1")" \
+        '.console_password = $password' \
+        "${CONFIG_PATH}"
+    )
+    msg "Console password changed." "Password"
+    report_notice "cuos:console:password" "Console password changed"
     return 0
   done
 }
@@ -178,6 +210,7 @@ system_actions_menu() {
       - " " \
       "update" "Trigger System Update" \
       "rollback" "Rollback Last Update (OS only)" \
+      "password" "Change Console Password (this menu)" \
       "expand" "Expand Filesystem" \
       "factory" "Factory Reset" \
       - " " \
@@ -187,6 +220,7 @@ system_actions_menu() {
       shutdown) system_shutdown ;;
       update) system_update ;;
       rollback) system_rollback ;;
+      password) change_console_password ;;
       expand) system_expand_fs ;;
       factory) system_factory_reset ;;
       back|"") return 0 ;;
@@ -200,12 +234,14 @@ system_actions_menu_installation() {
     choice="$(fmenu "System Actions" "Select an action:" 17 72 10 \
       "shutdown" "Shutdown System" \
       "update" "Trigger System Update" \
+      "password" "Set Console Password (this menu)" \
       "expand" "Expand Filesystem" \
       - " " \
       "back" "\Z5Back\Z0")" || return 1
     case "$choice" in
       shutdown) system_shutdown ;;
       update) system_update ;;
+      password) change_console_password ;;
       expand) system_expand_fs ;;
       back|"") return 0 ;;
     esac
