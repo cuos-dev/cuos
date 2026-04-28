@@ -4,6 +4,12 @@ set -uo pipefail
 
 CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
 
+if [[ -n "${TEST:-}" ]]; then
+  logger() {
+    echo logger "$@"
+  }
+fi
+
 report_emerg() {
   local msg_id="$1"
   shift

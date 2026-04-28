@@ -10,8 +10,43 @@ source "${SCRIPT_DIR}/lib-dialog.sh"
 source "${SCRIPT_DIR}/dialog-keyboard.sh"
 
 
+session_timeout() {
+  local timeout_seconds="$(jq_config '.console_session_timeout // ""')"
+  timeout_seconds="${timeout_seconds:-"1800"}"
+  export TIMEOUT_PID=""
+
+  # Run the command in background so trap can be checked
+  "$@" &
+  export CMD_PID=$!
+
+  # Start the timeout process
+  (trap exit TERM; sleep "$timeout_seconds" & wait; echo "Timeout reached"; pkill -P "${CMD_PID}"; kill "${CMD_PID}") &
+  TIMEOUT_PID=$!
+
+  cleanup() {
+    if [[ -n "${TIMEOUT_PID}" ]]; then
+      kill "${TIMEOUT_PID}" 2>/dev/null
+      if ! wait "${TIMEOUT_PID}"; then
+        report_notice "cuos:console:logout" "Logout from console interface"
+      else
+        report_notice "cuos:console:logout_timeout" "Logout from console interface after timeout"
+      fi
+      TIMEOUT_PID=""
+    fi
+    exit 0
+  }
+  trap cleanup SIGINT SIGTERM EXIT
+
+  wait $CMD_PID
+}
+
 maintenance_menu() {
-  maintenance_menu_check_login || return 1
+  maintenance_menu_check_login || {
+    report_err "cuos:console:login_failed" "Login to console interface failed"
+    return 1
+  }
+
+  report_notice "cuos:console:login" "Login to console interface"
 
   while true; do
     local ipaddress
@@ -28,7 +63,7 @@ maintenance_menu() {
       "act" "System Actions" \
       "diag" "Diagnostics" \
       - " " \
-      "exit" "\Z5Exit Menu\Z0")" || return 1
+      "exit" "\Z5Exit Menu\Z0")" || break
     #"pass" "Change Admin Password"
     case "$choice" in
       host)
@@ -358,6 +393,6 @@ elif [[ -n "${1:-}" && "$(type -t "${1}")" == "function" ]]; then
   exit "$?"
 else
   change_vt
-  maintenance_menu "$@"
+  session_timeout maintenance_menu "$@"
 fi
 
