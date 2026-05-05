@@ -8,7 +8,8 @@ ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0'
 COPY seccomp-default.json /etc/docker/
 
 # Install required packages
-RUN apt-get update && apt-get install --no-install-recommends -y \
+RUN echo "Cache buster: v1" \
+  && apt-get update && apt-get install --no-install-recommends -y \
   ## cuos system dependencies (lxc) \
   busybox-static \
   ## cuos os dependencies \

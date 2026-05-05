@@ -32,7 +32,8 @@ dtoverlay=dwc2,dr_mode=host
 EOF
 
 # Add Raspberry Pi apt repository and key
-RUN echo "deb [signed-by=/etc/apt/keyrings/raspberrypi-archive.gpg] http://archive.raspberrypi.org/debian/ $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"') main" > /etc/apt/sources.list.d/raspi.list \
+RUN echo "Cache buster: v1" \
+  && echo "deb [signed-by=/etc/apt/keyrings/raspberrypi-archive.gpg] http://archive.raspberrypi.org/debian/ $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"') main" > /etc/apt/sources.list.d/raspi.list \
   && apt-get update \
   && apt-get full-upgrade -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/*

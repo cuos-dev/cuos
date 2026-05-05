@@ -8,7 +8,8 @@ ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0'
 COPY seccomp-default.json /etc/docker/
 
 # Pre-install initramfs-tools
-RUN apt-get update && apt-get install --no-install-recommends -y \
+RUN echo "Cache buster: v1" \
+  && apt-get update && apt-get install --no-install-recommends -y \
   initramfs-tools \
   zstd \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
