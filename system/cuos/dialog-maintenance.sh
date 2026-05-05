@@ -11,16 +11,19 @@ source "${SCRIPT_DIR}/dialog-keyboard.sh"
 
 
 session_timeout() {
-  local timeout_seconds="$(jq_config '.console_session_timeout // ""')"
+  local timeout_seconds
+  timeout_seconds="$(jq_config '.console_session_timeout // ""')"
   timeout_seconds="${timeout_seconds:-"1800"}"
   export TIMEOUT_PID=""
 
   # Run the command in background so trap can be checked
-  "$@" &
+  setsid "$0" "$@" &
   export CMD_PID=$!
+  CMD_PGID="$(ps -o pgid= "${CMD_PID}" | tr -d ' ')"
+  export CMD_PGID
 
   # Start the timeout process
-  (trap exit TERM; sleep "$timeout_seconds" & wait; echo "Timeout reached"; pkill -P "${CMD_PID}"; kill "${CMD_PID}") &
+  (trap exit TERM; sleep "$timeout_seconds" & wait; echo "Timeout reached"; kill -- "-${CMD_PGID}") &
   TIMEOUT_PID=$!
 
   cleanup() {
