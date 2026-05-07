@@ -29,6 +29,10 @@ wait_for_lxc_system_init() {
   done
 }
 
+patch_system_config() {
+  :
+}
+
 ensure_system_config() {
   # Exec first-run if not yet started. E.g. for testing in docker containers.
   if [[ ! -f "/etc/active_slot" ]]; then
@@ -118,6 +122,7 @@ ensure_system_config() {
       /sbin/reboot
     fi
   fi
+  patch_system_config "${CONFIG_PATH}"
 }
 
 check_schema_system_json() {
@@ -725,6 +730,14 @@ start_guest_tools() {
   esac
 }
 
+init_pre() {
+  :
+}
+
+init_post() {
+  :
+}
+
 main() {
   set -x
 
@@ -740,6 +753,8 @@ main() {
     state jq '.start_date = (now | todate)'
     state jq '.starting = true'
   fi
+
+  init_pre
 
   prepare_data_volume
 
@@ -766,6 +781,8 @@ main() {
   create_swap_and_resize_fs
 
   start_guest_tools
+
+  init_post
 
   exit 0
 }
