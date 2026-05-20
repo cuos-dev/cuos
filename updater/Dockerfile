@@ -1,4 +1,4 @@
-FROM docker:29.4.0-alpine3.23
+FROM docker:29.5.1-alpine3.23
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
