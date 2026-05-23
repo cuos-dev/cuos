@@ -419,6 +419,101 @@ configure_network() {
 
 }
 
+configure_udev() {
+  local rules_file="${T_FILE_UDEV_RULES:-/etc/udev/rules.d/99-custom.rules}"
+  local rules_file_new="${T_FILE_UDEV_RULES_NEW:-"${rules_file}.new"}"
+
+  local count
+  count="$(jq_config '.udev | length')"
+
+  {
+    echo "# Managed automatically"
+    echo
+
+    for ((i=0; i<count; i++)); do
+      local entry
+      entry="$(jq_config -c ".udev[$i]")"
+
+      # --- unified field extraction (old + new schema) ---
+      local subsystem vendor product serial mac symlink
+
+      subsystem="$(echo "$entry" | jq -r '.subsystem // .match.subsystem // empty')"
+      symlink="$(echo "$entry"   | jq -r '.symlink // empty')"
+
+      vendor="$(echo "$entry"  | jq -r '.vendor // .match.vendor // empty')"
+      product="$(echo "$entry" | jq -r '.product // .match.product // empty')"
+      serial="$(echo "$entry"  | jq -r '.serial // .match.serial // empty')"
+      mac="$(echo "$entry"     | jq -r '."mac-address" // .match."mac-address" // empty' | tr '[:upper:]' '[:lower:]')"
+
+      mode="$(echo "$entry" | jq -r '.mode // empty')"
+      tag="$(echo "$entry" | jq -r '.tag // empty')"
+
+      # skip invalid entries
+      [[ -z "$subsystem" || -z "$symlink" ]] && continue
+
+      local rule=""
+      rule+="SUBSYSTEM==\"${subsystem}\""
+
+      case "$subsystem" in
+        tty)
+          [[ -n "$serial" ]]  && rule+=", ATTRS{serial}==\"${serial}\""
+          [[ -n "$vendor" ]]  && rule+=", ATTRS{idVendor}==\"${vendor}\""
+          [[ -n "$product" ]] && rule+=", ATTRS{idProduct}==\"${product}\""
+          ;;
+
+        hidraw)
+          [[ -n "$vendor" ]]  && rule+=", ATTRS{idVendor}==\"${vendor}\""
+          [[ -n "$product" ]] && rule+=", ATTRS{idProduct}==\"${product}\""
+          [[ -n "$serial" ]]  && rule+=", ATTRS{serial}==\"${serial}\""
+          ;;
+
+        sound)
+          [[ -n "$vendor" ]]  && rule+=", ATTRS{idVendor}==\"${vendor}\""
+          [[ -n "$product" ]] && rule+=", ATTRS{idProduct}==\"${product}\""
+          ;;
+
+        block)
+          [[ -n "$serial" ]] && rule+=", ATTRS{serial}==\"${serial}\""
+          [[ -n "$vendor" ]] && rule+=", ATTRS{idVendor}==\"${vendor}\""
+          [[ -n "$product" ]] && rule+=", ATTRS{idProduct}==\"${product}\""
+          ;;
+
+        net)
+          [[ -n "$mac" ]] && rule+=", ATTR{address}==\"${mac}\""
+          ;;
+      esac
+
+      [[ -n "$mode" ]] && rule+=", MODE=\"${mode}\""
+      [[ -n "$tag" ]] && rule+=", TAG+=\"${tag}\""
+
+      rule+=", SYMLINK+=\"${symlink}\""
+
+      echo "$rule"
+    done
+  } > "${rules_file_new}"
+
+  # --- atomic replace ---
+  if [[ -n "${TEST:-}" ]]; then
+    return
+  fi
+
+  local changed=1
+
+  if [[ -f "${rules_file}" ]]; then
+    if [[ "$(sha256sum "${rules_file}" | cut -d ' ' -f1)" == \
+          "$(sha256sum "${rules_file_new}" | cut -d ' ' -f1)" ]]; then
+      changed=0
+    fi
+  fi
+
+  mv "${rules_file_new}" "${rules_file}"
+
+  if (( changed )); then
+    udevadm control --reload-rules
+    udevadm trigger
+  fi
+}
+
 configure_keyboard() {
   # For lxc we do not configure the keyboard
   if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
@@ -750,6 +845,8 @@ main() {
   set_hostname
 
   configure_network
+
+  configure_udev
 
   import_custom_ca_certs
 

@@ -1,0 +1,49 @@
+{
+  "udev": [
+    {
+      "name": "zigbee-serial",
+      "subsystem": "tty",
+      "vendor": "1a86",
+      "product": "7523",
+      "serial": "A50285BI",
+      "symlink": "zigbee",
+      "mode": "0660",
+      "tag": "iot"
+    },
+    {
+      "name": "usb-midi",
+      "subsystem": "sound",
+      "vendor": "0499",
+      "product": "1503",
+      "symlink": "midi-keyboard",
+      "mode": "0660",
+      "tag": "audio"
+    },
+    {
+      "name": "usb-hid-gamepad",
+      "subsystem": "hidraw",
+      "vendor": "046d",
+      "product": "c216",
+      "symlink": "gamepad",
+      "mode": "0660",
+      "tag": "input"
+    },
+    {
+      "name": "usb-storage",
+      "subsystem": "block",
+      "serial": "4C530001230101118392",
+      "symlink": "backup-disk",
+      "mode": "0660",
+      "tag": "storage"
+    },
+    {
+      "name": "usbip-nic",
+      "subsystem": "net",
+      "vendor": "0bda",
+      "product": "8153",
+      "mac-address": "02:11:22:33:44:55",
+      "symlink": "usbip-nic",
+      "mode": "0660"
+    }
+  ]
+}
