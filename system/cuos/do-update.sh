@@ -18,32 +18,30 @@ SLOT="$(cat "/etc/active_slot")"
 export CONFIG_PATH="/system_next.json"
 
 UPDATE_IMAGE="$(image_url "updater")" || \
-  action_on_failure "cuos:updater:image_not_defined" "Updater image not defined"
+  raise 31 "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
 
 OS_ARCH="$(cat "/etc/cuos-arch" 2>/dev/null || arch)"
 
 OS_IMAGE="$(image_url "${OS_ARCH}" || image_url "os")" || \
-  action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
+  raise 32 "OS image not defined"
 OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_image_digest // empty' "${CONFIG_PATH}")"
 
 IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
-  echo "No new image version available. Exiting (pre)"
   report_info "cuos:update:not_needed" "The system is up-to-date"
-  exit 22
+  raise_info 22 "No new image version available. Exiting (pre)"
 fi
 
 state jq '.last_update_check = (now | todate)'
 
-"${SCRIPT_DIR}/utils-docker-login.sh" || raise "Docker login failed"
+"${SCRIPT_DIR}/utils-docker-login.sh" || raise 33 "Docker login failed"
 
-docker image pull "${UPDATE_IMAGE}" || raise "Faild to fetch image"
+docker image pull "${UPDATE_IMAGE}" || raise 34 "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${UPDATE_IMAGE}" 2>/dev/null | cut -d '@' -f 2)
 if [[ -n "${UPDATE_IMAGE_DIGEST}" && "${UPDATE_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-  echo "Image digest mismatch: ${UPDATE_IMAGE_DIGEST} != ${NEW_DIGEST}"
-  exit 30
+  raise 30 "Image digest mismatch: ${UPDATE_IMAGE_DIGEST} != ${NEW_DIGEST}"
 fi
 
 # Get Root Disk:

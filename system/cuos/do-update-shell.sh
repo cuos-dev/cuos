@@ -4,16 +4,11 @@ set -x
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-raise() {
-	echo "Error: $*" >&2
-	exit 1
-}
-
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/utils.sh"
 
 UPDATE_IMAGE="$(image_url "updater")" || \
-  action_on_failure "cuos:updater:image_not_defined" "Updater image not defined"
+  raise "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
 
 "${SCRIPT_DIR}/utils-docker-login.sh" || raise "Docker login failed"
@@ -21,8 +16,7 @@ UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
 docker image pull "${UPDATE_IMAGE}" || raise "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${UPDATE_IMAGE}" 2>/dev/null | cut -d '@' -f 2)
 if [[ -n "${UPDATE_IMAGE_DIGEST}" && "${UPDATE_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-	echo "Image digest mismatch: ${UPDATE_IMAGE_DIGEST} != ${NEW_DIGEST}"
-	exit 1
+	raise "Image digest mismatch: ${UPDATE_IMAGE_DIGEST} != ${NEW_DIGEST}"
 fi
 
 # Get Root Disk:

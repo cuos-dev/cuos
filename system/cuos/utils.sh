@@ -59,10 +59,31 @@ report_debug() {
   echo "[debug]" "${msg_id}" "$@" >&2
 }
 
+
 raise() {
-  #report_err "cuos:programerror" "Update failed. Exit code ${DOCKER_EXIT_CODE}"
-  echo "Error: $*" >&2
-  exit 1
+  local code=1
+  local message="$*"
+
+  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+    code="${1:-}"
+    message="${*:2}"
+  fi
+
+  echo "Error: $message" >&2
+  exit "$code"
+}
+
+raise_info() {
+  local code=1
+  local message="$*"
+
+  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+    code="${1:-}"
+    message="${*:2}"
+  fi
+
+  echo "Info: $message" >&2
+  exit "$code"
 }
 
 raise_okay() {

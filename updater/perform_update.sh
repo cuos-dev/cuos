@@ -5,16 +5,29 @@ set -x
 export CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
 
 raise() {
-  local code="${1:-"1"}"
-  shift
-  echo "Error: $*" >&2
-  exit "${code}"
+  local code=1
+  local message="$*"
+
+  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+    code="${1:-}"
+    message="${*:2}"
+  fi
+
+  echo "Error: $message" >&2
+  exit "$code"
 }
+
 raise_info() {
-  local code="${1:-"1"}"
-  shift
-  echo "Info: $*" >&2
-  exit "${code}"
+  local code=1
+  local message="$*"
+
+  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+    code="${1:-}"
+    message="${*:2}"
+  fi
+
+  echo "Info: $message" >&2
+  exit "$code"
 }
 
 # Check parameters:

@@ -18,41 +18,37 @@ fi
 export CONFIG_PATH="/system_next.json"
 
 LXC_IMAGE="$(image_url "lxc")" || \
-  action_on_failure "cuos:updater:lxc_image_not_defined" "LXC image not defined"
+  raise 41 "LXC image not defined"
 LXC_IMAGE_DIGEST="$(jq -r '.lxc_image_digest // empty' "${CONFIG_PATH}")"
 
 IMAGE_VERSION="${LXC_IMAGE}"
 IMAGE_VERSION_STRING="${LXC_IMAGE}@${LXC_IMAGE_DIGEST}"
 
 if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
-  echo "No new image version available. Exiting."
   report_info "cuos:update:not_needed" "The system is up-to-date"
-  exit 22
+  raise_info 22 "No new image version available. Exiting."
 fi
 
 AVAIL_BYTES=$(df -B1 "/" | awk 'NR==2 {print $4}')
 REQUIRED_BYTES=$((2 * 1024 * 1024 * 1024))
 if [ "$AVAIL_BYTES" -le "$REQUIRED_BYTES" ]; then
-  echo "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update." >&2
   report_info "cuos:update:no_space" "Not enough free disk space available"
-  exit 21
+  raise 21 "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update." >&2
 fi
 
 state jq '.last_update_check = (now | todate)'
 
-"${SCRIPT_DIR}/utils-docker-login.sh" || raise "Docker login failed"
+"${SCRIPT_DIR}/utils-docker-login.sh" || raise 42 "Docker login failed"
 
-docker image pull "${IMAGE_VERSION}" || raise "Faild to fetch image"
+docker image pull "${IMAGE_VERSION}" || raise 43 "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_VERSION}" 2>/dev/null | cut -d '@' -f 2)
 if [[ -n "${LXC_IMAGE_DIGEST}" && "${LXC_IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
-  echo "Image digest mismatch: ${LXC_IMAGE_DIGEST} != ${NEW_DIGEST}"
-  exit 30
+  raise 30 "Image digest mismatch: ${LXC_IMAGE_DIGEST} != ${NEW_DIGEST}"
 fi
 
 if [[ "${IMAGE_VERSION}@${NEW_DIGEST}" == "$(cat /etc/image)" ]]; then
-  echo "No new image version available (post). Exiting."
   report_info "cuos:update:not_needed" "The system is up-to-date"
-  exit 22
+  raise_info 22 "No new image version available (post). Exiting."
 fi
 
 rm -Rf /next /prev
@@ -60,31 +56,31 @@ mkdir -p /next
 
 CONTAINER="$(docker create "${IMAGE_VERSION}")"
 if ! docker export "${CONTAINER}" | (cd /next && tar xf -); then
-  raise "Failed to export the container"
+  raise 44 "Failed to export the container"
 fi
 docker rm "${CONTAINER}" \
-  || raise "Failed to remove the container"
+  || raise 45 "Failed to remove the container"
 
 cd /next || exit 127
 rm -Rf .dockerenv sys dev proc data
 cd / || exit 127
 
 chroot /next /usr/local/cuos/first-run.sh "${SLOT}" "${IMAGE_VERSION}" "${NEW_DIGEST}" \
-  || raise "Failed to run first-run script in container"
+  || raise 46 "Failed to run first-run script in container"
 
 if [[ -d "/next${SCRIPT_DIR}/lxc-swaproot/" ]]; then
   cp -R "/next${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
-    || raise "Failed to copy swaproot scripts"
+    || raise 47 "Failed to copy swaproot scripts"
 else
   cp -R "${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
-    || raise "Failed to copy swaproot scripts"
+    || raise 48 "Failed to copy swaproot scripts"
 fi
 if [[ -f "/next/bin/busybox" ]]; then
   cp /next/bin/busybox /swaproot/ \
-    || raise "Failed to copy busybox"
+    || raise 49 "Failed to copy busybox"
 else
   cp /bin/busybox /swaproot/ \
-    || raise "Failed to copy busybox"
+    || raise 50 "Failed to copy busybox"
 fi
 
 mv /sbin/init /sbin/init-old
