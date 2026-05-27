@@ -279,12 +279,12 @@ api_command_log_follow() {
   local input
   input="$(cat)"
   local since
-  since="$(echo "${input}" | jq -r '.message // ""')"
+  since="$(echo "${input}" | jq -r '.since // ""')"
   local journalctl_args=(-t cuos -n 100 -o json -f)
   if [ -n "$since" ]; then
-    since_args+=(--since "$since")
+    journalctl_args+=(--since "$since")
   fi
-  journalctl "${journalctl_args[@]}" | jq -c '{
+  journalctl "${journalctl_args[@]}" | jq --unbuffered -c '{
     date: (.["__REALTIME_TIMESTAMP"] | tonumber / 1000000 | strftime("%Y-%m-%dT%H:%M:%S")),
     level: ({"0":"EMERGENCY","1":"ALERT","2":"CRITICAL","3":"ERROR","4":"WARNING","5":"NOTICE","6":"INFO","7":"DEBUG"}[.PRIORITY] // "INFO"),
     message: .MESSAGE
