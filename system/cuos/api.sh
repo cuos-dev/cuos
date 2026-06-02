@@ -99,8 +99,11 @@ api_command_update() {
   # update and swap configuration (config -> new)
   local new_config
   new_config="$(echo "${config}" | jq -s '.[0] * .[1]' "${CONFIG_PATH}" -)" || return 61
-  local old_config
-  old_config="$(cat "${CONFIG_PATH}")"
+  local curr_config
+  curr_config="$(cat "${CONFIG_PATH}")"
+  local prev_config
+  prev_config="$(cat "${NEXT_CONFIG_PATH}")"
+
   echo "${new_config}" >"${NEXT_CONFIG_PATH}"
 
   # perform update
@@ -109,10 +112,15 @@ api_command_update() {
 
   # if system container did not need an update
   if [[ "${update_exit_code}" = "22" || "${update_exit_code}" = "102" ]]; then
-    # apply new configuration to CURRENT system:
-    echo "${new_config}" >"${CONFIG_PATH}"
-    # and save old configuration for rollback
-    echo "${old_config}" >"${NEXT_CONFIG_PATH}"
+    if [[ "${new_config}" != "${curr_config}" ]]; then
+      # apply new configuration to CURRENT system:
+      echo "${new_config}" >"${CONFIG_PATH}"
+      # and save old configuration for rollback
+      echo "${curr_config}" >"${NEXT_CONFIG_PATH}"
+    else
+      # reset prev config:
+      echo "${prev_config}" >"${NEXT_CONFIG_PATH}"
+    fi
 
     # apply changes to current partition
     "${SCRIPT_DIR}/init.sh" --reinit
