@@ -36,6 +36,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   qemu-guest-agent \
   open-vm-tools \
   hyperv-daemons \
+  ## CPU support \
+  intel-microcode \
+  amd64-microcode \
+  thermald \
   ## cuos os dependencies \
   btrfs-progs \
   console-setup \
