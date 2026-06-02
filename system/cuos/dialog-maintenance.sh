@@ -401,7 +401,8 @@ expert() {
   fi
   cp "/system.json" /tmp/edit-system.json
   chown nobody:nogroup /tmp/edit-system.json
-  term_all sudo -u nobody rvim /tmp/edit-system.json
+  # "vim.tiny -Z" is restricted vim (rvim)
+  term_all sudo -u nobody vim.tiny -Z /tmp/edit-system.json
   if ! jq . /tmp/edit-system.json >/dev/null 2>&1; then
     term msg "Invalid JSON"
   elif ! check_config < /tmp/edit-system.json; then

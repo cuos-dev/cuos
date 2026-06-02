@@ -63,17 +63,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   cloud-guest-utils \
   curl \
   dialog \
-  gnupg2 \
   inetutils-ping \
   jq \
   jsonschema-jv \
   less \
-  pass \
   sudo \
   yq \
   ## debugging tools \
   openssh-server \
-  vim \
+  vim-tiny \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && systemctl disable qemu-guest-agent.service \
   && systemctl disable open-vm-tools.service \
@@ -84,6 +82,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && systemctl mask sshd-keygen.service \
   && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
   && rm -f /etc/ssh/ssh_host_* \
+  && update-alternatives --install /usr/bin/vim vim /usr/bin/vim.tiny 100 \
   ## Ensure persistence in /data \
   && mkdir -p /data \
   && rm -f /etc/machine-id && ln -sf /data/machine-id /etc/machine-id \
