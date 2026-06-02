@@ -29,8 +29,8 @@ microcode
 EOF
 
 # Install required packages
-# add non-free for the microcode packages
-RUN sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources \
+# add non-free-firmware for the microcode packages
+RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
   && apt-get update && apt-get install --no-install-recommends -y \
   ## cuos system dependencies (kernel) \
   linux-image-amd64 \
