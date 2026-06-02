@@ -139,7 +139,7 @@ export T_FILE_UDEV_RULES=/dev/stdout
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system6.json"
 expect \
   "configure_udev: no config found" \
-  $'# Managed automatically\n\nSUBSYSTEM=="tty", ATTRS{serial}=="A50285BI", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="zigbee"\nSUBSYSTEM=="sound", ATTRS{idVendor}=="0499", ATTRS{idProduct}=="1503", SYMLINK+="midi-keyboard"\nSUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c216", SYMLINK+="gamepad"\nSUBSYSTEM=="block", ATTRS{serial}=="4C530001230101118392", SYMLINK+="backup-disk"\nSUBSYSTEM=="sound", SYMLINK+="midi-keyboard"\nSUBSYSTEM=="net", ATTR{address}=="02:11:22:33:44:55", SYMLINK+="usbip-nic"'
+  $'# Managed automatically\n\nSUBSYSTEM=="tty", ATTRS{serial}=="A50285BI", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE="0660", TAG+="iot", SYMLINK+="zigbee"\nSUBSYSTEM=="sound", ATTRS{idVendor}=="0499", ATTRS{idProduct}=="1503", MODE="0660", TAG+="audio", SYMLINK+="midi-keyboard"\nSUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c216", MODE="0660", TAG+="input", SYMLINK+="gamepad"\nSUBSYSTEM=="block", ATTRS{serial}=="4C530001230101118392", MODE="0660", TAG+="storage", SYMLINK+="backup-disk"\nSUBSYSTEM=="net", ATTR{address}=="02:11:22:33:44:55", MODE="0660", SYMLINK+="usbip-nic"' \
   configure_udev
 
 summary
