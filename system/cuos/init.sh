@@ -420,7 +420,7 @@ configure_network() {
 }
 
 configure_udev() {
-  local rules_file="${T_FILE_UDEV_RULES:-/etc/udev/rules.d/99-custom.rules}"
+  local rules_file="${T_FILE_UDEV_RULES:-/etc/udev/rules.d/99-cuos.rules}"
   local rules_file_new="${T_FILE_UDEV_RULES_NEW:-"${rules_file}.new"}"
 
   local count
@@ -842,11 +842,11 @@ main() {
 
   ensure_system_config
 
+  configure_udev
+
   set_hostname
 
   configure_network
-
-  configure_udev
 
   import_custom_ca_certs
 
