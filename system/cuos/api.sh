@@ -28,7 +28,7 @@ api_command_state() {
   local file_slot="${T_FILE_SLOT:-"/etc/active_slot"}"
   local file_version="${T_FILE_VERSION:-"/etc/image"}"
   local virt_type
-  virt_type="$(systemd-detect-virt)"
+  virt_type="$(systemd-detect-virt)" 2>/dev/null
 
   local version
   version="$(cat "${file_version}")"
@@ -276,11 +276,14 @@ api_command_shutdown() {
 
 ## log                - Get reports
 api_command_log() {
-  journalctl -t cuos -n 100 -o json | jq -c '{
-    date: (.["__REALTIME_TIMESTAMP"] | tonumber / 1000000 | strftime("%Y-%m-%dT%H:%M:%S")),
-    level: ({"0":"EMERGENCY","1":"ALERT","2":"CRITICAL","3":"ERROR","4":"WARNING","5":"NOTICE","6":"INFO","7":"DEBUG"}[.PRIORITY] // "INFO"),
-    message: .MESSAGE
-  }' | jq -s .
+  journalctl -t cuos -n 100 -o json | jq -c '
+    (.MESSAGE | capture("^(?<type>.*?): (?<message>.*)$") // {type: null, message: .}) as $m
+    | {
+      date: (.["__REALTIME_TIMESTAMP"] | tonumber / 1000000 | strftime("%Y-%m-%dT%H:%M:%S")),
+      level: ({"0":"emergency","1":"alert","2":"critical","3":"error","4":"warning","5":"notice","6":"info","7":"debug"}[.PRIORITY] // "info"),
+      type: $m.type,
+      message: $m.message
+    }' | jq -s .
 }
 
 api_command_log_follow() {
@@ -292,11 +295,15 @@ api_command_log_follow() {
   if [ -n "$since" ]; then
     journalctl_args+=(--since "$since")
   fi
-  journalctl "${journalctl_args[@]}" | jq --unbuffered -c '{
-    date: (.["__REALTIME_TIMESTAMP"] | tonumber / 1000000 | strftime("%Y-%m-%dT%H:%M:%S")),
-    level: ({"0":"EMERGENCY","1":"ALERT","2":"CRITICAL","3":"ERROR","4":"WARNING","5":"NOTICE","6":"INFO","7":"DEBUG"}[.PRIORITY] // "INFO"),
-    message: .MESSAGE
-  }'
+
+  journalctl "${journalctl_args[@]}" | jq --unbuffered -c '
+    (.MESSAGE | capture("^(?<type>.*?): (?<message>.*)$") // {type: null, message: .}) as $m
+    | {
+      date: (.["__REALTIME_TIMESTAMP"] | tonumber / 1000000 | strftime("%Y-%m-%dT%H:%M:%S")),
+      level: ({"0":"emergency","1":"alert","2":"critical","3":"error","4":"warning","5":"notice","6":"info","7":"debug"}[.PRIORITY] // "info"),
+      type: $m.type,
+      message: $m.message
+    }'
 }
 
 ## report_app_ready   - App announces itself as ready.
