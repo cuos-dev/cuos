@@ -373,7 +373,7 @@ check_password() {
 
   if [[ "${hash}" =~ ^\$[0-9a-z]+\$ ]] || [[ ${#hash} -gt 50 ]]; then
     local salt
-    salt="$(printf '%s' "$hash" | sed -E 's/^\$6\$([^$]+)\$.*$/\1/')"
+    salt="$(printf '%s' "$hash" | sed -E 's/^\$6\$([^$]+)\$.*/\1/')"
 
     # Recreate and compare
     test_hash="$(printf '%s' "$pass" | openssl passwd -6 -salt "${salt}" -stdin)"
