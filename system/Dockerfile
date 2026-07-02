@@ -3,6 +3,8 @@ FROM debian:13.5-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
+LABEL cuos-system
+
 ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
 
 COPY seccomp-default.json /etc/docker/

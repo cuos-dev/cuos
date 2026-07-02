@@ -3,6 +3,8 @@ FROM docker:29.5.3-alpine3.23
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
+LABEL cuos-system
+
 ENTRYPOINT ["/usr/local/updater/updater.sh"]
 
 RUN apk add --no-cache jq btrfs-progs util-linux bash
