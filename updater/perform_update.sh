@@ -32,9 +32,11 @@ raise_info() {
 
 # Check parameters:
 SLOT="A"
+OLD_SLOT="B"
 # $1 is current slot:
 if [[ "$1" = "A" ]]; then
   SLOT="B"
+  OLD_SLOT="A"
 fi
 
 IMAGE="${2}"
@@ -71,8 +73,12 @@ rm -f "${TARGET_BOOT}/${SLOT}"_* || true
 
 docker rm -f "${CONTAINER_NAME_OLD}" >/dev/null 2>/dev/null || true
 
-docker rm -f "${CONTAINER_NAME}" >/dev/null 2>/dev/null && \
-  docker image prune -a -f || true
+docker rm -f "${CONTAINER_NAME}" >/dev/null 2>/dev/null || true
+
+OLD_CONTAINER_NAME="cuos-system-${OLD_SLOT}"
+if OLD_IMAGE_PATH="$(docker inspect --format='{{.Image}}' "${OLD_CONTAINER_NAME}")"; then
+  docker image rm "${OLD_IMAGE_PATH}" || true
+fi
 
 # Load new image
 docker image pull "${IMAGE}" >/dev/null \

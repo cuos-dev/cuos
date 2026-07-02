@@ -184,6 +184,10 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
 fi
 
 if [[ "${UPDATE}" -eq 1 ]]; then
+  if [[ -n "${OLD_IMAGE_PATH}" && "${OLD_IMAGE_PATH}" != "${INITIAL_IMAGE}" ]]; then
+    docker image rm "${OLD_IMAGE_PATH}" || true
+  fi
+
   docker exec "${CONTAINER_NAME}" /api/post_update || true
 
   report_notice "cuos:update:done" "System successfully updated."
