@@ -82,6 +82,23 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm64:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm64:buildcache,mode=max
 
+      - name: Build and push Docker image - cuos-system-rpi-arm32
+        uses: docker/build-push-action@v7
+        with:
+          context: ./system
+          file: ./system/Dockerfile.rpi-arm32
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm32:${{ steps.vars.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.run_id }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
+          platforms: linux/arm/v7
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm32:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm32:buildcache,mode=max
+
       - name: Build and push Docker image - cuos-system-lxc
         uses: docker/build-push-action@v7
         with:
