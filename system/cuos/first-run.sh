@@ -7,16 +7,17 @@ set -euo pipefail
 SLOT="$1"
 IMAGE="$2"
 DIGEST="$3"
+ROOT="${ROOT:-""}"
 
-echo "${SLOT}" >/etc/active_slot
-chmod 444 /etc/active_slot
+echo "${SLOT}" >"${ROOT}/etc/active_slot"
+chmod 444 "${ROOT}/etc/active_slot"
 
-echo "${IMAGE}@${DIGEST}" >/etc/image
-chmod 444 /etc/image
+echo "${IMAGE}@${DIGEST}" >"${ROOT}/etc/image"
+chmod 444 "${ROOT}/etc/image"
 
-ln -sf "/data/system_${SLOT}.json" "/system.json"
+ln -sf "/data/system_${SLOT}.json" "${ROOT}/system.json"
 NEXT_SLOT=$([[ "${SLOT}" == "A" ]] && echo "B" || echo "A")
-ln -sf "/data/system_${NEXT_SLOT}.json" "/system_next.json"
+ln -sf "/data/system_${NEXT_SLOT}.json" "${ROOT}/system_next.json"
 
 if [[ -f "${SCRIPT_DIR}/custom-first-run.sh" ]]; then
   # shellcheck source=/dev/null

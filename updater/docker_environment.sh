@@ -86,11 +86,13 @@ start_dockerd() {
 	return 0
 }
 
-if ! start_dockerd; then
+if ! docker info >/dev/null 2>&1; then
 	if ! start_dockerd; then
 		if ! start_dockerd; then
 			if ! start_dockerd; then
-				raise 94 "Could not start dockerd after three trys"
+				if ! start_dockerd; then
+					raise 94 "Could not start dockerd after three trys"
+				fi
 			fi
 		fi
 	fi
@@ -111,12 +113,18 @@ EXIT_CODE="$?"
 
 
 # clean up:
-sync
-sleep 1
-kill "${DOCKERD_PID}"
-wait "${DOCKERD_PID}"
-DOCKERD_PID=""
-
+if [[ -n "${DOCKERD_PID}" ]]; then
+	sync
+	sleep 1
+	kill "${DOCKERD_PID}"
+	wait "${DOCKERD_PID}"
+	DOCKERD_PID=""
+fi
+if [[ -z "${DOCKERD_PID}" && \
+		-d "/mnt/@os/system-A" && \
+		-d "/mnt/@os/system-B" ]]; then
+	btrfs subvolume delete -R /mnt/@os/docker
+fi
 
 sync
 

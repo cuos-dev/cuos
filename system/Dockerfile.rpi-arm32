@@ -1,0 +1,150 @@
+FROM debian:13.5-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV container=docker
+
+LABEL cuos-system
+
+ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
+
+COPY seccomp-default.json /etc/docker/
+COPY raspberrypi-archive.gpg /etc/apt/keyrings/
+
+RUN echo "rpi-arm64" >"/etc/cuos-arch" \
+  && mkdir -p /boot/firmware && \
+  cat <<'EOF' > "/boot/firmware/config.txt"
+dtparam=audio=on
+camera_auto_detect=1
+display_auto_detect=1
+auto_initramfs=1
+dtoverlay=vc4-kms-v3d
+max_framebuffers=2
+disable_fw_kms_setup=1
+disable_overscan=1
+arm_boost=1
+
+[cm4]
+otg_mode=1
+
+[cm5]
+dtoverlay=dwc2,dr_mode=host
+
+[all]
+EOF
+
+# Add Raspberry Pi apt repository and key
+RUN echo "Cache buster: v1" \
+  && echo "deb [signed-by=/etc/apt/keyrings/raspberrypi-archive.gpg] http://archive.raspberrypi.org/debian/ $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"') main" > /etc/apt/sources.list.d/raspi.list \
+  && apt-get update \
+  && apt-get full-upgrade -y \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+
+# Pre-install initramfs-tools
+RUN apt-get update && apt-get install --no-install-recommends -y \
+  initramfs-tools \
+  zstd \
+  && apt-get clean && rm -rf /var/lib/apt/lists/* \
+  && echo "RESUME=none" >>/etc/initramfs-tools/conf.d/resume \
+  && cat >> "/etc/initramfs-tools/modules" <<'EOF'
+btrfs
+nvme
+sd_mod
+sdhci
+sdhci_pci
+usb_storage
+mmc_block
+mmc_core
+sr_mod
+EOF
+
+# Install required packages
+RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## Raspberry Pi dependencies \
+  parted \
+  dosfstools \
+  e2fsprogs \
+  linux-image-rpi-v7 \
+  linux-image-rpi-v6 \
+  raspberrypi-sys-mods \
+  raspi-firmware \
+  raspberrypi-archive-keyring \
+  #raspberrypi-net-mods \
+  #raspi-utils \
+  #raspi-utils-core # = pinctrl \
+  #raspi-utils-dt \
+  #device-tree-compiler \
+  firmware-atheros \
+  firmware-brcm80211 \
+  firmware-libertas \
+  firmware-linux-free \
+  firmware-misc-nonfree \
+  firmware-realtek \
+  #flashrom \
+  gpiod \
+  fake-hwclock \
+  # raspi-utils-eeprom \
+  # rpi-eeprom \
+  # rpi-swap \
+  # iw \
+  ## cuos os dependencies \
+  btrfs-progs \
+  console-setup \
+  dbus \
+  dbus-broker \
+  docker-cli \
+  docker.io \
+  kbd \
+  kmod \
+  lsb-release \
+  selinux-policy-default \
+  systemd \
+  systemd-sysv \
+  systemd-timesyncd \
+  ## network dependencies \
+  hostname \
+  ifupdown \
+  iproute2 \
+  iptables \
+  isc-dhcp-client \
+  isc-dhcp-common \
+  openresolv \
+  ## cuos service dependencies \
+  ca-certificates \
+  cloud-guest-utils \
+  curl \
+  dialog \
+  inetutils-ping \
+  jq \
+  jsonschema-jv \
+  less \
+  sudo \
+  yq \
+  ## debugging tools \
+  openssh-server \
+  vim-tiny \
+  && apt-get clean && rm -rf /var/lib/apt/lists/* \
+  && systemctl enable systemd-timesyncd.service \
+  && systemctl mask ssh.socket \
+  && systemctl mask sshd-keygen.service \
+  && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
+  && rm -f /etc/ssh/ssh_host_* \
+  && update-alternatives --install /usr/bin/vim vim /usr/bin/vim.tiny 100 \
+  ## Ensure persistence in /data \
+  && mkdir -p /data \
+  && rm -f /etc/machine-id && ln -sf /data/machine-id /etc/machine-id \
+  && rm -Rf /var/log && ln -sf /data/log /var/log \
+  && rm -Rf /var/lib/dhcp && ln -sf /data/dhcp /var/lib/dhcp \
+  && rm -Rf /var/lib/docker && ln -sf /data/docker /var/lib/docker \
+  && rm -Rf /var/lib/containerd && ln -sf /data/containerd /var/lib/containerd \
+  && rm -Rf /root && ln -sf /data/root /root \
+  && echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf \
+  && rm /etc/network/interfaces \
+  ## RPI \
+  && rm -f /etc/fake-hwclock.data && ln -sf /data/fake-hwclock.data /etc/fake-hwclock.data \
+  && rm -f /usr/lib/systemd/journald.conf.d/70-rpi-volatile-storage.conf
+
+
+# Install CuOS scripts (systemd required)
+COPY cuos/ /usr/local/cuos/
+RUN /usr/local/cuos/install.sh
