@@ -35,7 +35,7 @@ EOF
 
 # Add Raspberry Pi apt repository and key
 RUN echo "Cache buster: v1" \
-  && echo "Types: deb\nURIs: http://archive.raspberrypi.com/debian/\nSuites: $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')\nComponents: main\nSigned-By: /usr/share/keyrings/raspberrypi-archive-keyring.pgp" > /etc/apt/sources.list.d/raspi.sources \
+  && echo "Types: deb\nURIs: http://archive.raspberrypi.com/debian/\nSuites: $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')\nComponents: main\nSigned-By: /etc/apt/keyrings/raspberrypi-archive.gpg" > /etc/apt/sources.list.d/raspi.sources \
   && apt-get update \
   && apt-get full-upgrade -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
