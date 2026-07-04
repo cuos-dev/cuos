@@ -29,6 +29,9 @@ otg_mode=1
 [cm5]
 dtoverlay=dwc2,dr_mode=host
 
+[pi5]
+dtoverlay=nospi10
+
 [all]
 EOF
 
@@ -64,8 +67,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   parted \
   dosfstools \
   e2fsprogs \
-  linux-image-rpi-v7 \
   linux-image-rpi-v6 \
+  linux-image-rpi-v7 \
+  linux-image-rpi-v8:arm64 \
   raspberrypi-sys-mods \
   raspi-firmware \
   raspberrypi-archive-keyring \

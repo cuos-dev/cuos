@@ -144,6 +144,7 @@ fi
 docker rm "${CONTAINER}" \
   || raise 108 "Failed to remove the container"
 
+rm -f "${CONTAINER_ROOTFS_FS}/.dockerenv" || true
 
 ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/first-run.sh" \
   "${SLOT}" "${IMAGE}" "${DIGEST}" \

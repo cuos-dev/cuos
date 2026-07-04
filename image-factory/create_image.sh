@@ -60,11 +60,6 @@ image_version() {
 export DOCKER_CONTEXT=default
 OUTPUT_DIR="/output"
 
-if [[ ! -d "${OUTPUT_DIR}" ]]; then
-  echo "Build dir does not exist."
-  exit 1
-fi
-
 IMAGE_NAME="${IMAGE_NAME:-"image"}"
 IMAGE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
 
@@ -118,9 +113,10 @@ fi
 
 SLOT="B"
 
-#SIZE_MB=2048
-SIZE_MB=4096
 SIZE_MB=1636
+if [[ "${TARGET}" == "rpi" ]]; then
+  SIZE_MB=2048
+fi
 
 SIZE_MB="$(jq --arg size_mb "${SIZE_MB}" -r '.image_size_mb // $size_mb' "${CONFIG_PATH}")"
 
