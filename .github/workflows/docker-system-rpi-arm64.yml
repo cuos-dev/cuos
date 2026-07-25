@@ -1,4 +1,4 @@
-name: Build and Push cuos-system
+name: Build and Push cuos-system (rpi-arm64)
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - '*'
     paths:
       - system/**
-      - .github/workflows/docker-system.yml
+      - .github/workflows/docker-system-rpi-arm64.yml
   workflow_dispatch:
 
 jobs:
@@ -49,19 +49,20 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image - cuos-system
+      - name: Build and push Docker image - cuos-system-rpi-arm64
         uses: docker/build-push-action@v7
         with:
           context: ./system
+          file: ./system/Dockerfile.rpi-arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/cuos-system:${{ steps.vars.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm64:${{ steps.vars.outputs.tag }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.run_id }}
             org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
-          #platforms: linux/amd64,linux/arm64,linux/arm/v7
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system:buildcache,mode=max
+          platforms: linux/arm64
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm64:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm64:buildcache,mode=max
 
