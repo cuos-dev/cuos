@@ -255,6 +255,10 @@ configure_network() {
     else
       interfaces_mac["$name"]=""
     fi
+
+    if command -v ethtool >/dev/null; then
+      ethtool -s "$name" wol g || true
+    fi
   done
 
 
