@@ -121,9 +121,11 @@ if [[ -n "${DOCKERD_PID}" ]]; then
 	DOCKERD_PID=""
 fi
 if [[ -z "${DOCKERD_PID}" && \
-		-d "/mnt/@os/system-A" && \
-		-d "/mnt/@os/system-B" ]]; then
-	btrfs subvolume delete -R /mnt/@os/docker
+		-d "${TARGET_ROOT}/docker" && \
+		-d "${TARGET_ROOT}/system-A" && \
+		-d "${TARGET_ROOT}/system-B" ]]; then
+	btrfs subvolume delete -R "${TARGET_ROOT}/docker/btrfs/subvolumes"/*
+	rm -Rf "${TARGET_ROOT}/docker"
 fi
 
 sync
