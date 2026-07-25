@@ -55,6 +55,7 @@ docker run --rm \
   --privileged \
   --device "${ROOT_DISK}" \
   -v "/root/.docker/config.json:/root/.docker/config.json:ro" \
+  -v "/var/run/docker.sock:/var/run/docker.sock:ro" \
   -v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
   -v "/etc/image:/etc/image:ro" \
   -v "${CONFIG_PATH}:/system.json" \
