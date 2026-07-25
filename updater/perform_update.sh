@@ -94,6 +94,9 @@ if [[ -n "${OS_ARCH}" ]]; then
 fi
 
 TARGET_PLATFORM="${TARGET_PLATFORM:-"$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')"}"
+if [[ "${TARGET_PLATFORM}" = "linux/arm" ]]; then
+  TARGET_PLATFORM="linux/arm/v7"
+fi
 
 CONTAINER_ROOTFS_FS="${TARGET_ROOT}/system-${SLOT}"
 CONTAINER_ROOTFS="@os/system-${SLOT}"
@@ -112,8 +115,10 @@ btrfs subvolume create "${CONTAINER_ROOTFS_FS}"
 
 
 # Load new image
-docker image pull --platform "${TARGET_PLATFORM}" "${IMAGE}" \
-  || raise 103 "Faild to fetch system image"
+if [[ "${INSTALLIMAGE}" != "true" || "${IMAGE}" != *:build ]]; then
+  docker image pull --platform "${TARGET_PLATFORM}" "${IMAGE}" \
+    || raise 103 "Faild to fetch system image"
+fi
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" 2>/dev/null | cut -d '@' -f 2)
 
 if [[ -n "${IMAGE_DIGEST}" && "${IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then

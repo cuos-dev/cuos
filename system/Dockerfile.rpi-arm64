@@ -1,3 +1,5 @@
+# This is using Debian on Raspberry Pi, not Raspbian, and adds packages
+# from raspberry pi.
 FROM debian:13.5-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -29,6 +31,9 @@ otg_mode=1
 
 [cm5]
 dtoverlay=dwc2,dr_mode=host
+
+[pi5]
+dtoverlay=nospi10
 
 [all]
 EOF
