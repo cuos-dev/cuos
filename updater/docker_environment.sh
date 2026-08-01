@@ -111,6 +111,13 @@ shift
 "${SCRIPT}" "$@"
 EXIT_CODE="$?"
 
+if [[ -z "${DOCKERD_PID}" && \
+		-d "${TARGET_ROOT}/docker" && \
+		-d "${TARGET_ROOT}/system-A" && \
+		-d "${TARGET_ROOT}/system-B" ]]; then
+	btrfs subvolume delete -R "${TARGET_ROOT}/docker/btrfs/subvolumes"/*
+	rm -Rf "${TARGET_ROOT}/docker"
+fi
 
 # clean up:
 if [[ -n "${DOCKERD_PID}" ]]; then
@@ -119,13 +126,6 @@ if [[ -n "${DOCKERD_PID}" ]]; then
 	kill "${DOCKERD_PID}"
 	wait "${DOCKERD_PID}"
 	DOCKERD_PID=""
-fi
-if [[ -z "${DOCKERD_PID}" && \
-		-d "${TARGET_ROOT}/docker" && \
-		-d "${TARGET_ROOT}/system-A" && \
-		-d "${TARGET_ROOT}/system-B" ]]; then
-	btrfs subvolume delete -R "${TARGET_ROOT}/docker/btrfs/subvolumes"/*
-	rm -Rf "${TARGET_ROOT}/docker"
 fi
 
 sync

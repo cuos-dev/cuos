@@ -176,7 +176,7 @@ export TARGET_ROOT_PARTITION
 mkfs.vfat -n boot "${TARGET_BOOT_PARTITION}" \
     || raise "Failed to format boot partition: ${TARGET_BOOT_PARTITION}"
 mkfs.btrfs -L system "${TARGET_ROOT_PARTITION}" \
-    || raise "Failed to format root partition: ${TARGET_BOOT_PARTITION}"
+    || raise "Failed to format root partition: ${TARGET_ROOT_PARTITION}"
 
 # Mount and populate
 mkdir -p /mnt/boot /mnt/system /mnt/root

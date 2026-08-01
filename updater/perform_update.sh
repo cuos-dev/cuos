@@ -135,9 +135,11 @@ echo "INFO: Updating OS slot ${SLOT} to ${IMAGE}"
 
 echo "disc free (root): $(df -h "${DOCKER_DIR}" | tail -n 1)"
 
-DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" | cut -d '@' -f 2) \
-  || raise 105 "Failed to get image digest"
-
+DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" 2>/dev/null | cut -d '@' -f 2)
+DIGEST="${DIGEST:-"$(docker inspect --format='{{.Id}}' "${IMAGE}")"}"
+if [[ -z "${DIGEST}" ]]; then
+  raise 105 "Failed to get image digest"
+fi
 
 
 
