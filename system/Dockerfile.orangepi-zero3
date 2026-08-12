@@ -1,0 +1,140 @@
+FROM debian:13.5-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV container=docker
+
+LABEL dev.cuos.system=system
+
+ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
+
+COPY seccomp-default.json /etc/docker/
+COPY armbian.key /etc/apt/keyrings/armbian.key
+
+COPY armbian-boot.cmd /boot/boot.cmd
+COPY armbianEnv.txt /boot
+
+RUN echo "Cache buster: v1" \
+  && sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
+  && echo "Types: deb\nURIs: http://apt.armbian.com\nSuites: $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')\nComponents: main\nSigned-By: /etc/apt/keyrings/armbian.key" > /etc/apt/sources.list.d/armbian.sources \
+  && apt-get update \
+  && apt-get full-upgrade -y \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+
+# Pre-install initramfs-tools
+RUN apt-get update && apt-get install --no-install-recommends -y \
+  initramfs-tools \
+  gzip \
+  && apt-get clean && rm -rf /var/lib/apt/lists/* \
+  && echo "RESUME=none" >>/etc/initramfs-tools/conf.d/resume \
+  && echo 'COMPRESS=gzip' > /etc/initramfs-tools/conf.d/compress \
+  && echo 'do_symlinks=no' >> /etc/kernel-img.conf \
+  && echo 'do_symlink=no' >> /etc/kernel-img.conf \
+  && cat >> "/etc/initramfs-tools/modules" <<'EOF'
+btrfs
+nvme
+sd_mod
+sdhci
+sdhci_pci
+usb_storage
+mmc_block
+mmc_core
+sr_mod
+EOF
+
+
+# Verfügbare Pakete anzeigen (für Debugging)
+# RUN apt-get update && apt-cache search linux-kernel && false
+# RUN apt-get update && apt-cache search linux-dtb && false
+
+# RUN apt-get update && apt-cache search uboot && false
+
+# Install required packages
+RUN apt-get update && apt-get install --no-install-recommends -y \
+  ## OS dependencies \
+  parted \
+  e2fsprogs \
+  linux-dtb-current-sunxi64 \
+  linux-image-current-sunxi64 \
+  linux-u-boot-orangepizero3-current \
+  u-boot-tools \
+  armbian-firmware \
+  # device-tree-compiler ?? \
+  #raspberrypi-net-mods \
+  #raspi-utils \
+  #raspi-utils-core # = pinctrl \
+  #raspi-utils-dt \
+  #device-tree-compiler \
+  #flashrom \
+  gpiod \
+  fake-hwclock \
+  # raspi-utils-eeprom \
+  # rpi-eeprom \
+  # rpi-swap \
+  # iw \
+  ## cuos os dependencies \
+  btrfs-progs \
+  console-setup \
+  dbus \
+  dbus-broker \
+  docker-cli \
+  docker.io \
+  kbd \
+  kmod \
+  lsb-release \
+  selinux-policy-default \
+  systemd \
+  systemd-sysv \
+  systemd-timesyncd \
+  ## network dependencies \
+  hostname \
+  ifupdown \
+  iproute2 \
+  iptables \
+  isc-dhcp-client \
+  isc-dhcp-common \
+  openresolv \
+  ## cuos service dependencies \
+  ca-certificates \
+  cloud-guest-utils \
+  curl \
+  dialog \
+  inetutils-ping \
+  jq \
+  jsonschema-jv \
+  less \
+  sudo \
+  yq \
+  ## debugging tools \
+  openssh-server \
+  vim-tiny \
+  && apt-get clean && rm -rf /var/lib/apt/lists/* \
+  && systemctl enable systemd-timesyncd.service \
+  && systemctl mask ssh.socket \
+  && systemctl mask sshd-keygen.service \
+  && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
+  && rm -f /etc/ssh/ssh_host_* \
+  && update-alternatives --install /usr/bin/vim vim /usr/bin/vim.tiny 100 \
+  ## Ensure persistence in /data \
+  && mkdir -p /data \
+  && rm -f /etc/machine-id && ln -sf /data/machine-id /etc/machine-id \
+  && rm -Rf /var/log && ln -sf /data/log /var/log \
+  && rm -Rf /var/lib/dhcp && ln -sf /data/dhcp /var/lib/dhcp \
+  && rm -Rf /var/lib/docker && ln -sf /data/docker /var/lib/docker \
+  && rm -Rf /var/lib/containerd && ln -sf /data/containerd /var/lib/containerd \
+  && rm -Rf /root && ln -sf /data/root /root \
+  && echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf \
+  && rm /etc/network/interfaces \
+  ## Armbian/uBoot \
+  && rm -f /etc/fake-hwclock.data && ln -sf /data/fake-hwclock.data /etc/fake-hwclock.data \
+  && mkimage -A arm64 -O linux -T ramdisk -C gzip -n uInitrd -d /boot/initrd.img-* /boot/uInitrd \
+  && mkimage -C none -A arm -T script -d /boot/boot.cmd /boot/boot.scr \
+  && cp /usr/lib/linux-u-boot-current-orangepizero3/u-boot-sunxi-with-spl.bin /boot/u-boot.bin \
+  && rm -f /boot/dtb /boot/Image \
+  && mv /boot/dtb-*-current-sunxi64 /boot/dtb \
+  && mv /boot/vmlinuz-*-current-sunxi64 /boot/Image \
+  && rm /boot/initrd.img-*-current-sunxi64
+
+# Install CuOS scripts (systemd required)
+COPY cuos/ /usr/local/cuos/
+RUN /usr/local/cuos/install.sh uboot
