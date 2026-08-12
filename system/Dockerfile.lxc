@@ -71,4 +71,4 @@ RUN echo "Cache buster: v1" \
 
 # Install CuOS scripts (systemd required)
 COPY cuos/ /usr/local/cuos/
-RUN /usr/local/cuos/install.sh
+RUN /usr/local/cuos/install.sh lxc

@@ -86,6 +86,9 @@ if [[ -n "${OS_ARCH}" ]]; then
     rpi-arm32)
       TARGET_PLATFORM="linux/arm/v7"
       ;;
+    orangepi-zero3)
+      TARGET_PLATFORM="linux/arm64"
+      ;;
     *)
       echo "Unknown architecture: ${OS_ARCH}"
       exit 1
@@ -153,43 +156,6 @@ docker rm "${CONTAINER}" \
 
 rm -f "${CONTAINER_ROOTFS_FS}/.dockerenv" || true
 
-ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/first-run.sh" \
-  "${SLOT}" "${IMAGE}" "${DIGEST}" \
-  || raise 107 "Failed to run first-run script in container"
-
-# Copy latest kernel and initrd to boot slot
-kernel=$(find "${CONTAINER_ROOTFS_FS}"/boot/vmlinuz-* 2>/dev/null | sort -V | tail -n1) \
-  || raise 108 "Faild to detect kernel file"
-initrd=$(find "${CONTAINER_ROOTFS_FS}"/boot/initrd.img-* 2>/dev/null | sort -V | tail -n1) \
-  || raise 109 "Faild to detect initrd file"
-
-if [[ -z "${kernel}" ]]; then
-  raise 110 "No matching kernel file found."
-fi
-if [[ -z "${initrd}" ]]; then
-  raise 111 "No matching initrd file found."
-fi
-
-filename_kernel="${SLOT}_$(basename "${kernel}")"
-filename_initrd="${SLOT}_$(basename "${initrd}")"
-
-if [[ "${OS_ARCH}" == "rpi"* ]]; then
-  rm -Rf "${TARGET_BOOT}/firmware_prev" || true
-  mkdir -p "${TARGET_BOOT}/firmware_prev" || true
-  mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.txt,initramfs*,kernel*.img,overlays,start*.elf} "${TARGET_BOOT}/firmware_prev/" 2>/dev/null || true
-  cp -r "${CONTAINER_ROOTFS_FS}/boot/firmware/." "${TARGET_BOOT}" \
-    || raise 112 "Failed to copy kernel"
-
-else
-
-  cp "${kernel}" "${TARGET_BOOT}/${filename_kernel}" \
-    || raise 113 "Failed to copy kernel"
-  cp "${initrd}" "${TARGET_BOOT}/${filename_initrd}" \
-    || raise 114 "Failed to copy initrd"
-
-fi
-
-echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
 
 
 cat <<EOF >/etc/fstab
@@ -207,6 +173,19 @@ cp /etc/fstab "${CONTAINER_ROOTFS_FS}/etc/fstab" \
   || raise 119 "Failed to copy fstab"
 
 
+
+ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/first-run.sh" \
+  "${SLOT}" "${IMAGE}" "${DIGEST}" \
+  || raise 107 "Failed to run first-run script in container"
+
+
+ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/install-kernel.sh" "${SLOT}" \
+  || exit "$?"
+
+
+echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
+
+
 if [[ "${INSTALLIMAGE}" = "true" ]]; then
   if [[ -f "${CONFIG_PATH}" ]]; then
     cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
@@ -215,92 +194,5 @@ if [[ "${INSTALLIMAGE}" = "true" ]]; then
     cp "${CONTAINER_ROOTFS_FS}/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
       || raise 121 "Failed to copy system.json from container"
   fi
-
-
-  if [[ "${OS_ARCH}" != "rpi"* ]]; then
-    # Install GRUB
-    mkdir -p "${TARGET_BOOT}/EFI/BOOT"
-    grub-install \
-      --target=x86_64-efi \
-      --efi-directory="${TARGET_BOOT}" \
-      --boot-directory="${TARGET_BOOT}" \
-      --removable \
-      --no-nvram \
-      --root-directory="${CONTAINER_ROOTFS_FS}" \
-      "${TARGET_DEVICE}" \
-      || raise 122 "Failed to install grub (UEFI)"
-    grub-install \
-      --target=i386-pc \
-      --boot-directory="${TARGET_BOOT}" \
-      --root-directory="${CONTAINER_ROOTFS_FS}" \
-      "${TARGET_DEVICE}" \
-      || raise 123 "Failed to install grub"
-
-    echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
-
-  fi
 fi
 
-version="$(basename "${kernel}" | sed 's/vmlinuz-//')"
-
-if [[ "${OS_ARCH}" == "rpi"* ]]; then
-
-  mv "${TARGET_BOOT}"/cmdline.txt "${TARGET_BOOT}"/cmdline-previous.txt 2>/dev/null || true
-
-  cat <<EOF > "${TARGET_BOOT}/cmdline.txt"
-console=serial0,115200 console=tty1 rootwait root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} fsck.repair=yes ro loglevel=3 noresume apparmor=0
-EOF
-
-  # Attach options from system.json
-  if [[ -f "${CONFIG_PATH}" ]]; then
-    jq -r '
-      .rpi_firmware_config
-      | if . == null then ""
-        elif type=="array" then join("\n")
-        else . end
-    ' "${CONFIG_PATH}" >>"${TARGET_BOOT}/config.txt"
-  fi
-
-  echo "PI configuration updated for kernel version $version."
-
-else
-  # Generate GRUB entry
-  SLOT_NAME="${PRODUCT_NAME} Slot ${SLOT} - Linux $version"
-  ( cat <<EOF > "${TARGET_BOOT}/${SLOT}_grub.cfg"
-menuentry '${SLOT_NAME}' --unrestricted {
-    insmod gzio
-    insmod part_gpt
-    insmod fat
-    insmod btrfs
-
-    search --no-floppy --label boot --set=root
-
-    linux /${filename_kernel} root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} ro loglevel=3 noresume apparmor=0
-    initrd /${filename_initrd}
-}
-
-EOF
-  ) || raise 124 "Failed to configure grub (slot)"
-
-
-  (
-    {
-      cat <<EOF
-set timeout=1
-load_video
-set gfxpayload=keep
-
-set superusers="root"
-# No user set, so no authentication possible
-#password root password
-
-EOF
-      cat "${TARGET_BOOT}"/{A,B}_grub.cfg 2>/dev/null
-
-      echo "set default='${SLOT_NAME}'"
-    } > "${TARGET_BOOT}/grub/grub.cfg"
-  ) || raise 125 "Failed to configure grub"
-
-  echo "GRUB configuration updated for kernel version $version."
-
-fi
