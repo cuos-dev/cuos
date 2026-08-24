@@ -32,7 +32,8 @@ expect "_b64: special chars" "dGVzdDphYmM=" _b64 "test:abc"
 # Test init_docker_config
 init_docker_config "$DOCKER_CONFIG_FILE"
 expect_rc "init_docker_config: creates config" 0 test -f "$DOCKER_CONFIG_FILE"
-expect "init_docker_config: correct permissions" "600" stat -f "%Lp" "$DOCKER_CONFIG_FILE"
+permissions="$(ls -ld "$DOCKER_CONFIG_FILE" | awk '{print $1}')"
+expect "init_docker_config: correct permissions" "-rw-------" echo "${permissions}"
 expect "init_docker_config: valid json" "{}" cat "$DOCKER_CONFIG_FILE"
 
 # Test docker_login with invalid inputs

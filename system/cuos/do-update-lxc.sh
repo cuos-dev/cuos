@@ -68,6 +68,7 @@ cd / || exit 127
 chroot /next /usr/local/cuos/first-run.sh "${SLOT}" "${IMAGE_VERSION}" "${NEW_DIGEST}" \
   || raise 46 "Failed to run first-run script in container"
 
+rm -Rf /swaproot
 if [[ -d "/next${SCRIPT_DIR}/lxc-swaproot/" ]]; then
   cp -R "/next${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
     || raise 47 "Failed to copy swaproot scripts"

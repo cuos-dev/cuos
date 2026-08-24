@@ -21,7 +21,7 @@ state '.state' 'rollback'
 state jq '.last_update_date = (now | todate)'
 state '.update_state' "rollback to slot ${SLOT} (${REASON})"
 
-
+rm -Rf /swaproot
 cp -R "${SCRIPT_DIR}/lxc-swaproot/" /swaproot/ \
 	|| raise "Failed to copy swaproot scripts"
 cp /bin/busybox /swaproot/ \
@@ -31,7 +31,7 @@ mv /sbin/init /sbin/init-old
 cat <<EOF >/sbin/init
 #!/swaproot/busybox sh
 
-/swaproot/swap_rollback.sh
+/swaproot/busybox sh /swaproot/swap_rollback.sh
 cd /
 exec /sbin/init
 EOF
