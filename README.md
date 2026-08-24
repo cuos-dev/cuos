@@ -71,17 +71,23 @@ For system administrators looking to deploy services using CuOS, please visit [c
 
 For developers looking to create custom CuOS-based systems, check out our [CuOS Development Guide](docs/development-guide.md).
 
+---
+
 ## 🧭 Supported Platforms
 
-CuOS currently targets:
+| Platform | Boards / form factor | Docker platform | Support level |
+|---|---|---|---|
+| x86_64 | BIOS and UEFI machines, VMs | `linux/amd64` | Supported |
+| LXC | Containers on an LXC host | `linux/amd64` | Supported |
+| Raspberry Pi 64-bit | Pi 3, Pi 4, Pi 5, Zero 2 | `linux/arm64` | Supported |
+| Raspberry Pi 32-bit | Pi 1, Pi 2, Zero | `linux/arm/v6` | Legacy — may be removed |
+| Orange Pi Zero 3 | Orange Pi Zero 3 only | `linux/arm64` | Example — build it yourself |
 
-- x86_64 system images
-- ARM64 Raspberry Pi images for Pi 3, Pi 4, Pi 5 and Zero 2
-- LXC-based deployments
-- Legacy ARM32 Raspberry Pi support for Pi 1, Pi 2, and Zero\\ Status: Legacy
-- Board-specific embedded targets such as Orange Pi Zero 3\\ Status: Alpha, Example
+**32-bit Raspberry Pi** is a legacy compatibility target. The image is built for `linux/arm/v6`, so a single image covers Pi 1, Pi 2 and Zero. Debian provides no usable ARMv6 base for these boards, so this target is built from the Raspberry Pi OS repositories instead. Note that most upstream projects no longer publish 32-bit ARM images at all — CuOS may boot while the application containers you want do not exist for the board. This support may be removed in a future release.
 
-Note: some platform integrations are intentionally limited and are kept as compatibility or reference implementations. The ARM32 Raspberry Pi path is legacy and requires matching Docker target architectures (`linux/arm/v7` for Pi 2 and `linux/arm/v6` for Pi 1 / Zero). Orange Pi Zero 3 support relies on a board-specific boot chain: kernel, DTB, and U-Boot. See [Platform and Architecture Support](docs/common/platform-support.md) for details.
+**Orange Pi Zero 3** is kept as a worked example of a board-specific boot chain — kernel, device tree blob (DTB) and U-Boot at fixed image offsets — rather than as a ready-made target. There is no prebuilt image for it: you build it from `system/Dockerfile.orangepi-zero3` yourself.
+
+See [Platform and Architecture Support](docs/common/platform-support.md) for the boot chains, the constraints behind these levels, and what adding a new board involves.
 
 ---
 
