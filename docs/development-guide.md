@@ -82,14 +82,16 @@ The system is configured through a `system.json` file. Here's a minimal example:
 
 See [System JSON Configuration](common/system-json.md) for all available options.
 
-### Building Image Files (x86_64, ARM64)
+### Building Image Files (x86_64, ARM64, and legacy ARM32)
 
 The [Building CuOS Images Guide](common/building-images.md) covers:
 
 - Creating system images
-- Platform-specific builds (x86_64, ARM64)
+- Platform-specific builds (x86_64, ARM64, and legacy ARM32)
 - Image format conversion
 - Best practices for image creation
+
+> Note: Raspberry Pi 1, Pi 2, and Zero are still supported through the legacy ARM32 build path, but only with explicit architecture matching. Debian itself does not support ARMv6 directly, so the build relies on the Raspberry Pi OS repositories. The required Docker target variants are `linux/arm/v7` for Pi 2 and `linux/arm/v6` for Pi 1 and Zero. This support is kept for compatibility and learning purposes, and may be removed in a future release.
 
 ### Installation (x86_64)
 
