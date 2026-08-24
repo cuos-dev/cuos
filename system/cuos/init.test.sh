@@ -105,32 +105,42 @@ export T_FILE_INTERFACES=/dev/stdout
 export T_DIR_SYS_CLASS_NET="${SCRIPT_DIR}/init.test.sys_class_net"
 expect \
   "configure_network: auto" \
-  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet dhcp\n    metric 100\n\niface eth1 inet manual' \
+  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet dhcp\n    metric 100\n\nauto eth1\niface eth1 inet manual\n    metric 200' \
   configure_network
 
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system2.json"
 expect \
   "configure_network 2: eth0: 155.7, eth1: dhcp" \
-  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2\n\n    up ip route add 192.168.77.0/24 via 192.168.155.1 dev eth0\n    down ip route del 192.168.77.0/24 via 192.168.155.1 dev eth0\nauto eth1\niface eth1 inet dhcp\n    metric 20' \
+  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2\n    metric 100\n    up ip route add 192.168.77.0/24 via 192.168.155.1 dev eth0\n    down ip route del 192.168.77.0/24 via 192.168.155.1 dev eth0\n\nauto eth1\niface eth1 inet dhcp\n    metric 200\n\nallow-hotplug /e*/1=ethhotplug2\niface ethhotplug2 inet static\n    address 192.168.172.7\n    netmask 255.255.255.128\n    gateway 192.168.172.1\n    dns-nameservers 192.168.172.1 192.168.172.2\n    ntp-servers 192.168.172.1 192.168.172.2\n    metric 300' \
   configure_network
 
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system3.json"
 expect \
   "configure_network 3: eth0: 172.7, eth1: 173.7" \
-  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.172.7\n    netmask 255.255.255.128\n    gateway 192.168.172.1\n    dns-nameservers 192.168.172.1 192.168.172.2\n    ntp-servers 192.168.172.1 192.168.172.2\n\nauto eth1\niface eth1 inet static\n    address 192.168.173.7\n    netmask 255.255.255.0\n    gateway 192.168.173.1\n    dns-nameservers 192.168.173.1 192.168.173.2\n    ntp-servers 192.168.173.1 192.168.173.2' \
+  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.172.7\n    netmask 255.255.255.128\n    gateway 192.168.172.1\n    dns-nameservers 192.168.172.1 192.168.172.2\n    ntp-servers 192.168.172.1 192.168.172.2\n    metric 100\n\nauto eth1\niface eth1 inet static\n    address 192.168.173.7\n    netmask 255.255.255.0\n    gateway 192.168.173.1\n    dns-nameservers 192.168.173.1 192.168.173.2\n    ntp-servers 192.168.173.1 192.168.173.2\n    metric 200\n\nallow-hotplug /e*/1=ethhotplug0\niface ethhotplug0 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2\n    metric 300\n\nallow-hotplug /e*/2=ethhotplug1\niface ethhotplug1 inet dhcp\n    metric 400' \
   configure_network
 
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system4.json"
 expect \
   "configure_network 4: eth0: 172.7, eth1: 155.7" \
-  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.172.7\n    netmask 255.255.255.128\n    gateway 192.168.172.1\n    dns-nameservers 192.168.172.1 192.168.172.2\n    ntp-servers 192.168.172.1 192.168.172.2\n\nauto eth1\niface eth1 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2' \
+  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet static\n    address 192.168.172.7\n    netmask 255.255.255.128\n    gateway 192.168.172.1\n    dns-nameservers 192.168.172.1 192.168.172.2\n    ntp-servers 192.168.172.1 192.168.172.2\n    metric 100\n\nauto eth1\niface eth1 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2\n    metric 200\n\nallow-hotplug /e*/1=ethhotplug1\niface ethhotplug1 inet dhcp\n    metric 300' \
   configure_network
 
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system5.json"
 expect \
   "configure_network: no config found" \
-  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet dhcp\n    metric 100\n\niface eth1 inet manual' \
+  $'auto lo\niface lo inet loopback\n\nauto eth0\niface eth0 inet dhcp\n    metric 100\n\nauto eth1\niface eth1 inet manual\n    metric 200\n\nallow-hotplug mac/a1:b2:c3:d4:e5:f6=ethhotplug0\niface ethhotplug0 inet static\n    address 192.168.155.7\n    netmask 255.255.255.128\n    gateway 192.168.155.1\n    dns-nameservers 192.168.155.1 192.168.155.2\n    ntp-servers 192.168.155.1 192.168.155.2\n    metric 300\n\nallow-hotplug eth8\niface eth8 inet static\n    address 192.168.172.7\n    netmask 255.255.255.128\n    gateway 192.168.172.1\n    dns-nameservers 192.168.172.1 192.168.172.2\n    ntp-servers 192.168.172.1 192.168.172.2\n    metric 400' \
   configure_network
+
+# empty dir
+export T_DIR_SYS_CLASS_NET="${SCRIPT_DIR}/init.test.sys_class_net/eth0"
+export CONFIG_PATH="${SCRIPT_DIR}/init.test.system.json"
+# TODO: Test no interfaces, no config
+expect \
+  "configure_network: auto" \
+  $'auto lo\niface lo inet loopback\n\nallow-hotplug /e*/1=eth\niface eth inet dhcp\n    metric 100' \
+  configure_network
+
 
 
 export T_FILE_UDEV_RULES_NEW=/dev/stdout
