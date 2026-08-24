@@ -74,7 +74,7 @@ Important constraints:
 - Docker images must match the board architecture exactly:
   - Raspberry Pi 2: `linux/arm/v7`
   - Raspberry Pi 1 and Zero: `linux/arm/v6`
-- Some older projects still publish Alpine or Debian images for `arm/v5` or similar legacy targets, but most upstream projects no longer provide those architectures.
+- Some older projects still publish Alpine or Debian images for `arm/v5` or similar legacy targets, which you can use by setting the platform explicitly. But most projects no longer provide any of those architectures.
 - This support may be removed in the future once the maintenance burden outweighs the benefit.
 
 The intention is to keep the platform available for now so developers can understand how a non-mainstream architecture can be integrated into the CuOS build flow.
