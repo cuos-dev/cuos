@@ -84,7 +84,7 @@ if [[ -n "${OS_ARCH}" ]]; then
       TARGET_PLATFORM="linux/arm64"
       ;;
     rpi-arm32)
-      TARGET_PLATFORM="linux/arm/v7"
+      TARGET_PLATFORM="linux/arm/v6"
       ;;
     orangepi-zero3)
       TARGET_PLATFORM="linux/arm64"

@@ -62,7 +62,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.run_id }}
             org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
-          platforms: linux/arm/v7
+          platforms: linux/arm/v6
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm32:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-rpi-arm32:buildcache,mode=max
 
