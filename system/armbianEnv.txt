@@ -7,5 +7,5 @@ disp_mode=1920x1080p60
 overlay_prefix=sun50i-h616
 rootdev=LABEL=system
 rootfstype=btrfs
-extraargs=rootflags=subvol=@os/system-{{SLOT}} loglevel=3 noresume apparmor=0
+extraargs=rootflags=subvol=@os/system-{{SLOT}} loglevel=3 noresume apparmor
 usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u

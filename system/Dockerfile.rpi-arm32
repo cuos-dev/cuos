@@ -114,6 +114,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   # rpi-swap \
   # iw \
   ## cuos os dependencies \
+  apparmor \
   btrfs-progs \
   console-setup \
   dbus \

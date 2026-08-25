@@ -16,6 +16,7 @@ RUN echo "Cache buster: v1" \
   ## cuos system dependencies (lxc) \
   busybox-static \
   ## cuos os dependencies \
+  apparmor \
   #-btrfs-progs \
   dbus \
   dbus-broker \

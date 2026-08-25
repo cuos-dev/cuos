@@ -48,6 +48,7 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   ## cuos os extra for wake on lan \
   ethtool \
   ## cuos os dependencies \
+  apparmor \
   btrfs-progs \
   console-setup \
   dbus \
