@@ -61,11 +61,6 @@ image_version() {
 export DOCKER_CONTEXT=default
 OUTPUT_DIR="/output"
 
-if [[ ! -d "${OUTPUT_DIR}" ]]; then
-  echo "Build dir does not exist."
-  exit 1
-fi
-
 IMAGE_NAME="${IMAGE_NAME:-"image"}"
 IMAGE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
 
@@ -119,9 +114,10 @@ fi
 
 SLOT="B"
 
-#SIZE_MB=2048
-SIZE_MB=4096
 SIZE_MB=1636
+if [[ "${TARGET}" == "rpi" ]]; then
+  SIZE_MB=2048
+fi
 
 SIZE_MB="$(jq --arg size_mb "${SIZE_MB}" -r '.image_size_mb // $size_mb' "${CONFIG_PATH}")"
 
@@ -181,7 +177,7 @@ export TARGET_ROOT_PARTITION
 mkfs.vfat -n boot "${TARGET_BOOT_PARTITION}" \
     || raise "Failed to format boot partition: ${TARGET_BOOT_PARTITION}"
 mkfs.btrfs -L system "${TARGET_ROOT_PARTITION}" \
-    || raise "Failed to format root partition: ${TARGET_BOOT_PARTITION}"
+    || raise "Failed to format root partition: ${TARGET_ROOT_PARTITION}"
 
 # Mount and populate
 mkdir -p /mnt/boot /mnt/system /mnt/root

@@ -7,19 +7,30 @@ raise() {
 	exit 1
 }
 
-IMAGE="${IMAGE:-cuos-system}"
+IMAGE="${IMAGE:-ghcr.io/cuos-dev/cuos-system}"
 BUILD_CONTEXT="${BUILD_CONTEXT:-.}"
+
+if [[ -z "${TYPE:-}" ]]; then
+	DOCKERFILE="Dockerfile"
+else
+	IMAGE="${IMAGE}-${TYPE}"
+	DOCKERFILE="Dockerfile.${TYPE}"
+fi
 
 if docker buildx version >/dev/null 2>&1; then
 	echo "🔧 Buildx detected – building with BuildKit"
 	docker buildx build \
-		-t "${IMAGE}" \
+		-t "${IMAGE}:build" \
+		-f "${DOCKERFILE}" \
+		"$@" \
 		"${BUILD_CONTEXT}" \
 		|| raise "Buildx build failed"
 else
 	echo "⚠️  Buildx not available – falling back to legacy docker build"
 	docker build \
-		-t "${IMAGE}" \
+		-t "${IMAGE}:build" \
+		-f "${DOCKERFILE}" \
+		"$@" \
 		"${BUILD_CONTEXT}" \
 		|| raise "Legacy docker build failed"
 fi

@@ -20,9 +20,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-IMAGE="/output/image.img"
+OUTPUT_DIR="/output"
 
-if [[ ! -d "/output" ]]; then
+IMAGE_NAME="${IMAGE_NAME:-"image"}"
+IMAGE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
+
+if [[ ! -d "${OUTPUT_DIR}" ]]; then
 	echo "Output dir not mounted"
 	exit 1
 fi
@@ -57,7 +60,7 @@ mount -t btrfs -o subvol=@os "${TARGET_ROOT_PARTITION}" "${TARGET_ROOT}"
 mkdir -p "${TARGET_BOOT}"
 mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro" "${TARGET_BOOT_PARTITION}" "${TARGET_BOOT}"
 
-/usr/local/updater/docker_environment.sh /bin/bash
+/bin/bash
 
 umount /mnt/os
 umount /mnt/boot
