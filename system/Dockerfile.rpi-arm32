@@ -57,8 +57,8 @@ EOF
 
 # Add Raspberry Pi apt repository and key
 RUN echo "Cache buster: v1" \
-  && echo "Types: deb\nURIs: http://raspbian.raspberrypi.com/raspbian/\nArchitectures: armhf\nSuites: trixie\nComponents: main contrib non-free rpi\nSigned-By: /etc/apt/keyrings/raspbian-archive.gpg" >/etc/apt/sources.list.d/debian.sources \
-  && echo "Types: deb\nURIs: http://archive.raspberrypi.com/debian/\nSuites: $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')\nComponents: main\nSigned-By: /etc/apt/keyrings/raspberrypi-archive.gpg" > /etc/apt/sources.list.d/raspi.sources \
+  && printf "Types: deb\nURIs: http://raspbian.raspberrypi.com/raspbian/\nArchitectures: armhf\nSuites: trixie\nComponents: main contrib non-free rpi\nSigned-By: /etc/apt/keyrings/raspbian-archive.gpg\n" >/etc/apt/sources.list.d/debian.sources \
+  && printf "Types: deb\nURIs: http://archive.raspberrypi.com/debian/\nSuites: $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')\nComponents: main\nSigned-By: /etc/apt/keyrings/raspberrypi-archive.gpg\n" > /etc/apt/sources.list.d/raspi.sources \
   && dpkg --add-architecture arm64 \
   && apt-get update \
   && apt-get full-upgrade -y \
@@ -153,7 +153,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && systemctl enable systemd-timesyncd.service \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \
-  && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
+  && printf "Port 4222\nPermitRootLogin yes\n" >/etc/ssh/sshd_config.d/cuos.conf \
   && rm -f /etc/ssh/ssh_host_* \
   && update-alternatives --install /usr/bin/vim vim /usr/bin/vim.tiny 100 \
   ## Ensure persistence in /data \
@@ -164,7 +164,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && rm -Rf /var/lib/docker && ln -sf /data/docker /var/lib/docker \
   && rm -Rf /var/lib/containerd && ln -sf /data/containerd /var/lib/containerd \
   && rm -Rf /root && ln -sf /data/root /root \
-  && echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf \
+  && printf "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000\n" >/etc/systemd/journald.conf \
   && rm /etc/network/interfaces \
   ## RPI \
   && rm -f /etc/fake-hwclock.data && ln -sf /data/fake-hwclock.data /etc/fake-hwclock.data \

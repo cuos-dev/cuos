@@ -91,7 +91,7 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   && systemctl enable systemd-timesyncd.service \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \
-  && echo "Port 4222\nPermitRootLogin yes" >/etc/ssh/sshd_config.d/cuos.conf \
+  && printf "Port 4222\nPermitRootLogin yes\n" >/etc/ssh/sshd_config.d/cuos.conf \
   && rm -f /etc/ssh/ssh_host_* \
   && update-alternatives --install /usr/bin/vim vim /usr/bin/vim.tiny 100 \
   ## Ensure persistence in /data \
@@ -102,7 +102,7 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   && rm -Rf /var/lib/docker && ln -sf /data/docker /var/lib/docker \
   && rm -Rf /var/lib/containerd && ln -sf /data/containerd /var/lib/containerd \
   && rm -Rf /root && ln -sf /data/root /root \
-  && echo "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000" >/etc/systemd/journald.conf \
+  && printf "[Journal]\nStorage=persistent\nSystemMaxUse=1G\nRuntimeMaxUse=50M\nCompress=yes\nSeal=yes\nSplitMode=uid\nSyncIntervalSec=5m\nRateLimitInterval=30s\nRateLimitBurst=1000\n" >/etc/systemd/journald.conf \
   && rm /etc/network/interfaces
 
 # Install CuOS scripts (systemd required)
