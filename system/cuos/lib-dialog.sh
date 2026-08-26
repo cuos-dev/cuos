@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
 
 export DIALOGRC="${SCRIPT_DIR}/dialog.rc"
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
 
 virt_type="$(systemd-detect-virt)"
 disk_total="$(df --output=size -B1 / | tail -1)"

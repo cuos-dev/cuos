@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 FROM debian:13.5-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
