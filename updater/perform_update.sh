@@ -172,7 +172,7 @@ cp /etc/fstab "${CONTAINER_ROOTFS_FS}/etc/fstab" \
 
 ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/first-run.sh" \
   "${SLOT}" "${IMAGE}" "${DIGEST}" \
-  || raise 107 "Failed to run first-run script in container"
+  || raise 109 "Failed to run first-run script in container"
 
 
 ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/install-kernel.sh" "${SLOT}" \
