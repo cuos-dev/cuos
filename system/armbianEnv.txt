@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# U-Boot skips blank lines and lines starting with '#' on "env import -t".
 verbosity=1
 bootlogo=false
 console=both
