@@ -68,7 +68,9 @@ A possible abstraction is:
 - a board metadata layer that describes the supported boards
 - a generation step that creates board-specific image artifacts from the same base image
 
-In this model, a single Docker image could support multiple boards, and the build logic would generate the correct board-specific output for each target. This would make it feasible to add more supported boards without duplicating the whole OS definition. The board-specific pieces remain small and explicit: kernel, DTB, bootloader, and boot offsets.
+In this model, a single Docker image could support multiple boards, and the build logic would generate the correct board-specific output for each target.
+
+This would make it feasible to add more supported boards without duplicating the whole OS definition. The board-specific pieces remain small and explicit: kernel, DTB, U-Boot, and boot offsets.
 
 ## LXC and virtualized targets
 
