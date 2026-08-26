@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 FROM docker:29.5.3-alpine3.23
 
 ENV DEBIAN_FRONTEND=noninteractive

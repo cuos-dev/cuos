@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
 
 # Call with:
 # IMAGE_NAME="new_installer" #name of iso file without iso

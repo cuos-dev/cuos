@@ -4,6 +4,7 @@ We welcome contributions from the community!
 
 - All contributors are expected to follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 - All contributions must comply with the [Developer Certificate of Origin (DCO)](DCO.txt). This means adding a Signed-off-by line to your commits.
+- Contributions are accepted under the project's license, **Apache-2.0**, as stated in each source file's `SPDX-License-Identifier` line. You keep the copyright to your contribution.
 
 ---
 

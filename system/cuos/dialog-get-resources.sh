@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # Real system resources report (no API, no installed-state)
 # Safe: read-only, uses common tools and /proc
 # Prints a structured report to stdout.

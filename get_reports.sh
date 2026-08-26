@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
 
 get_reports_filter() {
   grep report_ -- "$@" | sed -e 's/^[	 ]*report_//g' | sed -e 's#$#'" \"$1\""'#'

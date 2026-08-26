@@ -93,9 +93,9 @@ See [Platform and Architecture Support](docs/common/platform-support.md) for the
 
 ## 📄 License
 
-CuOS is open-source and licensed under the MIT License.
+CuOS is open-source and licensed under the **Apache License, Version 2.0**.
 
-Please refer to the LICENSE.txt file for full license details.
+Please refer to the [LICENSE.txt](LICENSE.txt) file for full license details, and to [NOTICE](NOTICE) for attribution. Each source file carries an `SPDX-License-Identifier` line.
 
 ## Disclaimer
 

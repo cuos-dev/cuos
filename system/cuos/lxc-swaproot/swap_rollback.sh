@@ -1,4 +1,5 @@
 #!/swaproot/busybox sh
+# SPDX-License-Identifier: Apache-2.0
 
 dirs="bin boot etc home lib lib64 media mnt opt root run sbin srv tmp usr var system.json system_next.json"
 # shellcheck disable=SC2123
