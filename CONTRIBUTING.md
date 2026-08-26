@@ -51,8 +51,8 @@ If you encounter a bug or have a feature request:
   2 Make your changes and commit them:
     `git commit -m "feat: your feature description"`
 
-Note: You can signed-off your commits by `git commit -s ...`.
-See [Developer Certificate of Origin (DCO)](DCO.txt).
+  3 Sign off your commits with `git commit -s`. This is required for every
+    commit — see [Developer Certificate of Origin (DCO)](DCO.txt).
 
 ## 🤝 Community Guidelines
 
