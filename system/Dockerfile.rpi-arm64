@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+# This is using Debian on Raspberry Pi, not Raspbian, and adds packages
+# from raspberry pi.
 FROM debian:13.5-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -31,12 +33,15 @@ otg_mode=1
 [cm5]
 dtoverlay=dwc2,dr_mode=host
 
+[pi5]
+dtoverlay=nospi10
+
 [all]
 EOF
 
 # Add Raspberry Pi apt repository and key
 RUN echo "Cache buster: v1" \
-  && echo "deb [signed-by=/etc/apt/keyrings/raspberrypi-archive.gpg] http://archive.raspberrypi.org/debian/ $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"') main" > /etc/apt/sources.list.d/raspi.list \
+  && echo "Types: deb\nURIs: http://archive.raspberrypi.com/debian/\nSuites: $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')\nComponents: main\nSigned-By: /etc/apt/keyrings/raspberrypi-archive.gpg" > /etc/apt/sources.list.d/raspi.sources \
   && apt-get update \
   && apt-get full-upgrade -y \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
