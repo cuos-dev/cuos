@@ -8,7 +8,9 @@ LABEL dev.cuos.system=updater
 
 ENTRYPOINT ["/usr/local/updater/updater.sh"]
 
-RUN apk add --no-cache jq btrfs-progs util-linux bash
+# tar: GNU tar, needed to restore xattrs when unpacking the exported rootfs.
+# Busybox tar has no xattr support and would silently drop file capabilities.
+RUN apk add --no-cache jq btrfs-progs util-linux bash tar
 
 # Install required packages
 #RUN apt-get update && apt-get install -y \

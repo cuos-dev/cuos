@@ -43,7 +43,14 @@ state jq '.last_update_date = (now | todate)'
 state '.update_state' "rollback to slot ${SLOT} (${REASON})"
 
 
-"${SCRIPT_DIR}/install-kernel-rollback.sh" "${SLOT}"
+# The rollback is the last resort: if the boot files cannot be restored, say so
+# instead of rebooting into the slot that just failed.
+if ! "${SCRIPT_DIR}/install-kernel-rollback.sh" "${SLOT}"; then
+  state '.update_state' "rollback to slot ${SLOT} failed (${REASON})"
+  sync
+  umount "${TARGET_BOOT}" || umount -l "${TARGET_BOOT}" || true
+  raise 130 "Failed to restore the boot files for slot ${SLOT}"
+fi
 
 
 sync

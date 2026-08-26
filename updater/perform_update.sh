@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -x
+# pipefail: a failing "docker export" must not be masked by a succeeding tar,
+# which would install a truncated rootfs into the target slot.
+set -o pipefail
 
 export CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
 
@@ -151,7 +154,8 @@ fi
 
 CONTAINER="$(docker create --platform "${TARGET_PLATFORM}" "${IMAGE}")" \
   || raise 106 "Failed to create container for export"
-if ! docker export "${CONTAINER}" | (cd "${CONTAINER_ROOTFS_FS}" && tar xf -); then
+if ! docker export "${CONTAINER}" \
+    | tar -C "${CONTAINER_ROOTFS_FS}" --numeric-owner --xattrs --xattrs-include='*' -xf -; then
   raise 107 "Failed to export the container"
 fi
 docker rm "${CONTAINER}" \
