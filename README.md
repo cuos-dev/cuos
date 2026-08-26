@@ -81,11 +81,11 @@ For developers looking to create custom CuOS-based systems, check out our [CuOS 
 | LXC | Containers on an LXC host | `linux/amd64` | Supported |
 | Raspberry Pi 64-bit | Pi 3, Pi 4, Pi 5, Zero 2 | `linux/arm64` | Supported |
 | Raspberry Pi 32-bit | Pi 1, Pi 2, Zero | `linux/arm/v6` | Legacy — may be removed |
-| Orange Pi Zero 3 | Orange Pi Zero 3 only | `linux/arm64` | Example — build it yourself |
+| Orange Pi Zero 3 | Orange Pi Zero 3 only | `linux/arm64` | Example — that board only |
 
 **32-bit Raspberry Pi** is a legacy compatibility target. The image is built for `linux/arm/v6`, so a single image covers Pi 1, Pi 2 and Zero. Debian provides no usable ARMv6 base for these boards, so this target is built from the Raspberry Pi OS repositories instead. Note that most upstream projects no longer publish 32-bit ARM images at all — CuOS may boot while the application containers you want do not exist for the board. This support may be removed in a future release.
 
-**Orange Pi Zero 3** is kept as a worked example of a board-specific boot chain — kernel, device tree blob (DTB) and U-Boot at fixed image offsets — rather than as a ready-made target. There is no prebuilt image for it: you build it from `system/Dockerfile.orangepi-zero3` yourself.
+**Orange Pi Zero 3** is kept as a worked example of a board-specific boot chain — kernel, device tree blob (DTB) and U-Boot at fixed image offsets — rather than as a ready-made target. An image is published as `cuos-system-orangepi-zero3`, but it is tuned for that exact board and will not boot on anything else.
 
 See [Platform and Architecture Support](docs/common/platform-support.md) for the boot chains, the constraints behind these levels, and what adding a new board involves.
 
