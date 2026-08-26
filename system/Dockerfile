@@ -45,6 +45,8 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   intel-microcode \
   amd64-microcode \
   thermald \
+  ## cuos os extra for wake on lan \
+  ethtool \
   ## cuos os dependencies \
   btrfs-progs \
   console-setup \
