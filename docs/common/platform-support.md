@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
 # Platform and Architecture Support
 
 This document describes the current platform model used by CuOS and the constraints that apply when adding support for embedded boards.
@@ -21,15 +20,11 @@ The ARM32 Raspberry Pi path is deliberately limited and should be treated as a l
 
 ### Constraints
 
-- Debian images cannot be used directly for Raspberry Pi 1 and Zero because Debian does not provide a usable ARMv6 base for those boards.
-- For those boards, the build relies on the Raspberry Pi OS repositories.
-- Docker images must match the target board architecture exactly:
-  - Raspberry Pi 2: `linux/arm/v7`
-  - Raspberry Pi 1 and Zero: `linux/arm/v6`
-- Many upstream projects no longer publish images for these architectures, so compatibility depends on whether the required packages still exist for those targets.
-- This support may be removed in the future if maintenance cost becomes too high.
+- Debian base images cannot be used directly for Raspberry Pi 1 and Zero because Debian only provides ARMv5 support, while those boards require ARMv6-compatible images. The build uses the Raspberry Pi OS repositories as the base source for the ARM32 target.
+- If you want to run docker images, they must match the board architecture: Raspberry Pi 2: `linux/arm/v7`, Raspberry Pi 1 and Zero: `linux/arm/v6`. As debian does not have `linux/arm/v6` images, you can use `linux/arm/v5` by specifing the platform explicitly. As most projects no longer provide any of those architectures, you would need to create custom images for your platform, basing on Debian `linux/arm/v5` or on alpine.
 
-This support remains in place so developers can understand how a non-mainstream architecture can be integrated into the CuOS build flow.
+This support may be removed in the future once the maintenance burden outweighs the benefit. The intention is to keep the platform available for now so developers can understand how a non-mainstream architecture can be integrated into the CuOS build flow.
+
 
 ## Orange Pi Zero 3 support
 
@@ -43,8 +38,6 @@ For this platform, booting Linux requires more than just a root filesystem image
 
 In other words, a system image for an ARM board is not simply a standard rootfs plus a generic kernel. The board-specific boot layout and offsets must match the bootloader expectations.
 
-The image is built from `system/Dockerfile.orangepi-zero3` using the Armbian package repository. `install-kernel-uboot.sh` writes U-Boot to the target device at the 8 KiB offset the SoC expects, copies kernel, DTB and `uInitrd` to the boot partition, and resolves the `{{SLOT}}` placeholder in `armbianEnv.txt` so U-Boot mounts the right A/B subvolume. The previous boot files are kept in `prev/` so `install-kernel-uboot-rollback.sh` can swap them back.
-
 ### Why the images are board-specific
 
 Because U-Boot expects a known partition layout and fixed offsets, the generated image is specific to the board it was created for. For the Orange Pi Zero 3, the image is currently tuned for that exact hardware.
@@ -55,8 +48,6 @@ This is not conceptually difficult to extend, but it does require a clear mappin
 - the matching DTB
 - the correct kernel package or image
 - the board-specific U-Boot configuration and offsets
-
-There is no CI workflow for this target yet, so the image has to be built locally with `TYPE=orangepi-zero3 ./system/build.sh`.
 
 ## Design direction for future board support
 
@@ -75,3 +66,4 @@ This would make it feasible to add more supported boards without duplicating the
 ## LXC and virtualized targets
 
 CuOS also supports LXC-based deployments and container-oriented targets. These are separate from bare-metal board images and usually do not require the same bootloader and DTB handling as embedded hardware targets.
+
