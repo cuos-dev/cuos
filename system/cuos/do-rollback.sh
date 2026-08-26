@@ -35,7 +35,7 @@ if [[ "${CURRENT_SLOT}" == "A" ]]; then
 fi
 
 REASON="$1"
-"${SCRIPT_DIR}/dialog.sh" "CRITICAL: Perfoming Rollback to slot ${SLOT}: ${REASON}"
+"${SCRIPT_DIR}/dialog-failed.sh" "CRITICAL: Perfoming Rollback to slot ${SLOT}: ${REASON}"
 
 # set update state: Rollback because of ${REASON}"
 state '.state' 'rollback'
