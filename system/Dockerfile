@@ -107,4 +107,4 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
 
 # Install CuOS scripts (systemd required)
 COPY cuos/ /usr/local/cuos/
-RUN /usr/local/cuos/install.sh
+RUN /usr/local/cuos/install.sh grub

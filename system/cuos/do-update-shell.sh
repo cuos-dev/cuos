@@ -31,6 +31,7 @@ docker run --rm -it \
 	--privileged \
 	--device "${ROOT_DISK}" \
 	-v "/root/.docker/config.json:/root/.docker/config.json:ro" \
+	-v "/var/run/docker.sock:/var/run/docker.sock:ro" \
 	-v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
 	-v "/etc/image:/etc/image:ro" \
 	-e "TARGET_DEVICE=${ROOT_DISK}" \
