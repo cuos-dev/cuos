@@ -71,6 +71,17 @@ For system administrators looking to deploy services using CuOS, please visit [c
 
 For developers looking to create custom CuOS-based systems, check out our [CuOS Development Guide](docs/development-guide.md).
 
+## 🧭 Supported Platforms
+
+CuOS currently targets:
+
+- x86_64 system images
+- ARM64 Raspberry Pi images for Pi 3, Pi 4, Pi 5 and Zero 2
+- LXC-based deployments
+- Legacy ARM32 Raspberry Pi support for Pi 1, Pi 2, and Zero — status: legacy
+
+Note: some platform integrations are intentionally limited and are kept as compatibility or reference implementations. The ARM32 Raspberry Pi path is legacy and requires matching Docker target architectures (`linux/arm/v7` for Pi 2 and `linux/arm/v6` for Pi 1 / Zero). See [Platform and Architecture Support](docs/common/platform-support.md) for details.
+
 ---
 
 ## 📄 License

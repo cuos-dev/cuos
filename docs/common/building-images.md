@@ -64,6 +64,21 @@ Use the Raspberry Pi specific image configuration:
 }
 ```
 
+### Legacy Raspberry Pi (ARM32)
+CuOS still contains a legacy ARM32 build path for Raspberry Pi 1, Raspberry Pi 2, and Raspberry Pi Zero via `system/Dockerfile.rpi-arm32`. This support is intentionally limited and should be treated as an example of how other platforms can be integrated rather than as a broadly supported target.
+
+Important constraints:
+
+- Debian base images cannot be used directly for Raspberry Pi 1 and Zero because Debian only provides ARMv5 support, while those boards require ARMv6-compatible images.
+- The build uses the Raspberry Pi OS repositories as the base source for the ARM32 target.
+- Docker images must match the board architecture exactly:
+  - Raspberry Pi 2: `linux/arm/v7`
+  - Raspberry Pi 1 and Zero: `linux/arm/v6`
+- Some older projects still publish Alpine or Debian images for `arm/v5` or similar legacy targets, but most upstream projects no longer provide those architectures.
+- This support may be removed in the future once the maintenance burden outweighs the benefit.
+
+The intention is to keep the platform available for now so developers can understand how a non-mainstream architecture can be integrated into the CuOS build flow.
+
 ## Image Formats and Conversion
 
 Convert between formats using qemu-img:

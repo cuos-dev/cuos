@@ -84,6 +84,10 @@ if [[ -n "${OS_ARCH}" ]]; then
     rpi-arm64)
       TARGET_PLATFORM="linux/arm64"
       ;;
+    rpi-arm32)
+      # ARMv6 so the image also runs on Pi 1 and Zero
+      TARGET_PLATFORM="linux/arm/v6"
+      ;;
     *)
       echo "Unknown architecture: ${OS_ARCH}"
       exit 1
