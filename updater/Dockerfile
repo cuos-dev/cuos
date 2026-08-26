@@ -4,7 +4,7 @@ FROM docker:29.5.3-alpine3.23
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
-LABEL cuos-system
+LABEL dev.cuos.system=updater
 
 ENTRYPOINT ["/usr/local/updater/updater.sh"]
 
