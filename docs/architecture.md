@@ -146,7 +146,7 @@ In-place patch (`cuos patch*`) modifies `/system.json` directly and keeps previo
 ## References
 
 * `system/cuos/api.sh` – API commands
-* `system/cuos/app.sh` – App container lifecycle
+* `system/cuos/app-init.sh` – App container lifecycle
 * `image-factory/create_image.sh` – Raw image creation
 * `installer-factory/create_iso.sh` – Installer ISO
 * `docs/common/btrfs-usage.md` – Subvolume layout

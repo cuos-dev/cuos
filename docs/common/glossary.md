@@ -11,7 +11,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | System Image | Docker/OCI image containing kernel, userspace, systemd, CuOS scripts | Referenced via `os_image` (arch specific overrides possible) |
 | Updater Image | Image implementing update logic (pull, prepare, switch, rollback) | `updater_image` in `system.json` |
 | Application Image | User (initial) workload image started as container `cuos-app` | Controlled by `initial_image*` fields |
-| App Init Container | Mechanism / logic that pulls & launches the Application Image and re-triggers it after updates | Documented in `apps/common/cuos-app-init.md` |
+| App Init Container | Mechanism / logic that pulls & launches the Application Image and re-triggers it after updates | Documented in `docs/common/cuos-app-init.md` |
 | Variant 1 | Minimal custom OS (no CuOS services) | Manual integration; smallest surface |
 | Variant 2 | OS with CuOS services (API, configuration helpers) | Balanced control vs. features |
 | Variant 3 | Base CuOS + your app container | Fastest route to deployment |

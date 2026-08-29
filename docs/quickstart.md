@@ -204,7 +204,7 @@ cuos shutdown
 - Read the **Glossary** (`docs/common/glossary.md`) to align terminology.
 - Explore `system/cuos/api.sh` for full command list.
 - Dive into BTRFS layout (`docs/common/btrfs-usage.md`).
-- Learn more about the App Init Container concept (`apps/common/cuos-app-init.md`).
+- Learn more about the App Init Container concept (`docs/common/cuos-app-init.md`).
 
 ---
 
