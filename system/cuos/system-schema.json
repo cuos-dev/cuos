@@ -212,6 +212,27 @@
     "console_expert_password": {
       "type": "string",
       "description": "Password for the expert menu of the console interface"
+    },
+    "console_password": {
+      "type": "string",
+      "description": "Password for the console interface - hash or password"
+    },
+    "product_name": {
+      "type": "string",
+      "description": "Product name shown in the boot menu and the installer, and used as the first part of the built artefact's file name (default: 'CuOS', or 'CuOS IaC' when the init image is a cuos-iac image)"
+    },
+    "system_name": {
+      "type": "string",
+      "description": "Name of this particular system, used as the second part of the built artefact's file name (default: the hostname, else the configuration file or directory name)"
+    },
+    "platform": {
+      "type": "string",
+      "description": "Target platform to build for, selecting the '<platform>_image' key and falling back to 'os_image' (e.g. 'x86_64', 'rpi-arm64', 'rpi-arm32', 'orangepi-zero3', 'lxc'). Overridden by 'tool.sh --platform'; defaults to the build host's architecture"
+    },
+    "boot_layout": {
+      "type": "string",
+      "description": "Disk layout and boot chain to build: 'mbr' for an MBR disk with a FAT boot partition (Raspberry Pi, Orange Pi), 'gpt' for a GPT disk with BIOS and UEFI GRUB (PC-style firmware). Only needed for a platform the build tool does not know. Overridden by 'tool.sh --layout'",
+      "enum": ["mbr", "gpt", "rpi", "grub"]
     }
   }
 }
