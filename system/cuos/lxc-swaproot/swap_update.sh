@@ -1,5 +1,6 @@
 #!/swaproot/busybox sh
 # SPDX-License-Identifier: Apache-2.0
+# shellcheck shell=dash  # busybox ash; dash is the closest dialect shellcheck knows
 
 dirs="bin boot etc home lib lib64 media mnt opt root run sbin srv tmp usr var system.json system_next.json"
 # shellcheck disable=SC2123

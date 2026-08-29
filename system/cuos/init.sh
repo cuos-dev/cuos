@@ -233,7 +233,8 @@ configure_network_interface() {
   local iface="$1"
   local network_interface_id="$2"
 
-  local config="$(cat)"
+  local config
+  config="$(cat)"
   local dhcp
   dhcp=$(echo "$config" | jq -r '.dhcp // empty')
   local ip

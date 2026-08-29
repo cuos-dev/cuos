@@ -92,13 +92,27 @@ jobs:
   tests:
     name: Bash test suite
     runs-on: ubuntu-latest
-    # Not yet a gate: two suites fail on missing tools (yq mikefarah v4, jv),
-    # not on defects — see brain/tasks/fix-failing-tests.md. Remove this line
-    # once those are installed here or the tests skip cleanly.
+    # Not yet a gate. jv is installed below, so the schema suite runs; leave
+    # this until one run has proven that green, then remove it.
+    # See brain/tasks/fix-failing-tests.md.
     continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+
+      # system-schema.test.sh and system/cuos/init.sh validate system.json with
+      # jv. It is not on the runner, and the script's own apk/apt fallback needs
+      # root, which the runner is not. Pinned rather than "latest": a validator
+      # that changes under us turns a green suite red for no reason.
+      - name: Install jv
+        shell: bash
+        env:
+          JV_VERSION: v6.0.3
+        run: |
+          set -euo pipefail
+          url="https://github.com/santhosh-tekuri/jsonschema/releases/download/${JV_VERSION}/jv-${JV_VERSION}-linux-amd64.tar.gz"
+          curl -fsSL "${url}" | sudo tar -xz -C /usr/local/bin jv
+          jv --version
 
       - name: Run every *.test.sh
         shell: bash

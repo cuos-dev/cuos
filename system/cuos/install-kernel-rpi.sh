@@ -8,6 +8,8 @@ source "${SCRIPT_DIR}/utils.sh"
 
 set -x
 
+# shellcheck disable=SC2034  # unused here, but every install-kernel-* takes the
+# slot as its first argument and the callers pass it uniformly.
 SLOT="$1"
 # from exports:
 # TARGET_BOOT
