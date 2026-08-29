@@ -40,8 +40,13 @@ Which platforms exist and how well each is supported is in
 [Platform support](./platform-support.md). Two constraints that affect what you
 can build:
 
-- **Cross-architecture builds are not supported.** Build ARM images on an ARM
-  machine.
+- **Cross-architecture builds work.** The OS image is pulled with `--platform`,
+  then `docker export`ed and unpacked into the BTRFS subvolume
+  (`updater/perform_update.sh`). Nothing from the target rootfs is executed, so
+  the build host's architecture does not matter. The LXC target is the
+  exception: it runs `first-run.sh` inside the container
+  (`image-factory/create_image.sh`), which needs binfmt/QEMU emulation for a
+  foreign architecture.
 - **The OS image is chosen per platform.** A configuration can carry
   `os_image` plus `<platform>_image` variants — `rpi-arm64_image`,
   `lxc_image`, and so on — each with its own `_version` and `_digest`. The
