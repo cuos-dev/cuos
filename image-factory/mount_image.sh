@@ -38,17 +38,33 @@ partprobe "${LOOPDEV}"
 kpartx -av "${LOOPDEV}"
 sleep 1
 
-if [[ "${TARGET}" == "rpi" ]]; then
-  TARGET_BOOT_PARTITION_NUM=1
-  TARGET_ROOT_PARTITION_NUM=2
-else
-  TARGET_BOOT_PARTITION_NUM=2
-  TARGET_ROOT_PARTITION_NUM=3
-fi
+# Find the boot and root partitions by filesystem type. The partition numbers
+# differ per layout: MBR + FAT boot (1/2), GPT + bios_grub + ESP (2/3).
+LOOP_NAME="$(basename "${LOOPDEV}")"
+TARGET_BOOT_PARTITION=""
+TARGET_ROOT_PARTITION=""
 
-TARGET_BOOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_BOOT_PARTITION_NUM}"
+for part in "/dev/mapper/${LOOP_NAME}p"*; do
+	[[ -b "${part}" ]] || continue
+	case "$(blkid -s TYPE -o value "${part}" 2>/dev/null)" in
+		vfat)
+			[[ -n "${TARGET_BOOT_PARTITION}" ]] || TARGET_BOOT_PARTITION="${part}"
+			;;
+		btrfs)
+			[[ -n "${TARGET_ROOT_PARTITION}" ]] || TARGET_ROOT_PARTITION="${part}"
+			;;
+	esac
+done
+
+[[ -n "${TARGET_BOOT_PARTITION}" ]] \
+	|| raise "No FAT boot partition found in ${IMAGE}. Was the image built?"
+[[ -n "${TARGET_ROOT_PARTITION}" ]] \
+	|| raise "No BTRFS root partition found in ${IMAGE}. Was the image built?"
+
+echo "Boot partition: ${TARGET_BOOT_PARTITION} (vfat)"
+echo "Root partition: ${TARGET_ROOT_PARTITION} (btrfs)"
+
 export TARGET_BOOT_PARTITION
-TARGET_ROOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_ROOT_PARTITION_NUM}"
 export TARGET_ROOT_PARTITION
 TARGET_BOOT="${TARGET_BOOT:-"/mnt/boot"}"
 TARGET_ROOT="${TARGET_ROOT:-"/mnt/os"}"
