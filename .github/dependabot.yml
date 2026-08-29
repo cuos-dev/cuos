@@ -8,6 +8,13 @@ updates:
     target-branch: "development"
     assignees:
       - "simonwalz"
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "development"
+    assignees:
+      - "simonwalz"
   - package-ecosystem: "docker"
     directory: "/image-factory"
     schedule:

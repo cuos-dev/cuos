@@ -4,3 +4,4 @@ old/
 output/
 /system*.json
 .docker_config.json
+node_modules/

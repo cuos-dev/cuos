@@ -15,70 +15,30 @@ The `system.json` file is the central configuration file for CuOS. It defines sy
 }
 ```
 
-## Core Configuration Options
+## Configuration Options
 
-### System Settings
+Every key, with its type, default and constraints, is listed in
+**[the system.json reference](system-json-reference.md)**.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `hostname` | string | No | System hostname (auto-generated if not set) |
-| `swap_size` | number | No | Swap size in GB (default: 8) |
-| `custom_ca_certs` | string/array | No | Custom CA certificates in PEM format |
+### Platform-specific image keys
 
-### Network Configuration
+Besides `os_image`, a configuration may carry an image per platform, named after
+the platform:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `network` | array | No | Network interface configurations |
-| `network[].dhcp` | boolean | No | Use DHCP for this interface |
-| `network[].ip-address` | string | No | Static IP address |
-| `network[].network-mask` | string | No | Network mask |
-| `network[].gateway` | string | No | Gateway address |
-| `network[].dns-server` | string/array | No | DNS server(s) |
-| `network[].ntp-server` | string/array | No | NTP server(s) |
+| Key | Used when building for |
+|---|---|
+| `os_image` | any platform with no more specific key — the fallback |
+| `rpi-arm64_image` | 64-bit Raspberry Pi |
+| `rpi-arm32_image` | 32-bit Raspberry Pi |
+| `lxc_image` | LXC container |
+| `<platform>_image` | any other platform, named exactly as `platform` |
 
-### Docker Configuration
+Each has the same `_version` and `_digest` companions as `os_image`. The build
+tool selects `<platform>_image` and falls back to `os_image` when that key is
+absent, so a single configuration can describe several targets.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `docker_bridge_net` | string | No | Docker bridge network (default: "10.235.255.1/24") |
-| `docker_net_space` | string | No | Docker network space (default: "10.235.128.0/17") |
-| `docker_net_space_size` | number | No | Network size (default: 26) |
-
-### Operating System Images
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `os_image` | string | Yes | Base OS image for x86_64 systems |
-| `os_image_version` | string | Yes | Version tag of the OS image |
-| `os_image_digest` | string | No | SHA256 digest for image verification |
-
-### Platform-Specific Images
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `rpi-arm64_image` | string | No | OS image for Raspberry Pi (ARM64) |
-| `rpi-arm64_image_version` | string | No | Version of the RPi image |
-| `rpi-arm64_image_digest` | string | No | SHA256 digest for RPi image |
-| `lxc_image` | string | No | OS image for LXC containers |
-| `lxc_image_version` | string | No | Version of the LXC image |
-| `lxc_image_digest` | string | No | SHA256 digest for LXC image |
-
-### Update Configuration
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `updater_image` | string | Yes | Image for the update system |
-| `updater_image_version` | string | Yes | Version of the updater |
-| `updater_image_digest` | string | No | SHA256 digest for updater |
-
-### Application Configuration
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `initial_image` | string | No | Initial application container |
-| `initial_image_version` | string | No | Version of initial application |
-| `initial_image_digest` | string | No | SHA256 digest for application |
+These keys are not in the schema: their names depend on the platform, which a
+JSON Schema property list cannot express.
 
 ## Example Configurations
 
