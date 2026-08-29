@@ -1,133 +1,66 @@
-# Building CuOS Image Files
+# What a CuOS image contains
 
-This guide explains how to build CuOS system images for different platforms (from Docker images).
+The structure the image factory produces, and what varies per platform.
 
-"Image" means, that it copies the OS directly on the target. To install it using a secondary media (e.g., USB stich or virtual cdrom device) see [Installer](./installation.md).
+**To build one**, see
+[Building disk images](https://github.com/cuos-dev/cuos-release/blob/main/docs/building-images.md)
+in `cuos-release`. "Image" means the OS is copied directly onto the target's
+storage; to install from removable media instead, see
+[Installation](./installation.md).
 
-## Prerequisites
+## Partition layout
 
-   * A `system.json` configuration file (see [under the variants](../development-guide.md))
-   * A Docker environment to build the installation media ON the same machine architecture as the target system. Note: Building ARM64 images on x86_64 hosts (or vice versa) is not supported
-  * Access to a container registry
- 
-## Image Factory
+Two layouts exist, chosen by the target platform.
 
-The image-factory creates bootable images with the CuOS partition scheme.
+**GPT — PC-style firmware** (x86, the default):
 
-### Configuration
+| # | Purpose |
+|---|---|
+| 1 | BIOS boot partition (`bios_grub`), 1–3 MiB |
+| 2 | EFI System Partition, FAT32, label `boot` |
+| 3 | Root filesystem, BTRFS, label `system` |
 
-Create a `system.json` file with your image configuration:
+GRUB is installed twice against the same disk — once for UEFI and once for
+legacy BIOS — so one image boots on both firmware generations.
 
-```json
-{
-  "os_image": "your-registry/your-os-image",
-  "os_image_version": "1.0.0",
-  "os_image_digest": "",
-  "updater_image": "ghcr.io/cuos-dev/cuos-updater",
-  "updater_image_version": "latest",
-  "updater_image_digest": ""
-}
-```
+**MBR — boards booting from a FAT partition** (Raspberry Pi, Orange Pi Zero 3):
 
-### Creating Images
+| # | Purpose |
+|---|---|
+| 1 | Boot partition, FAT32, label `boot` |
+| 2 | Root filesystem, BTRFS, label `system` |
 
-Images are built with `tool.sh` from the
-[cuos-release](https://github.com/cuos-dev/cuos-release) repository, which runs
-the image factory for you:
+The BTRFS filesystem carries the `@os`, `@data` and `@swap` subvolumes; the
+A/B update mechanism swaps between subvolumes, not partitions. See
+[BTRFS Usage Guide](./btrfs-usage.md).
 
-```bash
-./tool.sh image path/to/system.json
-```
+## Platform notes
 
-The image is written to `./output/`, named after your configuration. Ask for the
-name with:
+Which platforms exist and how well each is supported is in
+[Platform support](./platform-support.md). Two constraints that affect what you
+can build:
 
-```bash
-./tool.sh name path/to/system.json
-```
-
-### Image Structure
-
-The created image includes:
-1. BIOS boot partition
-2. EFI System Partition (ESP)
-3. Root filesystem partition
-   - BTRFS filesystem
-   - Automatic snapshot management
-
-For more details, see [BTRFS Usage Guide](./btrfs-usage.md).
-
-
-## Platform-Specific Images
-
-Pass `--platform` to build for something other than the build host:
-
-```bash
-./tool.sh image --platform rpi-arm64 path/to/system.json
-```
-
-The platform also selects which OS image is used: `<platform>_image` if the
-configuration has it, `os_image` otherwise. So one configuration can describe
-several targets.
-
-### x86_64 Systems
-Standard image creation process as described above; this is the default.
-
-### Raspberry Pi (ARM64)
-Build with `--platform rpi-arm64`, and give the configuration a Raspberry Pi
-image:
-```json
-{
-  "rpi-arm64_image": "your-registry/your-rpi-image",
-  "rpi-arm64_image_version": "1.0.0",
-  "rpi-arm64_image_digest": ""
-}
-```
+- **Cross-architecture builds are not supported.** Build ARM images on an ARM
+  machine.
+- **The OS image is chosen per platform.** A configuration can carry
+  `os_image` plus `<platform>_image` variants — `rpi-arm64_image`,
+  `lxc_image`, and so on — each with its own `_version` and `_digest`. The
+  platform-specific key wins, `os_image` is the fallback.
 
 ### Legacy Raspberry Pi (ARM32)
-CuOS still contains a legacy ARM32 build path for Raspberry Pi 1, Raspberry Pi 2, and Raspberry Pi Zero via `system/Dockerfile.rpi-arm32`. This support is intentionally limited and should be treated as an example of how other platforms can be integrated rather than as a broadly supported target.
 
-Important constraints:
+CuOS still contains an ARM32 build path for Raspberry Pi 1, 2 and Zero via
+`system/Dockerfile.rpi-arm32`. It is intentionally limited and is best treated
+as an example of how another platform can be integrated, not as a broadly
+supported target.
 
-- Debian base images cannot be used directly for Raspberry Pi 1 and Zero because Debian only provides ARMv5 support, while those boards require ARMv6-compatible images. The build uses the Raspberry Pi OS repositories as the base source for the ARM32 target.
-- If you want to run docker images, they must match the board architecture: Raspberry Pi 2: `linux/arm/v7`, Raspberry Pi 1 and Zero: `linux/arm/v6`. As debian does not have `linux/arm/v6` images, you can use `linux/arm/v5` by specifing the platform explicitly. As most projects no longer provide any of those architectures, you would need to create custom images for your platform, basing on Debian `linux/arm/v5` or on alpine.
+- Debian base images cannot be used for the Pi 1 and Zero: Debian provides
+  ARMv5, those boards need ARMv6. The build uses the Raspberry Pi OS
+  repositories instead.
+- Application containers you run must match the board: `linux/arm/v7` for the
+  Pi 2, `linux/arm/v6` for the Pi 1 and Zero. Since Debian publishes no
+  `linux/arm/v6` images, `linux/arm/v5` works if specified explicitly. Most
+  projects publish none of these, so expect to build your own from a Debian
+  `linux/arm/v5` or Alpine base.
 
-This support may be removed in the future once the maintenance burden outweighs the benefit. The intention is to keep the platform available for now so developers can understand how a non-mainstream architecture can be integrated into the CuOS build flow.
-
-## Image Formats and Conversion
-
-The examples below use `image.img` as a stand-in for the file in `./output/`;
-substitute the name `./tool.sh name path/to/system.json` reports.
-
-Convert between formats using qemu-img:
-```bash
-# Convert to QCOW2
-qemu-img convert -f raw -O qcow2 image.img image.qcow2
-
-# Convert to VHD
-qemu-img convert -f raw -O vpc image.img image.vhd
-```
-
-## Using the Image on Physical disks:
-
-1. Write the image to a physical device (e.g., USB drive):
-   ```bash
-   dd if=image.img of=/dev/sdX bs=1M status=progress
-   ```
-2. Boot from the device and follow on-screen instructions.
-
-Note: The first boot may take longer as the system resizes partitions and sets up the filesystem.
-
-## Using the image on Proxmox VE
-
-1. Upload the `image.img` to your Proxmox server.
-2. Convert the raw image to a Proxmox-compatible format (e.g., QCOW2):
-   ```bash
-   qemu-img convert -f raw -O qcow2 image.img image.qcow2
-   ```
-3. Create a new VM in Proxmox without a disk.
-4. Upload the converted image to the VM's disk storage:
-   ```bash
-   qm importdisk <VMID> image.qcow2 <STORAGE>
-   ```
-5. Attach the disk to the VM and configure boot options.
+This support may be removed once its maintenance cost outweighs the benefit.
