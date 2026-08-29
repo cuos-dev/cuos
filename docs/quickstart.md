@@ -50,13 +50,16 @@ Place it where you will pass it into the factory scripts (e.g. `./system.json`).
 
 ## 3. Build a Raw Disk Image
 
-Use the image factory (raw BTRFS based target image):
+Build with `tool.sh` from the
+[cuos-release](https://github.com/cuos-dev/cuos-release) repository, which runs
+the image factory (raw BTRFS based target image):
 
 ```bash
-./image-factory/start.sh ./system.json
+./tool.sh image ./system.json
 ```
 
-Result: `./output/image.img`
+Result: a `.img` in `./output/`, named after your configuration —
+`./tool.sh name ./system.json` prints the name.
 
 ---
 
@@ -65,9 +68,11 @@ Result: `./output/image.img`
 Raw image can be started directly; allocate enough RAM & enable UEFI if desired.
 
 ```bash
+IMAGE="output/$(./tool.sh name ./system.json).img"
+
 qemu-system-x86_64 \
   -m 2048 \
-  -drive format=raw,file=output/image.img \
+  -drive format=raw,file="${IMAGE}" \
   -nographic
 ```
 
@@ -76,7 +81,7 @@ qemu-system-x86_64 \
 Alternatively write to a USB device (DANGEROUS – ensure `of=` is correct!):
 
 ```bash
-sudo dd if=output/image.img of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if="${IMAGE}" of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 ---

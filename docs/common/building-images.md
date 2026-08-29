@@ -31,11 +31,20 @@ Create a `system.json` file with your image configuration:
 
 ### Creating Images
 
+Images are built with `tool.sh` from the
+[cuos-release](https://github.com/cuos-dev/cuos-release) repository, which runs
+the image factory for you:
+
 ```bash
-./image-factory/start.sh path/to/system.json
+./tool.sh image path/to/system.json
 ```
 
-The created image will be available at `./output/image.img`.
+The image is written to `./output/`, named after your configuration. Ask for the
+name with:
+
+```bash
+./tool.sh name path/to/system.json
+```
 
 ### Image Structure
 
@@ -51,11 +60,22 @@ For more details, see [BTRFS Usage Guide](./btrfs-usage.md).
 
 ## Platform-Specific Images
 
+Pass `--platform` to build for something other than the build host:
+
+```bash
+./tool.sh image --platform rpi-arm64 path/to/system.json
+```
+
+The platform also selects which OS image is used: `<platform>_image` if the
+configuration has it, `os_image` otherwise. So one configuration can describe
+several targets.
+
 ### x86_64 Systems
-Standard image creation process as described above.
+Standard image creation process as described above; this is the default.
 
 ### Raspberry Pi (ARM64)
-Use the Raspberry Pi specific image configuration:
+Build with `--platform rpi-arm64`, and give the configuration a Raspberry Pi
+image:
 ```json
 {
   "rpi-arm64_image": "your-registry/your-rpi-image",
@@ -75,6 +95,9 @@ Important constraints:
 This support may be removed in the future once the maintenance burden outweighs the benefit. The intention is to keep the platform available for now so developers can understand how a non-mainstream architecture can be integrated into the CuOS build flow.
 
 ## Image Formats and Conversion
+
+The examples below use `image.img` as a stand-in for the file in `./output/`;
+substitute the name `./tool.sh name path/to/system.json` reports.
 
 Convert between formats using qemu-img:
 ```bash

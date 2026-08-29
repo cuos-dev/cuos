@@ -15,11 +15,25 @@ Preconditions:
 
 ### Using the Installer Factory
 
+Installers are built with `tool.sh` from the
+[cuos-release](https://github.com/cuos-dev/cuos-release) repository, which runs
+the installer factory for you:
+
 ```bash
-./installer-factory/start.sh path/to/system.json
+./tool.sh installer path/to/system.json
 ```
 
-You'll find the created installer at `./output/installer.iso`.
+The ISO is written to `./output/`, named after your configuration
+(`./tool.sh name path/to/system.json` prints the name).
+
+If you already have an installer ISO and only want to put a different
+configuration on it, build from that one instead of from scratch:
+
+```bash
+./tool.sh installer --base existing-installer.iso path/to/system.json
+```
+
+This writes a **new** ISO; the base one is not modified.
 
 ### Installation Media Contents
 
