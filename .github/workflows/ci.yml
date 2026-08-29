@@ -90,28 +90,32 @@ jobs:
   tests:
     name: Bash test suite
     runs-on: ubuntu-latest
-    # Not a gate yet, and not because it is red - it passes. yq (mikefarah v4)
-    # is still undeclared and happens to be on the runner, so gating here would
-    # rest on the runner image rather than on anything we state.
-    # See brain/tasks/fix-failing-tests.md.
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      # system-schema.test.sh and system/cuos/init.sh validate system.json with
-      # jv. It is not on the runner, and the script's own apk/apt fallback needs
-      # root, which the runner is not. Pinned rather than "latest": a validator
-      # that changes under us turns a green suite red for no reason.
-      - name: Install jv
+      # The suite needs two tools the repository depends on but does not ship:
+      # jv validates system.json against system-schema.json (system/cuos/init.sh,
+      # system-schema.test.sh), and yq reads cloud-init YAML
+      # (cloud-init-to-system-json.sh). yq happens to exist on ubuntu-latest;
+      # installing it anyway is the difference between a suite that passes
+      # because we said what it needs and one that passes because of the runner
+      # image. Both pinned: a tool that changes under us turns the suite red for
+      # no reason.
+      - name: Install jv and yq
         shell: bash
         env:
           JV_VERSION: v6.0.3
+          YQ_VERSION: v4.53.6
         run: |
           set -euo pipefail
-          url="https://github.com/santhosh-tekuri/jsonschema/releases/download/${JV_VERSION}/jv-${JV_VERSION}-linux-amd64.tar.gz"
-          curl -fsSL "${url}" | sudo tar -xz -C /usr/local/bin jv
+          curl -fsSL "https://github.com/santhosh-tekuri/jsonschema/releases/download/${JV_VERSION}/jv-${JV_VERSION}-linux-amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin jv
+          sudo curl -fsSL -o /usr/local/bin/yq \
+            "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
           jv --version
+          yq --version
 
       - name: Run every *.test.sh
         shell: bash
