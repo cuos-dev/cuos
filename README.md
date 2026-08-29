@@ -67,9 +67,11 @@ CuOS is designed for **mass deployment**:
 
 ## 📦 Getting Started
 
+To build a bootable system — a disk image, an ISO installer or an LXC container — start at [cuos-release](https://github.com/cuos-dev/cuos-release/), the build tooling. You describe the system in a `system.json` and `./tool.sh image` produces it.
+
 For system administrators looking to deploy services using CuOS, please visit [cuos-iac](https://github.com/cuos-dev/cuos-iac/), our Infrastructure as Code repository. It provides tools and templates for deploying and managing services on CuOS.
 
-For developers looking to create custom CuOS-based systems, check out our [CuOS Development Guide](docs/development-guide.md).
+For developers looking to create custom CuOS-based systems, check out our [CuOS Development Guide](docs/development-guide.md), and the [Quickstart](docs/quickstart.md) to see the pieces working end to end.
 
 ---
 

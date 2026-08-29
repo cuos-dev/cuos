@@ -6,21 +6,29 @@ A minimal end-to-end walkthrough to build, boot and update a CuOS based system.
 >
 > Prerequisites: Linux/macOS build host, Docker, `jq`, ~6 GB free disk space, a VM platform (QEMU/VirtualBox/Proxmox) or spare USB device.
 
+> **If you only want a running system**, you do not need this repository. Clone
+> [cuos-release](https://github.com/cuos-dev/cuos-release), write a
+> `system.json` and run `./tool.sh image` — its README walks you through it.
+> This page is for looking inside afterwards.
+
 ---
 
 ## 1. Clone & Inspect
 
 ```bash
 git clone https://github.com/cuos-dev/cuos.git
-cd cuos
+git clone https://github.com/cuos-dev/cuos-release.git
 ```
 
-Focus areas:
+This repository is the OS. Focus areas:
 
 - `system/` → Base system Dockerfiles / CuOS services
 - `image-factory/` → Raw disk image creation
 - `installer-factory/` → (Optional) ISO installer
 - `system/cuos/` → Runtime scripts (API, update, init)
+
+`cuos-release` is the build tooling: `tool.sh` runs the two factories above as
+containers, so the commands below are run from there.
 
 ---
 
@@ -42,19 +50,20 @@ Focus areas:
 }
 ```
 
-Place it where you will pass it into the factory scripts (e.g. `./system.json`).
+Place it in the `cuos-release` checkout (e.g. `cuos-release/system.json`).
 
-> Tip: For production pin versions & use digests.
+> Tip: For production pin versions & use digests — or `"#include": "release.json"`,
+> which pins them for you.
 
 ---
 
 ## 3. Build a Raw Disk Image
 
-Build with `tool.sh` from the
-[cuos-release](https://github.com/cuos-dev/cuos-release) repository, which runs
-the image factory (raw BTRFS based target image):
+From the `cuos-release` checkout, which runs the image factory (raw BTRFS based
+target image):
 
 ```bash
+cd cuos-release
 ./tool.sh image ./system.json
 ```
 
