@@ -69,10 +69,8 @@ jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest
-    # Not yet a gate: the existing scripts have never been linted, so the
-    # backlog is unknown. Look at a few runs, fix what it finds, then remove
-    # this line to make it blocking.
-    continue-on-error: true
+    # Gating since 2026-08-28: every script is clean at --severity=warning in
+    # all four repositories. A new warning is a change to fix, not to absorb.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -92,8 +90,9 @@ jobs:
   tests:
     name: Bash test suite
     runs-on: ubuntu-latest
-    # Not yet a gate. jv is installed below, so the schema suite runs; leave
-    # this until one run has proven that green, then remove it.
+    # Not a gate yet, and not because it is red - it passes. yq (mikefarah v4)
+    # is still undeclared and happens to be on the runner, so gating here would
+    # rest on the runner image rather than on anything we state.
     # See brain/tasks/fix-failing-tests.md.
     continue-on-error: true
     steps:
