@@ -10,6 +10,8 @@ ENTRYPOINT ["/usr/local/updater/updater.sh"]
 
 # tar: GNU tar, needed to restore xattrs when unpacking the exported rootfs.
 # Busybox tar has no xattr support and would silently drop file capabilities.
+# image-factory/Dockerfile runs the same perform_update.sh - keep the two lists
+# in step.
 RUN apk add --no-cache jq btrfs-progs util-linux bash tar
 
 # Install required packages

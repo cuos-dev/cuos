@@ -8,9 +8,13 @@ ENV container=docker
 
 ENTRYPOINT ["/create_image.sh"]
 
+# tar: GNU tar, needed to restore xattrs when unpacking the exported rootfs.
+# Busybox tar has no xattr support and would silently drop file capabilities.
+# This factory runs updater/perform_update.sh, so it needs everything that
+# script needs - keep this list and updater/Dockerfile's in step.
 RUN apk add --no-cache \
     parted dosfstools btrfs-progs \
-    gptfdisk qemu-img kpartx util-linux jq btrfs-progs bash
+    gptfdisk qemu-img kpartx util-linux jq btrfs-progs bash tar
 
 RUN apk add --no-cache \
     grub-efi grub-bios ovmf || true
