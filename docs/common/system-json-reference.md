@@ -35,7 +35,8 @@ Schema for configuring CuOS system parameters including networking, update sourc
 |**keyboard\_layout**|`string`|Keyboard Layout<br/>Pattern: `^[A-Za-z]{2}$`<br/>||
 |**keyboard\_variant**|`string`|Keyboard Variant<br/>Pattern: `^[A-Za-z0-9_-]{1,32}$`<br/>||
 |**os\_root\_password**|`string`|Root Password for the operating system: local login or SSH - hash or password<br/>||
-|**os\_ssh\_server**|`boolean`|Activate SSH server for the operating system<br/>||
+|[**os\_root\_authorized\_keys**](#os_root_authorized_keys)|`string[]`|SSH public keys accepted for root login, written to /root/.ssh/authorized_keys on every boot. Key-based login works even without 'os_root_password'; without either, the root account is locked<br/>||
+|**os\_ssh\_server**|`boolean`|Activate SSH server for the operating system, on port 4222<br/>||
 |**console\_expert\_password**|`string`|Password for the expert menu of the console interface<br/>||
 |**console\_password**|`string`|Password for the console interface - hash or password<br/>||
 |**product\_name**|`string`|Product name shown in the boot menu and the installer, and used as the first part of the built artefact's file name (default: 'CuOS', or 'CuOS IaC' when the init image is a cuos-iac image)<br/>||
@@ -91,10 +92,21 @@ List of network interface configurations
 ]
 ```
 
+   
+<a name="os_root_authorized_keys"></a>
+## os\_root\_authorized\_keys\[\]: array
+
+SSH public keys accepted for root login, written to /root/.ssh/authorized_keys on every boot. Key-based login works even without 'os_root_password'; without either, the root account is locked
+
+
+**Items**
+
+**Item Type:** `string`   
+
 ---
 
 *This page is generated from [`system/cuos/system-schema.json`](../../system/cuos/system-schema.json),
 the schema CuOS validates `system.json` against at boot. Edit the schema, then run
 `npm run docs:system-json`.*
 
-<!-- schema-sha256: 698f12c348ff624d6a386c0ee85565ddb894d1416b9b3664901aed9ade98ad6b -->
+<!-- schema-sha256: 3dd3963b27338eb8b689b7c1eec4422f3f88acac1861d970e3053b3fa9b4e708 -->

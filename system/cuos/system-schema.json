@@ -205,9 +205,16 @@
       "type": "string",
       "description": "Root Password for the operating system: local login or SSH - hash or password"
     },
+    "os_root_authorized_keys": {
+      "type": "array",
+      "description": "SSH public keys accepted for root login, written to /root/.ssh/authorized_keys on every boot. Key-based login works even without 'os_root_password'; without either, the root account is locked",
+      "items": {
+        "type": "string"
+      }
+    },
     "os_ssh_server": {
       "type": "boolean",
-      "description": "Activate SSH server for the operating system"
+      "description": "Activate SSH server for the operating system, on port 4222"
     },
     "console_expert_password": {
       "type": "string",
