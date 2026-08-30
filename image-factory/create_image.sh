@@ -164,14 +164,62 @@ fi
 sync
 
 # Setup loop device
-if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
-  sleep 2
-  if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
-    sleep 5
-    if ! LOOPDEV="$(losetup --find --show "${IMAGE}")"; then
-      raise "Failed to setup loop device. Are you inside a LXC container? Ensure loop module is loaded."
-    fi
+#
+# The kernel hands out a free loop number through /dev/loop-control, but the
+# matching /dev/loopN node only exists if something creates it - and in a
+# container there is no udev to do that. losetup then fails with ENOENT and
+# reports the device node as "lost". Creating the node is enough to get past
+# that, provided the container may use block devices at all.
+attach_loop_device() {
+  local dev
+  dev="$(losetup --find --show "${IMAGE}" 2>/dev/null)" || dev=""
+  if [[ -n "${dev}" ]]; then
+    printf '%s' "${dev}"
+    return 0
   fi
+
+  local free num
+  free="$(losetup --find 2>/dev/null)" || free=""
+  num="${free##*/loop}"
+  if [[ -n "${num}" && "${num}" =~ ^[0-9]+$ && ! -e "${free}" ]]; then
+    echo "Creating the missing device node ${free} ..." >&2
+    mknod "${free}" b 7 "${num}" 2>/dev/null || true
+    chmod 0660 "${free}" 2>/dev/null || true
+  fi
+
+  losetup --find --show "${IMAGE}" 2>/dev/null
+}
+
+LOOPDEV=""
+for _attempt in 1 2 3; do
+  LOOPDEV="$(attach_loop_device)" && [[ -n "${LOOPDEV}" ]] && break
+  sleep 2
+done
+
+if [[ -z "${LOOPDEV}" ]]; then
+  raise "Could not attach ${IMAGE} to a loop device.
+
+       Building a disk image needs loop devices, device-mapper and the right to
+       mount filesystems. All three belong to the host kernel, and an LXC
+       container has none of them by default - a 'device node /dev/loopN is
+       lost' above means the kernel did hand out a loop device, but this
+       container has no node for it.
+
+       Build on a host or in a VM instead. If it has to be this container, it
+       must be privileged and unconfined, and its config needs at least:
+
+         lxc.apparmor.profile: unconfined
+         lxc.cgroup2.devices.allow: b 7:* rwm
+         lxc.cgroup2.devices.allow: c 10:237 rwm
+         lxc.mount.entry: /dev/loop-control dev/loop-control none bind,create=file
+         lxc.mount.entry: /dev/loop0 dev/loop0 none bind,create=file
+
+       plus one bind entry per loop device you want available. Note that
+       device-mapper is the next thing this script needs, and it has the same
+       kind of problem.
+
+       Building for '--platform lxc' needs none of this: it exports a container
+       rather than partitioning a disk."
 fi
 
 partprobe "${LOOPDEV}"
