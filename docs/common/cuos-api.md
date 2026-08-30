@@ -28,6 +28,9 @@ cuos state
 
 # Get system resources
 cuos resources
+
+# Check the invariants of this system
+cuos selftest
 ```
 
 ### System Management
@@ -85,6 +88,32 @@ Example output:
 }
 ```
 
+### Self-test
+
+`cuos selftest` reads the system and reports whether its invariants hold —
+useful in a support case, and as the assertion an automated test makes. It
+changes nothing.
+
+```json
+{
+  "ok": false,
+  "summary": { "ok": 9, "failed": 1, "skipped": 1 },
+  "checks": [
+    { "id": "slot", "status": "ok", "detail": "A" },
+    { "id": "subvolumes", "status": "skipped", "detail": "a container has no subvolumes; the root is swapped instead" },
+    { "id": "app", "status": "failed", "detail": "cuos-app is exited" }
+  ]
+}
+```
+
+Checked: `config`, `version`, `slot`, `subvolumes`, `state`, `docker`, `app`,
+`network`, `hostname`, `ssh`, `log`. A check is **skipped** when it does not
+apply to this kind of system — a container has no subvolumes, and its interface
+is configured by its host — never to hide a problem.
+
+**Read `ok` from the output, not the exit code**: the API exits 0 for every
+command, because systemd socket activation stops working otherwise.
+
 ## Using the API in Your Application
 
 ### Error Handling
@@ -94,6 +123,9 @@ The API returns standard exit codes:
 - 1: General error
 - 2: No new version available
 - 3: No space left for update
+
+**Except when invoked as `cuos <command>`**, where the exit code is always 0 —
+see the note under Self-test. Read the result from the output.
 
 
 ## API Commands Reference
@@ -106,6 +138,7 @@ The API returns standard exit codes:
 | update | Apply system update | `{ "config": new system config }` | Status messages | Initiates system update |
 | rollback | Rollback last update | `{}` | Status messages | Reverts to previous version |
 | resources | Show system resources | `{}` | `{ "cpu_cores": number, "cpu_usage": number, ... }` | System metrics |
+| selftest | Check this system's invariants | `{}` | `{ "ok": bool, "summary": {...}, "checks": [...] }` | Read-only; see [Self-test](#self-test) |
 | patch-network | Set network configuration | `{"network_id": 0,"config": {"dhcp": true}}` | Status message | See [Documentation system.json](./system-json.md) |
 | patch-hostname | Set system hostname | `"myhostname"` | Status message | Set new hostname |
 

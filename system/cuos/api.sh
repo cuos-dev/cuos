@@ -349,6 +349,13 @@ api_command_resources() {
   "${SCRIPT_DIR}/resources.sh"
 }
 
+## selftest           - Check the invariants of this system
+##                      Reports {"ok": bool, "checks": [...]}. Note that the
+##                      exit code is always 0 - read "ok" from the output.
+api_command_selftest() {
+  "${SCRIPT_DIR}/selftest.sh"
+}
+
 api_main() {
   local input="{}"
   local command="${1:-""}"
