@@ -76,6 +76,19 @@ if [[ ! -f "${CONFIG_PATH}" ]]; then
 fi
 export OS_ARCH="${OS_ARCH:-"$(arch)"}"
 
+# The fallback to os_image is for a platform that has no image of its own
+# because it does not need one - the host architecture. For a named board it
+# would quietly write a foreign architecture onto the card: an image that builds
+# cleanly and never boots.
+case "${OS_ARCH}" in
+  rpi-arm64|rpi-arm32|orangepi-zero3)
+    image_url "${OS_ARCH}" >/dev/null || raise \
+      "No \"${OS_ARCH}_image\" in the configuration. Refusing to fall back to
+       os_image: that is a different architecture, and it would produce an image
+       that builds cleanly and never boots. Pin it in release.json."
+    ;;
+esac
+
 OS_IMAGE="$(image_url "${OS_ARCH}" || image_url "os")" || \
   action_on_failure "cuos:updater:os_image_not_defined" "OS image not defined"
 OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_image_digest // empty' "${CONFIG_PATH}")"
