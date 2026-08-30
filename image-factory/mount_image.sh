@@ -31,7 +31,17 @@ if [[ ! -d "${OUTPUT_DIR}" ]]; then
 fi
 
 # Setup loop device
-LOOPDEV="$(losetup --find --show $IMAGE)"
+if ! LOOPDEV="$(losetup --find --show "${IMAGE}")" || [[ -z "${LOOPDEV}" ]]; then
+	raise "Could not attach ${IMAGE} to a loop device.
+
+       This needs the host's /dev, not the copy of it a privileged container
+       gets at start: the node for a loop device the kernel hands out now does
+       not exist in that copy. tool.sh mounts it; a factory started by hand
+       needs '-v /dev:/dev' too.
+
+       If /dev is mounted and this still fails, the loop module is not loaded on
+       the host: 'sudo modprobe loop dm_mod'."
+fi
 partprobe "${LOOPDEV}"
 
 # Map partitions
