@@ -24,8 +24,9 @@ source "${SCRIPT_DIR}/lib-test.sh"
 # Nothing here touches a real system: every function that looks outward is
 # replaced, and the files the checks read live in a temporary directory.
 MOCK_VIRT="none"
-MOCK_SUBVOLUMES="@os /
-@data /data"
+MOCK_SUBVOLUMES="@os/system-A /
+@data /data
+@swap /swap"
 MOCK_ADDRESSES="eth0 10.0.0.5/24"
 MOCK_HOSTNAME="my-system"
 MOCK_DOCKER_OK=0
@@ -46,8 +47,9 @@ journal_errors() { echo "${MOCK_JOURNAL_ERRORS}"; }
 reset_system() {
   RESULTS=()
   MOCK_VIRT="none"
-  MOCK_SUBVOLUMES="@os /
-@data /data"
+  MOCK_SUBVOLUMES="@os/system-A /
+@data /data
+@swap /swap"
   MOCK_ADDRESSES="eth0 10.0.0.5/24"
   MOCK_HOSTNAME="my-system"
   MOCK_DOCKER_OK=0
@@ -117,11 +119,18 @@ break_slot() { echo "C" >"${T_FILE_SLOT}"; }
 expect "slot: A or B, nothing else" "failed" status_of slot break_slot
 expect "slot: an empty file fails" "failed" status_of slot rm -f "${T_FILE_SLOT}"
 
-drop_data_subvolume() { MOCK_SUBVOLUMES="@os /"; }
+drop_data_subvolume() { MOCK_SUBVOLUMES="@os/system-A /"; }
 expect "subvolumes: a missing @data fails" "failed" status_of subvolumes \
   drop_data_subvolume
 expect "subvolumes: the failure names it" "not mounted: @data" detail_of \
   subvolumes drop_data_subvolume
+
+# The root is @os/system-A or @os/system-B, never @os itself.
+expect "subvolumes: the slot below @os counts as @os" "ok" status_of subvolumes
+lose_the_os_subvolume() { MOCK_SUBVOLUMES="@osold/system-A /
+@data /data"; }
+expect "subvolumes: a subvolume merely starting with @os does not" "failed" \
+  status_of subvolumes lose_the_os_subvolume
 
 be_a_container() { MOCK_VIRT="lxc"; }
 expect "subvolumes: skipped in a container" "skipped" status_of subvolumes \

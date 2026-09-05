@@ -52,8 +52,10 @@ is_container() {
 }
 
 # "<subvolume> <mountpoint>" per line, for every mounted btrfs subvolume.
+# -l keeps the list flat: the tree output prefixes nested mountpoints with
+# drawing characters, which would end up in the mountpoint field.
 subvolumes() {
-  findmnt -t btrfs -no TARGET,OPTIONS 2>/dev/null \
+  findmnt -lt btrfs -no TARGET,OPTIONS 2>/dev/null \
     | sed -n 's|^\(\S*\)\s.*subvol=/\([^,]*\).*|\2 \1|p'
 }
 
@@ -127,9 +129,11 @@ check_subvolumes() {
 
   local mounted missing=""
   mounted="$(subvolumes)"
+  # The root is a subvolume *below* @os - @os/system-A or @os/system-B - so what
+  # is wanted is the subvolume or anything under it.
   local wanted
   for wanted in "@os" "@data"; do
-    if ! grep -q "^${wanted}[[:space:]]" <<<"${mounted}"; then
+    if ! grep -qE "^${wanted}(/\S*)?[[:space:]]" <<<"${mounted}"; then
       missing+="${missing:+, }${wanted}"
     fi
   done
