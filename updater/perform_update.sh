@@ -110,6 +110,30 @@ CONTAINER_ROOTFS_FS="${TARGET_ROOT}/system-${SLOT}"
 # Consumed by the install-kernel-*.sh scripts inside the new rootfs:
 export CONTAINER_ROOTFS="@os/system-${SLOT}"
 
+# Ask the registry whether there is anything new, before anything is downloaded
+# or deleted. The check below at "No OS update available" is the same question,
+# but it can only be asked once the image has been pulled - and the pull needs
+# the room that deleting the standby slot frees, so by then the slot this system
+# would roll back to is already gone. On a small ARM board that costs half an
+# hour and the rollback target for an update that turns out to be unnecessary.
+#
+# imagetools reports the digest of the manifest *list*, which is what docker
+# records in RepoDigests after a pull and therefore what /etc/image holds.
+# "docker manifest inspect -v" is not a substitute: it reports the digests of
+# the individual platform manifests, which are different values (measured on a
+# board, 2026-09-06).
+#
+# Advisory only. An empty answer - no buildx, an unreachable or a
+# non-conforming registry - falls through to the pull and changes nothing.
+if [[ "${INSTALLIMAGE}" != "true" ]]; then
+  REMOTE_DIGEST="$(docker buildx imagetools inspect \
+    --format '{{.Manifest.Digest}}' "${IMAGE}" 2>/dev/null)"
+  if [[ -n "${REMOTE_DIGEST}" \
+      && "${IMAGE}@${REMOTE_DIGEST}" == "$(cat /etc/image 2>/dev/null)" ]]; then
+    raise_info 102 "No OS update available"
+  fi
+fi
+
 # Remove old slot:
 OLD_IMAGE_PATH="$(grep -oE '^[^@]+' "${CONTAINER_ROOTFS_FS}/etc/image" 2>/dev/null)"
 if [[ -d "${CONTAINER_ROOTFS_FS}" ]]; then
