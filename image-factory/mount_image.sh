@@ -84,7 +84,9 @@ mkdir -p "${TARGET_ROOT}"
 mount -t btrfs -o subvol=@os "${TARGET_ROOT_PARTITION}" "${TARGET_ROOT}"
 
 mkdir -p "${TARGET_BOOT}"
-mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro" "${TARGET_BOOT_PARTITION}" "${TARGET_BOOT}"
+# Same charset reasoning as updater/docker_environment.sh: name none, so the
+# mount works on whatever kernel this runs against.
+mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,shortname=mixed,errors=remount-ro" "${TARGET_BOOT_PARTITION}" "${TARGET_BOOT}"
 
 /bin/bash
 

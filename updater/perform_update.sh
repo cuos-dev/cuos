@@ -173,7 +173,7 @@ LABEL=system  /  btrfs  rw,relatime,discard=async,space_cache=v2,subvol=${CONTAI
 LABEL=system  /data  btrfs  rw,relatime,discard=async,space_cache=v2,subvol=@data  0 0
 
 # /dev/sda2
-#LABEL=boot  /boot  vfat  rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro  0 2
+#LABEL=boot  /boot  vfat  rw,relatime,fmask=0022,dmask=0022,shortname=mixed,errors=remount-ro  0 2
 EOF
 
 cp /etc/fstab "${CONTAINER_ROOTFS_FS}/etc/fstab" \
