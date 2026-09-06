@@ -59,6 +59,17 @@ image_version() {
 }
 
 export DOCKER_CONTEXT=default
+
+# tool.sh hands the host's daemon in under a name of its own, so that
+# /var/run/docker.sock stays free for a dockerd started inside this container -
+# updater/docker_environment.sh explains why, and picks the same socket up for
+# the disk-image path. The lxc branch below never gets that far: it pulls, runs
+# and exports on the host's daemon and returns, so it has to find the socket
+# itself. Keep the path in step with docker_environment.sh.
+if [[ -S "/run/cuos-docker.sock" ]]; then
+  export DOCKER_HOST="unix:///run/cuos-docker.sock"
+fi
+
 OUTPUT_DIR="/output"
 
 IMAGE_NAME="${IMAGE_NAME:-"image"}"
