@@ -25,13 +25,14 @@ ROOT_DEV="$(findmnt -n -o SOURCE -T "/" | sed 's/\[.*\]//')"
 ROOT_DISK="/dev/$(lsblk -no PKNAME "$ROOT_DEV" | head -n1)"
 
 touch "/root/.docker/config.json"
+# Same socket path as do-update.sh, and for the same reason.
 docker run --rm -it \
 	--pull=never \
 	--log-driver=journald \
 	--privileged \
 	--device "${ROOT_DISK}" \
 	-v "/root/.docker/config.json:/root/.docker/config.json:ro" \
-	-v "/var/run/docker.sock:/var/run/docker.sock:ro" \
+	-v "/var/run/docker.sock:/run/cuos-docker.sock:ro" \
 	-v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
 	-v "/etc/image:/etc/image:ro" \
 	-e "TARGET_DEVICE=${ROOT_DISK}" \

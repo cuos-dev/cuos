@@ -92,7 +92,19 @@ start_dockerd() {
 	return 0
 }
 
+# The host's daemon, if the caller handed one in. /var/run/docker.sock is left
+# alone so that start_dockerd below can bind it; the plain path is still
+# honoured, because image-factory and any system older than this updater mount
+# the socket there.
+CUOS_DOCKER_SOCKET="${CUOS_DOCKER_SOCKET:-"/run/cuos-docker.sock"}"
+if [[ -S "${CUOS_DOCKER_SOCKET}" ]]; then
+	export DOCKER_HOST="unix://${CUOS_DOCKER_SOCKET}"
+fi
+
 if ! docker info >/dev/null 2>&1; then
+	# A socket that does not answer must not keep the client from reaching the
+	# dockerd started below, which listens on the default path.
+	unset DOCKER_HOST
 	if ! start_dockerd; then
 		if ! start_dockerd; then
 			if ! start_dockerd; then

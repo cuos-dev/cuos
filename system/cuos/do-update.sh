@@ -50,13 +50,18 @@ ROOT_DEV="$(findmnt -n -o SOURCE -T "/" | sed 's/\[.*\]//')"
 ROOT_DISK="/dev/$(lsblk -no PKNAME "$ROOT_DEV" | head -n1)"
 
 touch "/root/.docker/config.json"
+# The host's docker socket goes in under a name of its own, because
+# /var/run/docker.sock inside the updater has to stay free: an updater that
+# brings no daemon along starts a dockerd there, and a bind mount over that
+# path cannot be unlinked, so the daemon never comes up. The updater of an
+# older release - the one a downgrade runs - is such an updater.
 docker run --rm \
   --pull=never \
   --log-driver=journald \
   --privileged \
   --device "${ROOT_DISK}" \
   -v "/root/.docker/config.json:/root/.docker/config.json:ro" \
-  -v "/var/run/docker.sock:/var/run/docker.sock:ro" \
+  -v "/var/run/docker.sock:/run/cuos-docker.sock:ro" \
   -v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
   -v "/etc/image:/etc/image:ro" \
   -v "${CONFIG_PATH}:/system.json" \
