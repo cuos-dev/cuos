@@ -1,4 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
+
+# GRUB modules for the x86_64 boot chain. Alpine ships the i386-pc and
+# x86_64-efi module directories in x86_64-only packages, so they are unpacked on
+# an x86_64 stage and carried into whichever architecture this image is built
+# for. Both packages hold nothing but /usr/lib/grub/<target>/ - target data, no
+# host binaries - which is what makes the copy sound.
+FROM --platform=linux/amd64 alpine:3.23 AS grub-x86_64
+RUN apk add --no-cache grub-bios grub-efi
+
 FROM docker:29.5.3-alpine3.23
 
 # WARNING: This Dockerfile is intended to be built from the parent directory.
@@ -16,8 +25,14 @@ RUN apk add --no-cache \
     parted dosfstools btrfs-progs \
     gptfdisk qemu-img kpartx util-linux jq btrfs-progs bash tar
 
-RUN apk add --no-cache \
-    grub-efi grub-bios ovmf || true
+# grub: grub-install, grub-mkimage, grub-bios-setup and grub-probe. These build
+# and write a boot chain for any target whose modules are present, so this stage
+# needs no architecture of its own - system/cuos/install-kernel-grub.sh runs
+# them here in the factory, not inside the target rootfs.
+RUN apk add --no-cache grub
+
+COPY --from=grub-x86_64 /usr/lib/grub/i386-pc/ /usr/lib/grub/i386-pc/
+COPY --from=grub-x86_64 /usr/lib/grub/x86_64-efi/ /usr/lib/grub/x86_64-efi/
 
 COPY image-factory/create_image.sh /create_image.sh
 COPY updater/*.sh /usr/local/updater/
