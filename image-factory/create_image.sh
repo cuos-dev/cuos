@@ -6,6 +6,14 @@ raise() {
 	exit 1
 }
 
+# One line per step of the build, marked for whoever is running this factory.
+# cuos-release/tool.sh passes lines carrying this marker through to the terminal
+# and puts everything else in output/NAME.build.log; run directly, the marker is
+# just a prefix. Keep it in step with log_is_step_line() over there.
+step() {
+	echo "==> $*"
+}
+
 cleanup() {
 	# Versuche, gemountete Partitionen zu unmounten
 	umount -R /mnt/os 2>/dev/null || true
@@ -108,6 +116,7 @@ if [[ "${OS_ARCH}" == "lxc" ]]; then
   IMAGE="${IMAGE/img/tar.gz}"
   SLOT="A"
 
+  step "Fetching the system image ${OS_IMAGE}"
   docker image pull "${OS_IMAGE}" || raise "Faild to fetch image"
   IMAGE_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${OS_IMAGE}" 2>/dev/null | cut -d '@' -f 2)"
   if [[ -n "${OS_DIGEST}" && "${OS_DIGEST}" != "${IMAGE_DIGEST}" ]]; then
@@ -115,6 +124,7 @@ if [[ "${OS_ARCH}" == "lxc" ]]; then
     exit 1
   fi
 
+  step "Initialising the system"
   CONTAINER_NAME="cuos-lxc-$$"
   docker run -it -d \
     --pull=never \
@@ -126,13 +136,14 @@ if [[ "${OS_ARCH}" == "lxc" ]]; then
   docker cp "${CONFIG_PATH}" "${CONTAINER_NAME}:/system_init.json" \
     || raise "Failed to copy system.json"
 
+  step "Exporting the root filesystem"
   if ! docker export "${CONTAINER_NAME}" | gzip >"${IMAGE}"; then
     raise "Failed to export the container"
   fi
   docker rm -f "${CONTAINER_NAME}" \
     || raise "Failed to remove the container"
 
-  echo "Image created at ${IMAGE/\//}"
+  step "${IMAGE/\//} written"
   exit 0
 fi
 
@@ -146,10 +157,11 @@ fi
 SIZE_MB="$(jq --arg size_mb "${SIZE_MB}" -r '.image_size_mb // $size_mb' "${CONFIG_PATH}")"
 
 # Create empty image
-echo "Create empty image:"
+step "Creating an empty image of ${SIZE_MB} MB"
 dd if=/dev/zero of="${IMAGE}" bs=1M count="${SIZE_MB}"
 sync
 
+step "Partitioning for '${TARGET}'"
 if [[ "${TARGET}" == "rpi" ]]; then
   parted "${IMAGE}" --script \
     mklabel msdos \
@@ -280,6 +292,7 @@ TARGET_ROOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_ROOT_PARTIT
 export TARGET_ROOT_PARTITION
 
 # Format partitions
+step "Creating the filesystems"
 mkfs.vfat -n boot "${TARGET_BOOT_PARTITION}" \
     || raise "Failed to format boot partition: ${TARGET_BOOT_PARTITION}"
 mkfs.btrfs -L system "${TARGET_ROOT_PARTITION}" \
@@ -297,6 +310,7 @@ mkdir -p /mnt/root/@data/log
 umount /mnt/root
 
 
+step "Installing the system from ${OS_IMAGE}"
 export INSTALLIMAGE=true
 /usr/local/updater/updater.sh \
 	"${SLOT}" \
@@ -315,7 +329,7 @@ if [[ "${EXITCODE}" != "0" ]]; then
 	raise "Failed to run updater script"
 fi
 
-echo "Image created at ${IMAGE/\//}"
+step "${IMAGE/\//} written"
 
 
 # File formats:

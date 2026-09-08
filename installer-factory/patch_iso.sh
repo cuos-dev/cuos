@@ -13,6 +13,14 @@
 
 set -ex
 
+# One line per step of the build, marked for whoever is running this factory.
+# cuos-release/tool.sh passes lines carrying this marker through to the terminal
+# and puts everything else in output/NAME.build.log; run directly, the marker is
+# just a prefix. Keep it in step with log_is_step_line() over there.
+step() {
+  echo "==> $*"
+}
+
 OUTPUT_DIR="/output"
 
 if [[ ! -d "${OUTPUT_DIR}" ]]; then
@@ -47,6 +55,7 @@ fi
 
 #xorriso -indev /output/CuOS-IaC-cuos-test.iso -ls /
 
+step "Replacing the configuration in the ISO"
 xorriso \
   -indev "${BASE_INSTALLER}" \
   -outdev "${INSTALLER}" \
@@ -55,5 +64,4 @@ xorriso \
   -compliance no_emul_toc \
   -padding included
 
-echo "ISO patching complete."
-echo "Installer written to ${INSTALLER/\//}"
+step "${INSTALLER/\//} written"

@@ -3,6 +3,14 @@
 
 set -ex
 
+# One line per step of the build, marked for whoever is running this factory.
+# cuos-release/tool.sh passes lines carrying this marker through to the terminal
+# and puts everything else in output/NAME.build.log; run directly, the marker is
+# just a prefix. Keep it in step with log_is_step_line() over there.
+step() {
+  echo "==> $*"
+}
+
 VOLID="CUOS"
 WORKDIR="/build"
 ISO_DIR="${WORKDIR}/iso"
@@ -30,6 +38,7 @@ export CONFIG_PATH="${OUTPUT_DIR}/${IMAGE_NAME}.json"
 
 # compress image using zstd (multi-threaded, level 9) and copy to the ISO dir
 # choose level 9 as a balance between compression ratio and build time; adjust as desired
+step "Compressing the system image"
 zstd -T0 -9 -c "${IMAGE}" > "${ISO_DIR}/image.img.zst"
 
 PRODUCT_NAME="CuOS"
@@ -50,6 +59,7 @@ if [[ -f "${CONFIG_PATH}" ]]; then
   fi
 fi
 
+step "Building the bootable ISO"
 grub-mkrescue \
   -o "${INSTALLER}" \
   -V "${VOLID}" \
@@ -57,5 +67,4 @@ grub-mkrescue \
   -full-iso9660-filenames \
   "${ISO_DIR}" || exit 1
 
-echo "ISO creation complete."
-echo "Installer written to ${INSTALLER/\//}"
+step "${INSTALLER/\//} written"
