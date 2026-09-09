@@ -59,6 +59,19 @@ if [[ -f "${CONFIG_PATH}" ]]; then
   fi
 fi
 
+# The ISO is written into /output, which is the caller's disk. When that disk is
+# full, xorriso reports it as "Image size ... exceeds free space on media",
+# which reads like a property of the ISO rather than of the machine it is being
+# written on. Say what it is, before the ISO is built and not after.
+needed_kb="$(du -sk "${ISO_DIR}" | cut -f1)"
+read -r _ _ _ free_kb _ < <(df -Pk "${OUTPUT_DIR}" | tail -n 1)
+if ((free_kb < needed_kb + needed_kb / 10)); then
+  echo "Not enough free space for ${INSTALLER}:" \
+    "the ISO needs about $((needed_kb / 1024)) MB," \
+    "$((free_kb / 1024)) MB are free." >&2
+  exit 1
+fi
+
 step "Building the bootable ISO"
 grub-mkrescue \
   -o "${INSTALLER}" \
