@@ -161,8 +161,11 @@ step "Creating an empty image of ${SIZE_MB} MB"
 dd if=/dev/zero of="${IMAGE}" bs=1M count="${SIZE_MB}"
 sync
 
-step "Partitioning for '${TARGET}'"
+# The step lines name the layout as 'mbr' and 'gpt', the names tool.sh's
+# --layout uses. TARGET is the factory's own spelling of the same choice, and
+# for GPT it is empty.
 if [[ "${TARGET}" == "rpi" ]]; then
+  step "Partitioning the image (mbr)"
   parted "${IMAGE}" --script \
     mklabel msdos \
     mkpart primary fat32 1MiB 256MiB \
@@ -172,7 +175,7 @@ if [[ "${TARGET}" == "rpi" ]]; then
   TARGET_BOOT_PARTITION_NUM=1
   TARGET_ROOT_PARTITION_NUM=2
 else
-  # Partition the image
+  step "Partitioning the image (gpt)"
   parted "${IMAGE}" --script \
     mklabel gpt \
     mkpart bios_boot 1MiB 3MiB \
