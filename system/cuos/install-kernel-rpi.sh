@@ -38,7 +38,7 @@ fi
 mv "${TARGET_BOOT}"/cmdline.txt "${TARGET_BOOT}"/cmdline-previous.txt 2>/dev/null || true
 
 cat <<EOF > "${TARGET_BOOT}/cmdline.txt"
-console=serial0,115200 console=tty1 rootwait root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} fsck.repair=yes ro loglevel=3 noresume apparmor
+console=serial0,115200 console=tty1 rootwait root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} fsck.repair=yes ro loglevel=3 noresume apparmor=1
 EOF
 
 # Attach options from system.json

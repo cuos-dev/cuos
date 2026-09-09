@@ -82,7 +82,7 @@ menuentry '${SLOT_NAME}' --unrestricted {
 
     search --no-floppy --label boot --set=root
 
-    linux /${filename_kernel} root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} ro loglevel=3 noresume apparmor
+    linux /${filename_kernel} root=LABEL=system rootfstype=btrfs rootflags=subvol=${CONTAINER_ROOTFS} ro loglevel=3 noresume apparmor=1
     initrd /${filename_initrd}
 }
 
