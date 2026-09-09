@@ -124,7 +124,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   kbd \
   kmod \
   lsb-release \
-  selinux-policy-default \
   systemd \
   systemd-sysv \
   systemd-timesyncd \

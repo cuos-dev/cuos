@@ -58,7 +58,6 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   kbd \
   kmod \
   lsb-release \
-  selinux-policy-default \
   systemd \
   systemd-sysv \
   systemd-timesyncd \
