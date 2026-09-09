@@ -20,11 +20,7 @@ mv "/boot/vmlinuz"-* "${ISO_DIR}/boot/vmlinuz"
 mv "${INITRD_IMAGE}" "${ISO_DIR}/boot/initrd.img"
 
 # Create grub config
-#
-# The installer keeps apparmor=0 while the system image boots with apparmor=1.
-# This image is not the system image: it carries no apparmor package, so there
-# is no profile to load and no apparmor.service to load one. Switching the LSM
-# on here would confine nothing and could only cost an installation.
+# apparmor=0, unlike the system image: this one has no apparmor package.
 cat <<EOF >"${ISO_DIR}/boot/grub/grub.cfg"
 set timeout=0
 set default=0
