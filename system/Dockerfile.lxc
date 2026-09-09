@@ -16,7 +16,9 @@ RUN echo "Cache buster: v1" \
   ## cuos system dependencies (lxc) \
   busybox-static \
   ## cuos os dependencies \
-  apparmor \
+  # AppArmor profiles are loaded into the host's kernel, and a container \
+  # cannot load its own. Confining an LXC guest is the host's business. \
+  #-apparmor \
   #-btrfs-progs \
   dbus \
   dbus-broker \
