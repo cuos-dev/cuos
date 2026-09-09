@@ -26,7 +26,6 @@ RUN echo "Cache buster: v1" \
   #-kbd \
   kmod \
   lsb-release \
-  #-selinux-policy-default \
   systemd \
   systemd-sysv \
   #-systemd-timesyncd \
