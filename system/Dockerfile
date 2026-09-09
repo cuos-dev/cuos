@@ -90,6 +90,11 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   && systemctl disable hv-kvp-daemon.service \
   && systemctl disable hv-vss-daemon.service \
   && systemctl enable systemd-timesyncd.service \
+  && systemctl enable apparmor.service \
+  ## AppArmor mediates the resolved path, and /var/lib/dhcp below is a \
+  ## symlink into /data - without this rule the stock dhclient profile \
+  ## denies dhclient its own lease file \
+  && printf "/data/dhcp/ r,\n/data/dhcp/dhclient* lrw,\n" >>/etc/apparmor.d/local/usr.sbin.dhclient \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \
   && printf "Port 4222\nPermitRootLogin yes\n" >/etc/ssh/sshd_config.d/cuos.conf \
