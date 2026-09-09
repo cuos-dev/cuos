@@ -8,7 +8,7 @@
 FROM --platform=linux/amd64 alpine:3.23 AS grub-x86_64
 RUN apk add --no-cache grub-bios grub-efi
 
-FROM docker:29.5.3-alpine3.23
+FROM docker:29.8.0-alpine3.24
 
 # WARNING: This Dockerfile is intended to be built from the parent directory.
 
