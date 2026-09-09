@@ -3,7 +3,7 @@
 # so we use Raspbian and build this from scratch with debootstrap
 # We base this on debian image, so that debootstrap is called,
 # when a new debian release is out.
-FROM debian:13.5-slim AS builder
+FROM debian:13.6-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN debootstrap --arch=armhf --no-check-gpg "$(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')" /mnt http://raspbian.raspberrypi.com/raspbian/
 
-FROM scratch
+FROM debian:13.6-slim
 
 COPY --from=builder \
   /mnt/ /
