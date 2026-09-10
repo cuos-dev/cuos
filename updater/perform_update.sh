@@ -21,6 +21,13 @@ raise() {
   exit "$code"
 }
 
+# Fields counted from the end: df puts a device name that does not fit on a
+# line of its own.
+disk_usage() {
+  df -h "${1:-/}" \
+    | awk 'END { printf "%s of %s used, %s free\n", $(NF-3), $(NF-4), $(NF-2) }'
+}
+
 raise_info() {
   local code=1
   local message="$*"
@@ -166,7 +173,10 @@ fi
 
 echo "INFO: Updating OS slot ${SLOT} to ${IMAGE}"
 
-echo "disc free (root): $(df -h "${DOCKER_DIR}" | tail -n 1)"
+echo "disc usage (root, before install): $(disk_usage "${TARGET_ROOT}")"
+# The boot partition is never grown and holds a kernel and an initrd for both
+# slots, so it is the one that can run out.
+echo "disc usage (boot, before install): $(disk_usage "${TARGET_BOOT}")"
 
 DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" 2>/dev/null | cut -d '@' -f 2)
 DIGEST="${DIGEST:-"$(docker inspect --format='{{.Id}}' "${IMAGE}")"}"
@@ -214,7 +224,8 @@ ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/install-ker
   || exit "$?"
 
 
-echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
+echo "disc usage (root, after install): $(disk_usage "${TARGET_ROOT}")"
+echo "disc usage (boot, after install): $(disk_usage "${TARGET_BOOT}")"
 
 
 if [[ "${INSTALLIMAGE}" = "true" ]]; then

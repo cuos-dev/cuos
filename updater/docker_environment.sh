@@ -118,9 +118,6 @@ fi
 
 docker info
 
-echo "disc free:"
-df -h  "${DOCKER_DIR}"
-
 
 SCRIPT="$1"
 shift

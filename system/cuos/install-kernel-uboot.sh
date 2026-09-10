@@ -24,8 +24,6 @@ done
 cp -r "${ROOT}/boot/." "${TARGET_BOOT}" \
   || raise 112 "Failed to copy kernel"
 
-echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
-
 
 if [[ "${INSTALLIMAGE:-}" = "true" ]]; then
   if [[ -f "${CONFIG_PATH}" ]]; then

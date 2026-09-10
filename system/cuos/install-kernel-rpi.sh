@@ -22,8 +22,6 @@ mv "${TARGET_BOOT}"/{bcm27*.dtb,bootcode.bin,fixup*.dat,LICENCE.broadcom,config.
 cp -r "${ROOT}/boot/firmware/." "${TARGET_BOOT}" \
   || raise 112 "Failed to copy kernel"
 
-echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
-
 
 if [[ "${INSTALLIMAGE:-}" = "true" ]]; then
   if [[ -f "${CONFIG_PATH}" ]]; then

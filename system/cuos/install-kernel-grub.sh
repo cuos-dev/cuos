@@ -34,8 +34,6 @@ cp "${kernel}" "${TARGET_BOOT}/${filename_kernel}" \
 cp "${initrd}" "${TARGET_BOOT}/${filename_initrd}" \
   || raise 114 "Failed to copy initrd"
 
-echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
-
 
 if [[ "${INSTALLIMAGE:-}" = "true" ]]; then
   if [[ -f "${CONFIG_PATH}" ]]; then
@@ -64,8 +62,6 @@ if [[ "${INSTALLIMAGE:-}" = "true" ]]; then
     --root-directory="${ROOT}" \
     "${TARGET_DEVICE}" \
     || raise 123 "Failed to install grub"
-
-  echo "disc free (boot): $(df -h "${TARGET_BOOT}" | tail -n 1)"
 
 fi
 
