@@ -30,7 +30,9 @@ if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
   raise_info 22 "No new image version available. Exiting."
 fi
 
-AVAIL_BYTES=$(df -B1 "/" | awk 'NR==2 {print $4}')
+# Fields counted from the end: df puts a device name that does not fit on a
+# line of its own, and then the columns are one line further down.
+AVAIL_BYTES=$(df -B1 "/" | awk 'END { print $(NF-2) }')
 REQUIRED_BYTES=$((2 * 1024 * 1024 * 1024))
 if [ "$AVAIL_BYTES" -le "$REQUIRED_BYTES" ]; then
   report_info "cuos:update:no_space" "Not enough free disk space available"
