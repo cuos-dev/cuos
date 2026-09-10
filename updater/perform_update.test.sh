@@ -65,31 +65,37 @@ btrfs() {
   esac
 }
 
+# POSIX output (df -P): one line per filesystem, however long the device name.
+# MOCK_DF_UNSUPPORTED stands for a df that does not know -P: usage to stderr,
+# nothing on stdout.
 df() {
-  case "${1}" in
-    -h)
-      echo "Filesystem                Size      Used Available Use% Mounted on"
-      echo "/dev/mapper/loop0p3       1.3G    733.8M    522.3M  58% ${2}"
+  local path="${*: -1}"
+
+  if [[ -n "${MOCK_DF_UNSUPPORTED-}" ]]; then
+    echo "df: unrecognized option: P" >&2
+    return 1
+  fi
+
+  case "$*" in
+    *-Ph*)
+      echo "Filesystem      Size  Used Avail Capacity Mounted on"
+      echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1.3G 733.8M 522.3M 58% ${path}"
       ;;
-    -k)
+    *-Pk*)
       # The default is the boot partition of the x86_64 build of 2026-09-10:
       # 68.4 MiB of 252.7 MiB with one slot installed.
-      echo "Filesystem     1K-blocks      Used Available Use% Mounted on"
-      if [[ -n "${MOCK_DF_WRAPS-}" ]]; then
-        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788"
-        echo "               ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771  27% ${2}"
-      else
-        echo "/dev/mapper/loop0p2 ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771  27% ${2}"
-      fi
+      echo "Filesystem     1024-blocks      Used Available Capacity Mounted on"
+      echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771 27% ${path}"
+      ;;
+    *-P*)
+      echo "Filesystem     1B-blocks       Used  Available Capacity Mounted on"
+      echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1446256640 769654784 ${MOCK_AVAIL_BYTES-5368709120} 53% ${path}"
       ;;
     *)
+      # Without -P the device name gets a line of its own and the columns move.
       echo "Filesystem     1B-blocks       Used  Available Use% Mounted on"
-      if [[ -n "${MOCK_DF_WRAPS-}" ]]; then
-        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788"
-        echo "               1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${2}"
-      else
-        echo "/dev/mapper/loop0p3 1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${2}"
-      fi
+      echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788"
+      echo "               1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${path}"
       ;;
   esac
 }
@@ -132,15 +138,15 @@ expect "product_name: neither" "CuOS" product_name
 export CONFIG_PATH="${WORK_DIR}/absent.json"
 expect "product_name: no config at all" "CuOS" product_name
 
+# The mock's device name is longer than the column, which is what -P is for.
 expect_rc "check_free_space: 5 GB is enough" 0 rc_of check_free_space
 MOCK_AVAIL_BYTES="1073741824"
 expect_rc "check_free_space: 1 GB is not" 101 rc_of check_free_space
 MOCK_AVAIL_BYTES="5368709120"
-# df puts a device name too long for the column on a line of its own, which
-# moves the columns of the line that carries them.
-MOCK_DF_WRAPS=1
-expect_rc "check_free_space: wrapped df line" 0 rc_of check_free_space
-MOCK_DF_WRAPS=""
+MOCK_DF_UNSUPPORTED=1
+expect_rc "check_free_space: a df without -P is not guessed at" 100 \
+  rc_of check_free_space
+MOCK_DF_UNSUPPORTED=""
 
 export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
 export T_FILE_IMAGE="${WORK_DIR}/image"
@@ -200,9 +206,10 @@ MOCK_USED_KB=41000
 expect_rc "check_boot_reserve: 41% leaves the second slot too little" 115 \
   rc_of check_boot_reserve
 unset MOCK_SIZE_KB MOCK_USED_KB
-MOCK_DF_WRAPS=1
-expect_rc "check_boot_reserve: wrapped df line" 0 rc_of check_boot_reserve
-MOCK_DF_WRAPS=""
+MOCK_DF_UNSUPPORTED=1
+expect_rc "check_boot_reserve: a df without -P is not guessed at" 100 \
+  rc_of check_boot_reserve
+MOCK_DF_UNSUPPORTED=""
 
 expect_rc "check_environment: everything mounted" 0 rc_of check_environment
 MOCK_UNMOUNTED="${TARGET_ROOT}"

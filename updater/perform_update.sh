@@ -42,11 +42,11 @@ step() {
   echo "==> $*"
 }
 
-# Fields counted from the end: df puts a device name that does not fit on a
-# line of its own.
+# -P: POSIX output, one line per filesystem. Without it df puts a device name
+# that does not fit on a line of its own and the columns move.
 disk_usage() {
-  df -h "${1:-/}" \
-    | awk 'END { printf "%s of %s used, %s free\n", $(NF-3), $(NF-4), $(NF-2) }'
+  df -Ph "${1:-/}" \
+    | awk 'NR == 2 { printf "%s of %s used, %s free\n", $3, $2, $4 }'
 }
 
 report_disk_usage() {
@@ -101,7 +101,9 @@ check_environment() {
 check_free_space() {
   local avail_bytes required_bytes
 
-  avail_bytes="$(df -B1 "${TARGET_ROOT}" | awk 'END { print $(NF-2) }')"
+  avail_bytes="$(df -P -B1 "${TARGET_ROOT}" | awk 'NR == 2 { print $4 }')"
+  [[ "${avail_bytes}" =~ ^[0-9]+$ ]] \
+    || raise 100 "Could not read the free space of ${TARGET_ROOT}: df -P -B1 gave \"${avail_bytes}\""
   required_bytes="$((2 * 1024 * 1024 * 1024))"
 
   if [[ "${avail_bytes}" -le "${required_bytes}" ]]; then
@@ -119,13 +121,14 @@ check_free_space() {
 # 40 and not 50 percent: the second slot's kernel and initrd are a future
 # build, and they will not be smaller than today's.
 #
-# df -k, not -B1: in the factory this is busybox's df, which has no GNU
-# block-size options. Fields from the end, for a wrapped device name.
+# df -Pk, not -B1: in the factory this is busybox's df, which has no GNU
+# block-size options. -P keeps the columns on one line.
 check_boot_reserve() {
   local size used percent
 
-  read -r size used <<<"$(df -k "${TARGET_BOOT}" \
-    | awk 'END { print $(NF-4), $(NF-3) }')"
+  read -r size used <<<"$(df -Pk "${TARGET_BOOT}" | awk 'NR == 2 { print $2, $3 }')"
+  [[ "${size}" =~ ^[0-9]+$ && "${used}" =~ ^[0-9]+$ && "${size}" -gt 0 ]] \
+    || raise 100 "Could not read the usage of ${TARGET_BOOT}: df -Pk gave \"${size} ${used}\""
   percent="$(( used * 100 / size ))"
 
   if (( percent > 40 )); then
