@@ -33,6 +33,15 @@ raise_info() {
   exit "$code"
 }
 
+# One line per step, marked for whoever is watching. cuos-release/tool.sh puts
+# lines carrying this marker on the terminal - indented by itself, so this one
+# does not - and everything else in output/NAME.build.log. On a device the
+# marker is just a prefix in the journal. Keep it in step with
+# image-factory/create_image.sh and log_is_step_line() over there.
+step() {
+  echo "==> $*"
+}
+
 # Fields counted from the end: df puts a device name that does not fit on a
 # line of its own.
 disk_usage() {
@@ -323,8 +332,12 @@ main() {
     raise_info 102 "No OS update available"
   fi
 
+  step "Clearing slot ${SLOT}"
   prepare_slot
 
+  if ! is_local_build; then
+    step "Fetching ${IMAGE}"
+  fi
   pull_image
 
   NEW_DIGEST="$(repo_digest)"
@@ -345,12 +358,15 @@ main() {
     raise 105 "Failed to get image digest"
   fi
 
+  step "Unpacking the system into slot ${SLOT}"
   export_rootfs
 
   write_fstab
 
+  step "Preparing the first boot"
   run_first_run
 
+  step "Installing the kernel and the boot chain"
   install_kernel
 
   report_disk_usage "after"
@@ -360,6 +376,8 @@ main() {
 
     check_boot_reserve
   fi
+
+  step "Slot ${SLOT} installed: ${IMAGE}"
 
   exit 0
 }
