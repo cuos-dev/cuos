@@ -66,18 +66,32 @@ btrfs() {
 }
 
 df() {
-  if [[ "${1}" = "-h" ]]; then
-    echo "Filesystem                Size      Used Available Use% Mounted on"
-    echo "/dev/mapper/loop0p3       1.3G    733.8M    522.3M  58% ${2}"
-    return
-  fi
-  echo "Filesystem     1B-blocks       Used  Available Use% Mounted on"
-  if [[ -n "${MOCK_DF_WRAPS-}" ]]; then
-    echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788"
-    echo "               1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${2}"
-    return
-  fi
-  echo "/dev/mapper/loop0p3 1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${2}"
+  case "${1}" in
+    -h)
+      echo "Filesystem                Size      Used Available Use% Mounted on"
+      echo "/dev/mapper/loop0p3       1.3G    733.8M    522.3M  58% ${2}"
+      ;;
+    -k)
+      # The default is the boot partition of the x86_64 build of 2026-09-10:
+      # 68.4 MiB of 252.7 MiB with one slot installed.
+      echo "Filesystem     1K-blocks      Used Available Use% Mounted on"
+      if [[ -n "${MOCK_DF_WRAPS-}" ]]; then
+        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788"
+        echo "               ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771  27% ${2}"
+      else
+        echo "/dev/mapper/loop0p2 ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771  27% ${2}"
+      fi
+      ;;
+    *)
+      echo "Filesystem     1B-blocks       Used  Available Use% Mounted on"
+      if [[ -n "${MOCK_DF_WRAPS-}" ]]; then
+        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788"
+        echo "               1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${2}"
+      else
+        echo "/dev/mapper/loop0p3 1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${2}"
+      fi
+      ;;
+  esac
 }
 
 # shellcheck source=/dev/null
@@ -177,6 +191,18 @@ export IMAGE="cuos-system:build"
 expect "pull_image: a local build is not" "0" pulls_of
 export INSTALLIMAGE=""
 export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
+
+expect_rc "check_boot_reserve: one slot at 27%" 0 rc_of check_boot_reserve
+MOCK_SIZE_KB=100000
+MOCK_USED_KB=40000
+expect_rc "check_boot_reserve: 40% is still fine" 0 rc_of check_boot_reserve
+MOCK_USED_KB=41000
+expect_rc "check_boot_reserve: 41% leaves the second slot too little" 115 \
+  rc_of check_boot_reserve
+unset MOCK_SIZE_KB MOCK_USED_KB
+MOCK_DF_WRAPS=1
+expect_rc "check_boot_reserve: wrapped df line" 0 rc_of check_boot_reserve
+MOCK_DF_WRAPS=""
 
 expect_rc "check_environment: everything mounted" 0 rc_of check_environment
 MOCK_UNMOUNTED="${TARGET_ROOT}"

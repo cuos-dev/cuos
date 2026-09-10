@@ -100,6 +100,32 @@ check_free_space() {
   fi
 }
 
+# The factory installs one slot, and the first update puts a second one beside
+# it on a boot partition that never grows: it is sized once, in
+# image-factory/create_image.sh, and no update can repartition the disk it
+# runs from. So the moment to find out that two slots do not fit is here, in
+# the factory, where the layout can still be changed - on a device it is a
+# kernel that cannot be installed any more.
+#
+# 40 and not 50 percent: the second slot's kernel and initrd are a future
+# build, and they will not be smaller than today's.
+#
+# df -k, not -B1: in the factory this is busybox's df, which has no GNU
+# block-size options. Fields from the end, for a wrapped device name.
+check_boot_reserve() {
+  local size used percent
+
+  read -r size used <<<"$(df -k "${TARGET_BOOT}" \
+    | awk 'END { print $(NF-4), $(NF-3) }')"
+  percent="$(( used * 100 / size ))"
+
+  if (( percent > 40 )); then
+    raise 115 "${TARGET_BOOT} is ${percent}% full with one slot installed, so
+       the second slot will not fit. Give the boot partition more room in
+       image-factory/create_image.sh."
+  fi
+}
+
 target_platform() {
   local arch="${1:-}"
   local platform=""
@@ -331,6 +357,8 @@ main() {
 
   if [[ "${INSTALLIMAGE}" = "true" ]]; then
     copy_system_json
+
+    check_boot_reserve
   fi
 
   exit 0
