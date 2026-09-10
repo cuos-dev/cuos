@@ -77,6 +77,18 @@ product_name() {
   echo "${name}"
 }
 
+# prepare_slot deletes "${TARGET_BOOT}/${SLOT}"_* and creates a subvolume under
+# TARGET_ROOT. Both are destructive at the wrong path if the caller has not
+# mounted what it says it has.
+check_environment() {
+  [[ -n "${IMAGE}" ]] \
+    || raise 100 "No image to install given"
+  mountpoint -q "${TARGET_ROOT}" \
+    || raise 100 "TARGET_ROOT (${TARGET_ROOT}) is not a mounted filesystem"
+  mountpoint -q "${TARGET_BOOT}" \
+    || raise 100 "TARGET_BOOT (${TARGET_BOOT}) is not a mounted filesystem"
+}
+
 check_free_space() {
   local avail_bytes required_bytes
 
@@ -168,13 +180,10 @@ repo_digest() {
     | cut -d '@' -f 2
 }
 
-# A locally built image has no RepoDigests, and its id identifies it just as
-# well.
+# $1 is the digest from the registry, empty for a locally built image: that one
+# has no RepoDigests, and its id identifies it just as well.
 image_digest() {
-  local digest
-  digest="$(repo_digest)"
-
-  echo "${digest:-"$(docker inspect --format='{{.Id}}' "${IMAGE}")"}"
+  echo "${1:-"$(docker inspect --format='{{.Id}}' "${IMAGE}")"}"
 }
 
 prepare_slot() {
@@ -182,7 +191,9 @@ prepare_slot() {
   old_image_path="$(grep -oE '^[^@]+' "${CONTAINER_ROOTFS_FS}/etc/image" 2>/dev/null)"
 
   if [[ -d "${CONTAINER_ROOTFS_FS}" ]]; then
-    docker image rm --platform "${TARGET_PLATFORM}" "${old_image_path}" || true
+    if [[ -n "${old_image_path}" ]]; then
+      docker image rm --platform "${TARGET_PLATFORM}" "${old_image_path}" || true
+    fi
 
     btrfs subvolume delete -R "${CONTAINER_ROOTFS_FS}" || true
   fi
@@ -191,11 +202,17 @@ prepare_slot() {
   btrfs subvolume create "${CONTAINER_ROOTFS_FS}"
 }
 
+# The factory tags the image it has just built ':build' and hands it over
+# locally, so there is no registry to pull it from.
+is_local_build() {
+  [[ "${INSTALLIMAGE}" = "true" && "${IMAGE}" = *:build ]]
+}
+
 pull_image() {
-  if [[ "${INSTALLIMAGE}" != "true" || "${IMAGE}" != *:build ]]; then
-    docker image pull --platform "${TARGET_PLATFORM}" "${IMAGE}" \
-      || raise 103 "Faild to fetch system image"
-  fi
+  if is_local_build; then return; fi
+
+  docker image pull --platform "${TARGET_PLATFORM}" "${IMAGE}" \
+    || raise 103 "Faild to fetch system image"
 }
 
 export_rootfs() {
@@ -205,6 +222,7 @@ export_rootfs() {
 
   if ! docker export "${container}" \
       | tar -C "${CONTAINER_ROOTFS_FS}" --numeric-owner --xattrs --xattrs-include='*' -xf -; then
+    docker rm "${container}" >/dev/null 2>&1 || true
     raise 107 "Failed to export the container"
   fi
   docker rm "${container}" \
@@ -213,10 +231,14 @@ export_rootfs() {
   rm -f "${CONTAINER_ROOTFS_FS}/.dockerenv" || true
 }
 
+# Straight into the new rootfs: this describes the target's layout, and nothing
+# in the updater or the factory reads an fstab of its own - every mount they
+# make names its device and options, and the grub backend writes the root
+# filesystem into the kernel command line rather than reading it back.
 write_fstab() {
-  local fstab_file="${T_FILE_FSTAB:-"/etc/fstab"}"
+  local fstab_file="${T_FILE_FSTAB:-"${CONTAINER_ROOTFS_FS}/etc/fstab"}"
 
-  cat <<EOF >"${fstab_file}"
+  cat >"${fstab_file}" <<EOF || raise 119 "Failed to write ${fstab_file}"
 # <file system> <dir> <type> <options> <dump> <pass>
 # /dev/sda3
 LABEL=system  /  btrfs  rw,relatime,discard=async,space_cache=v2,subvol=${CONTAINER_ROOTFS}  0 0
@@ -226,11 +248,6 @@ LABEL=system  /data  btrfs  rw,relatime,discard=async,space_cache=v2,subvol=@dat
 # /dev/sda2
 #LABEL=boot  /boot  vfat  rw,relatime,fmask=0022,dmask=0022,shortname=mixed,errors=remount-ro  0 2
 EOF
-
-  if [[ -n "${TEST:-}" ]]; then return; fi
-
-  cp "${fstab_file}" "${CONTAINER_ROOTFS_FS}/etc/fstab" \
-    || raise 119 "Failed to copy fstab"
 }
 
 run_first_run() {
@@ -260,6 +277,8 @@ main() {
   SLOT="$(target_slot "${1:-}")"
   IMAGE="${2:-}"
   IMAGE_DIGEST="${3:-""}"
+
+  check_environment
 
   export PRODUCT_NAME
   PRODUCT_NAME="$(product_name)"
@@ -295,7 +314,7 @@ main() {
 
   report_disk_usage "before"
 
-  DIGEST="$(image_digest)"
+  DIGEST="$(image_digest "${NEW_DIGEST}")"
   if [[ -z "${DIGEST}" ]]; then
     raise 105 "Failed to get image digest"
   fi

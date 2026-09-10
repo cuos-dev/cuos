@@ -38,8 +38,19 @@ docker() {
     export)
       return "${MOCK_EXPORT_RC-0}"
       ;;
+    rm)
+      echo "rm ${2}" >>"${WORK_DIR}/docker.log"
+      ;;
+    image)
+      echo "${1} ${2}" >>"${WORK_DIR}/docker.log"
+      ;;
   esac
   return 0
+}
+
+mountpoint() {
+  # "mountpoint -q <path>", so the path is $2.
+  [[ "${2}" != "${MOCK_UNMOUNTED-}" ]]
 }
 
 tar() {
@@ -140,15 +151,57 @@ expect_rc "remote_digest_is_installed: no answer falls through" 1 \
 
 MOCK_REPO_DIGEST="sha256:cccc"
 expect "repo_digest: from RepoDigests" "sha256:cccc" repo_digest
-expect "image_digest: from RepoDigests" "sha256:cccc" image_digest
-MOCK_REPO_DIGEST=""
+expect "image_digest: from the registry" "sha256:cccc" image_digest "sha256:cccc"
 MOCK_IMAGE_ID="sha256:dddd"
-expect "image_digest: a local build falls back to the id" "sha256:dddd" image_digest
+expect "image_digest: a local build falls back to the id" "sha256:dddd" image_digest ""
+
+export INSTALLIMAGE="true"
+export IMAGE="cuos-system:build"
+expect_rc "is_local_build: the factory's own build" 0 rc_of is_local_build
+export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
+expect_rc "is_local_build: a pulled image" 1 rc_of is_local_build
+export INSTALLIMAGE=""
+export IMAGE="cuos-system:build"
+expect_rc "is_local_build: not the factory, so :build is pulled too" 1 \
+  rc_of is_local_build
+export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
+
+pulls_of() {
+  : >"${WORK_DIR}/docker.log"
+  pull_image
+  grep -c "^image pull$" "${WORK_DIR}/docker.log" || true
+}
+expect "pull_image: an image from a registry is pulled" "1" pulls_of
+export INSTALLIMAGE="true"
+export IMAGE="cuos-system:build"
+expect "pull_image: a local build is not" "0" pulls_of
+export INSTALLIMAGE=""
+export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
+
+expect_rc "check_environment: everything mounted" 0 rc_of check_environment
+MOCK_UNMOUNTED="${TARGET_ROOT}"
+expect_rc "check_environment: no root filesystem" 100 rc_of check_environment
+MOCK_UNMOUNTED="${TARGET_BOOT}"
+expect_rc "check_environment: no boot partition" 100 rc_of check_environment
+MOCK_UNMOUNTED=""
+without_image() {
+  ( IMAGE=""; check_environment )
+}
+expect_rc "check_environment: no image given" 100 rc_of without_image
 
 export SLOT="B"
 export CONTAINER_ROOTFS="@os/system-B"
 export CONTAINER_ROOTFS_FS="${TARGET_ROOT}/system-B"
 export T_FILE_FSTAB="/dev/stdout"
+
+fstab_in_the_rootfs() {
+  ( unset T_FILE_FSTAB
+    mkdir -p "${CONTAINER_ROOTFS_FS}/etc"
+    write_fstab
+    grep -c "subvol=@os/system-B" "${CONTAINER_ROOTFS_FS}/etc/fstab" )
+}
+expect "write_fstab: it lands in the new rootfs, not in ours" "1" \
+  fstab_in_the_rootfs
 
 expect "write_fstab: the root entry carries the slot's subvolume" \
 '# <file system> <dir> <type> <options> <dump> <pass>
@@ -183,6 +236,17 @@ slot_exists() {
 }
 expect "prepare_slot: the slot subvolume is there afterwards" "yes" slot_exists
 
+image_removals() {
+  : >"${WORK_DIR}/docker.log"
+  prepare_slot >/dev/null 2>&1
+  grep -c "^image rm$" "${WORK_DIR}/docker.log" || true
+}
+expect "prepare_slot: a slot without /etc/image removes no image" "0" image_removals
+mkdir -p "${CONTAINER_ROOTFS_FS}/etc"
+echo "ghcr.io/cuos-dev/cuos-system:development@sha256:eeee" \
+  >"${CONTAINER_ROOTFS_FS}/etc/image"
+expect "prepare_slot: the old slot's image is removed" "1" image_removals
+
 dockerenv_state() {
   [[ -f "${CONTAINER_ROOTFS_FS}/.dockerenv" ]] && echo "there" || echo "gone"
 }
@@ -192,10 +256,19 @@ expect "export_rootfs: .dockerenv is written by docker" "there" dockerenv_state
 expect_rc "export_rootfs: a working export" 0 rc_of export_rootfs
 expect "export_rootfs: .dockerenv is removed" "gone" dockerenv_state
 
+containers_removed() {
+  : >"${WORK_DIR}/docker.log"
+  rc_of export_rootfs >/dev/null
+  grep -c "^rm container123$" "${WORK_DIR}/docker.log" || true
+}
+expect "export_rootfs: the container is removed" "1" containers_removed
+
 # The regression test for the missing pipefail: docker export fails, tar
 # succeeds, and the truncated rootfs must not be installed.
 MOCK_EXPORT_RC=1
 expect_rc "export_rootfs: a failing export is not masked by tar" 107 rc_of export_rootfs
+expect "export_rootfs: a failed export does not leak the container" "1" \
+  containers_removed
 MOCK_EXPORT_RC=0
 
 MOCK_TAR_RC=2
