@@ -1,0 +1,4 @@
+{
+  "product_name": "My OS",
+  "init_image": "ghcr.io/cuos-dev/cuos-iac-local:latest"
+}
