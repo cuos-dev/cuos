@@ -35,6 +35,10 @@ attach_loop_device() {
   losetup --find --show "${image}" 2>/dev/null
 }
 
+# Sets LOOPDEV. Not an echo into a command substitution: this function raises,
+# and a raise inside "$( )" ends the subshell only - the caller would carry on
+# with an empty device and mkfs whatever /dev/mapper/p2 happens to be.
+#
 # Three attempts, and an explanation for every way this can fail - the messages
 # are the whole point: each names what to do on the build host.
 loopdev_attach() {
@@ -104,7 +108,8 @@ loopdev_attach() {
        then build again."
   fi
 
-  printf '%s' "${dev}"
+  # shellcheck disable=SC2034
+  LOOPDEV="${dev}"
 }
 
 loopdev_map_partitions() {

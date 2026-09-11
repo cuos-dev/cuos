@@ -37,7 +37,7 @@ main() {
 
   [[ -d "${OUTPUT_DIR}" ]] || raise "Output dir not mounted"
 
-  LOOPDEV="$(loopdev_attach "${IMAGE}")"
+  loopdev_attach "${IMAGE}"
   loopdev_map_partitions "${LOOPDEV}"
   loopdev_find_partitions "${LOOPDEV}"
   export TARGET_BOOT_PARTITION TARGET_ROOT_PARTITION

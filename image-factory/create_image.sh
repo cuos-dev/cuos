@@ -199,7 +199,7 @@ partition_image() {
 }
 
 map_partitions() {
-  LOOPDEV="$(loopdev_attach "${IMAGE}")"
+  loopdev_attach "${IMAGE}"
   loopdev_map_partitions "${LOOPDEV}"
 
   export TARGET_DEVICE="${LOOPDEV}"
@@ -262,7 +262,12 @@ main() {
 
   pull_system_image
 
-  create_empty_image "$(image_size_mb)"
+  # Not create_empty_image "$(image_size_mb)": image_size_mb raises when the
+  # configured size is too small, and a raise inside "$( )" ends the subshell
+  # only - dd would then be given an empty count.
+  local size_mb
+  size_mb="$(image_size_mb)" || exit "$?"
+  create_empty_image "${size_mb}"
   partition_image
   map_partitions
   create_filesystems
