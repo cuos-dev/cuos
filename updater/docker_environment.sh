@@ -1,154 +1,57 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
-set -x
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-raise() {
-	local code="${1:-1}"
-	shift
-	echo "Error: $*" >&2
-	exit "${code}"
-}
-
-# shellcheck disable=SC2329 disable=SC2317
-cleanup() {
-	if [[ -n "${DOCKERD_PID:-}" ]]; then
-		kill "${DOCKERD_PID}" || true
-		wait "${DOCKERD_PID}" || true
-	fi
-	umount -R "${TARGET_ROOT}" 2>/dev/null || true
-	umount -R "${TARGET_BOOT}" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-
-if [[ "${INSTALLIMAGE}" != "true" ]]; then
-	update-ca-certificates
-fi
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/log.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/docker.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/target.sh"
 
 export TARGET_DEVICE="${TARGET_DEVICE:-"/dev/sda"}"
 TARGET_BOOT_PARTITION="${TARGET_BOOT_PARTITION:-"LABEL=boot"}"
 TARGET_ROOT_PARTITION="${TARGET_ROOT_PARTITION:-"LABEL=system"}"
 export TARGET_BOOT="${TARGET_BOOT:-"/mnt/boot"}"
 export TARGET_ROOT="${TARGET_ROOT:-"/mnt/os"}"
+# A daemon started here writes into the target: nothing else in this container
+# has room for a system image.
 export DOCKER_DIR="${TARGET_ROOT}/docker"
 
-if [[ "${INSTALLGRUB}" = "true" && ! -b "${TARGET_DEVICE}" ]]; then
-	echo "No target device found: ${TARGET_DEVICE}"
-	raise 90 "No target device found"
-fi
-
-# Mount devices
-mkdir -p "${TARGET_ROOT}"
-mount -t btrfs -o subvol=@os "${TARGET_ROOT_PARTITION}" "${TARGET_ROOT}" \
-	|| raise 91 "Could not mount @os subvolume"
-
-mkdir -p "${TARGET_BOOT}"
-# The charset is the kernel's own. A vfat mount that names one the running
-# kernel has no NLS table for is refused outright ("IO charset ... not found"),
-# and which tables a kernel carries is not something this script can know: the
-# Armbian sunxi64 kernel of the Orange Pi Zero 3 has no nls_ascii. The boot
-# partition holds ASCII names only, so nothing here depends on the choice.
-mount -t vfat -o "rw,relatime,fmask=0022,dmask=0022,shortname=mixed,errors=remount-ro" "${TARGET_BOOT_PARTITION}" "${TARGET_BOOT}" \
-	|| raise 92 "Could not mount boot partition"
-
-
-
-#if [[ ! -d "${TARGET_BOOT}/grub" ]]; then
-#	echo "No boot partion mounted to ${TARGET_BOOT}"
-#	exit 1
-#fi
-
-
-start_dockerd() {
-
-	# Start dockerd and wait until it is ready:
-	dockerd \
-		--storage-driver btrfs \
-		--iptables=false \
-		--ip6tables=false \
-		--ip-forward=false \
-		--ip-masq=false \
-		--bridge=none \
-		--data-root "${DOCKER_DIR}" &
-	DOCKERD_PID="$!"
-	echo "Waiting for Docker to be ready..."
-	counter=0
-	until docker info >/dev/null 2>&1; do
-		counter="$((counter + 1))"
-		if [[ "${counter}" -gt 100 ]]; then
-			raise 93 "Could not start dockerd"
-		fi
-		sleep 1
-		if ! kill -0 "$DOCKERD_PID"; then
-			return 1
-		fi
-	done
-	if ! docker info >/dev/null 2>&1; then
-		return 1
-	fi
-	return 0
+# shellcheck disable=SC2329 disable=SC2317
+cleanup() {
+  docker_cleanup "${DOCKER_DIR}"
+  target_umount
 }
 
-# The host's daemon, if the caller handed one in. /var/run/docker.sock is left
-# alone so that start_dockerd below can bind it; the plain path is still
-# honoured, because image-factory and any system older than this updater mount
-# the socket there.
-CUOS_DOCKER_SOCKET="${CUOS_DOCKER_SOCKET:-"/run/cuos-docker.sock"}"
-if [[ -S "${CUOS_DOCKER_SOCKET}" ]]; then
-	export DOCKER_HOST="unix://${CUOS_DOCKER_SOCKET}"
+main() {
+  set -x
+  trap cleanup EXIT
+
+  if [[ "${INSTALLIMAGE}" != "true" ]]; then
+    update-ca-certificates
+  fi
+
+  if [[ "${INSTALLGRUB}" = "true" && ! -b "${TARGET_DEVICE}" ]]; then
+    raise 90 "No target device found: ${TARGET_DEVICE}"
+  fi
+
+  target_mount
+
+  docker_ensure "${DOCKER_DIR}" || raise 94 "Could not start dockerd"
+  docker info
+
+  local script="$1"
+  shift
+
+  "${script}" "$@"
+
+  # The trap takes the data root away and unmounts afterwards, in that order.
+  exit "$?"
+}
+
+# Execute main only if script is run, not sourced
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
 fi
-
-if ! docker info >/dev/null 2>&1; then
-	# A socket that does not answer must not keep the client from reaching the
-	# dockerd started below, which listens on the default path.
-	unset DOCKER_HOST
-	if ! start_dockerd; then
-		if ! start_dockerd; then
-			if ! start_dockerd; then
-				if ! start_dockerd; then
-					raise 94 "Could not start dockerd after three trys"
-				fi
-			fi
-		fi
-	fi
-fi
-
-docker info
-
-
-SCRIPT="$1"
-shift
-
-# Perform task
-"${SCRIPT}" "$@"
-EXIT_CODE="$?"
-
-# @os/docker is a leftover of the layout earlier versions used, where docker's
-# btrfs storage driver created the subvolumes and one of them was the OS root.
-# Nothing creates it any more - start_dockerd's --data-root does, and only where
-# no host daemon was handed in, which is why DOCKERD_PID guards this. Both slots
-# have to exist before deleting it, so a half-migrated system keeps its root.
-if [[ -z "${DOCKERD_PID}" && \
-		-d "${TARGET_ROOT}/docker" && \
-		-d "${TARGET_ROOT}/system-A" && \
-		-d "${TARGET_ROOT}/system-B" ]]; then
-	btrfs subvolume delete -R "${TARGET_ROOT}/docker/btrfs/subvolumes"/*
-	rm -Rf "${TARGET_ROOT}/docker"
-fi
-
-# clean up:
-if [[ -n "${DOCKERD_PID}" ]]; then
-	sync
-	sleep 1
-	kill "${DOCKERD_PID}"
-	wait "${DOCKERD_PID}"
-	DOCKERD_PID=""
-fi
-
-sync
-
-umount -R "${TARGET_ROOT}"
-umount -R "${TARGET_BOOT}"
-
-exit "${EXIT_CODE}"
