@@ -39,4 +39,8 @@ COPY image-factory/create_image.sh /create_image.sh
 COPY updater/updater.sh updater/perform_update.sh updater/docker_environment.sh \
      updater/shell.sh /usr/local/updater/
 COPY updater/lib/ /usr/local/updater/lib/
-COPY image-factory/mount_image.sh /mount_image.sh
+COPY image-factory/shell.sh /shell.sh
+COPY image-factory/lib/ /usr/local/image-factory/lib/
+# The path cuos-release/tool.sh pins as its entrypoint for 'tool.sh shell'. It
+# can go once no pinned tool.sh asks for it any more.
+RUN ln -s /shell.sh /mount_image.sh
