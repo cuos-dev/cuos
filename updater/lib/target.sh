@@ -24,3 +24,15 @@ target_umount() {
   umount -R "${TARGET_ROOT}" 2>/dev/null || true
   umount -R "${TARGET_BOOT}" 2>/dev/null || true
 }
+
+# prepare_slot deletes "${TARGET_BOOT}/${SLOT}"_* and creates a subvolume under
+# TARGET_ROOT. Both are destructive at the wrong path if the caller has not
+# mounted what it says it has.
+check_environment() {
+  [[ -n "${IMAGE}" ]] \
+    || raise 100 "No image to install given"
+  mountpoint -q "${TARGET_ROOT}" \
+    || raise 100 "TARGET_ROOT (${TARGET_ROOT}) is not a mounted filesystem"
+  mountpoint -q "${TARGET_BOOT}" \
+    || raise 100 "TARGET_BOOT (${TARGET_BOOT}) is not a mounted filesystem"
+}
