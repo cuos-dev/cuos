@@ -1,18 +1,16 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
-raise() {
-	echo "Error: $*" >&2
-	exit 1
-}
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# One line per step of the build, marked for whoever is running this factory.
-# cuos-release/tool.sh passes lines carrying this marker through to the terminal
-# and puts everything else in output/NAME.build.log; run directly, the marker is
-# just a prefix. Keep it in step with log_is_step_line() over there.
-step() {
-	echo "==> $*"
-}
+# This factory runs the updater's scripts and shares its libraries. In the image
+# they sit next to each other under /usr/local/updater; in the tree they are one
+# directory over.
+CUOS_UPDATER_DIR="${CUOS_UPDATER_DIR:-"/usr/local/updater"}"
+[[ -d "${CUOS_UPDATER_DIR}/lib" ]] || CUOS_UPDATER_DIR="${SCRIPT_DIR}/../updater"
+
+# shellcheck source=/dev/null
+source "${CUOS_UPDATER_DIR}/lib/log.sh"
 
 cleanup() {
 	# Versuche, gemountete Partitionen zu unmounten

@@ -30,3 +30,4 @@ RUN apk add --no-cache jq btrfs-progs util-linux bash tar
 #VOLUME [ "/sys/fs/cgroup" ]
 
 COPY updater.sh perform_update.sh docker_environment.sh shell.sh /usr/local/updater/
+COPY lib/ /usr/local/updater/lib/

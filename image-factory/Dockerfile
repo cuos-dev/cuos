@@ -38,4 +38,5 @@ COPY image-factory/create_image.sh /create_image.sh
 # Named, not updater/*.sh: that glob also picks up perform_update.test.sh.
 COPY updater/updater.sh updater/perform_update.sh updater/docker_environment.sh \
      updater/shell.sh /usr/local/updater/
+COPY updater/lib/ /usr/local/updater/lib/
 COPY image-factory/mount_image.sh /mount_image.sh

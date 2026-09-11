@@ -5,42 +5,14 @@
 # which would install a truncated rootfs into the target slot.
 set -o pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/log.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/platform.sh"
+
 export CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
-
-raise() {
-  local code=1
-  local message="$*"
-
-  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
-    code="${1:-}"
-    message="${*:2}"
-  fi
-
-  echo "Error: $message" >&2
-  exit "$code"
-}
-
-raise_info() {
-  local code=1
-  local message="$*"
-
-  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
-    code="${1:-}"
-    message="${*:2}"
-  fi
-
-  echo "Info: $message" >&2
-  exit "$code"
-}
-
-# One line per step, marked for whoever is watching. cuos-release/tool.sh puts
-# lines carrying this marker on the terminal - indented by itself, so this one
-# does not - and everything else in output/NAME.build.log. On a device the
-# marker is just a prefix in the journal. Keep it in step with
-# image-factory/create_image.sh and log_is_step_line() over there.
-step() {
-  echo "==> $*"
-}
 
 # -P: POSIX output, one line per filesystem. Without it df puts a device name
 # that does not fit on a line of its own and the columns move.
@@ -136,51 +108,6 @@ check_boot_reserve() {
        the second slot will not fit. Give the boot partition more room in
        image-factory/create_image.sh."
   fi
-}
-
-target_platform() {
-  local arch="${1:-}"
-  local platform=""
-
-  case "${arch}" in
-    x86_64)
-      platform="linux/amd64"
-      ;;
-    aarch64)
-      platform="linux/arm64"
-      ;;
-    armv7l)
-      platform="linux/arm/v7"
-      ;;
-    armv6l)
-      platform="linux/arm/v6"
-      ;;
-    i686)
-      platform="linux/386"
-      ;;
-    rpi-arm64)
-      platform="linux/arm64"
-      ;;
-    rpi-arm32)
-      # ARMv6 so the image also runs on Pi 1 and Zero
-      platform="linux/arm/v6"
-      ;;
-    orangepi-zero3)
-      platform="linux/arm64"
-      ;;
-    "")
-      ;;
-    *)
-      echo "Unknown architecture: ${arch}" >&2
-      return 1
-      ;;
-  esac
-
-  platform="${platform:-"$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')"}"
-  if [[ "${platform}" = "linux/arm" ]]; then
-    platform="linux/arm/v7"
-  fi
-  echo "${platform}"
 }
 
 # $1 is a digest of ${IMAGE}
