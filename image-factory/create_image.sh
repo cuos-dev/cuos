@@ -92,7 +92,16 @@ pull_system_image() {
 
   step "Fetching ${OS_IMAGE}"
   docker image pull --platform "${platform}" "${OS_IMAGE}" \
-    || raise "Faild to fetch the system image ${OS_IMAGE}"
+    || raise "Failed to fetch the system image ${OS_IMAGE}.
+
+       This step needs a docker daemon before anything is written, because the
+       size of the image is computed from the size of the system image. A
+       factory started by hand needs the host's daemon handed in, the way
+       tool.sh does it:
+
+         -v /var/run/docker.sock:/run/cuos-docker.sock
+
+       The updater started one of its own later; this is earlier than that."
 }
 
 image_size_mb() {
