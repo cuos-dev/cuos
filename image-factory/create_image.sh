@@ -117,7 +117,9 @@ image_size_mb() {
 build_lxc_image() {
   local image_digest container_name
 
-  IMAGE="${IMAGE/img/tar.gz}"
+  # The extension, not the first "img" in the path: an image whose name carries
+  # those three letters would otherwise be renamed instead of its suffix.
+  IMAGE="${IMAGE%.img}.tar.gz"
 
   step "Fetching the system image ${OS_IMAGE}"
   docker image pull "${OS_IMAGE}" || raise "Faild to fetch image"
