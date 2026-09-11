@@ -17,15 +17,22 @@ docker() {
 dockerd() {
   echo "dockerd $*" >>"${WORK_DIR}/dockerd.log"
   [[ -n "${MOCK_DOCKERD_FAILS-}" ]] || : >"${WORK_DIR}/ready"
-  sleep 30
+  # 'command', because sleep is mocked away below: a daemon that dies at once
+  # takes the "the process is gone" path and never reaches the timeout.
+  command sleep 5 >/dev/null 2>&1
 }
 
 btrfs() {
   echo "btrfs $*" >>"${WORK_DIR}/btrfs.log"
 }
 
-# The wait loop of a daemon that never answers would take 100 seconds.
+# The wait loop of a daemon that never answers would take 100 seconds, and
+# docker_stop syncs every filesystem this machine has.
 sleep() {
+  :
+}
+
+sync() {
   :
 }
 
@@ -34,6 +41,8 @@ source "${SCRIPT_DIR}/../../system/cuos/lib-test.sh"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/docker.sh"
+
+export CUOS_DOCKERD_WAIT=3
 
 rc_of() {
   ( "$@" ) >/dev/null 2>&1
@@ -83,6 +92,17 @@ expect "docker_ensure: a daemon that never answers is tried four times" "4" \
   started_daemons
 expect_rc "docker_ensure: and then it fails" 1 \
   rc_of docker_ensure "${WORK_DIR}/data-root"
+
+# A daemon that is up and silent still holds the lock on the data root, so
+# every further attempt would fail against it.
+no_orphan_left() {
+  rm -f "${WORK_DIR}/ready"
+  _CUOS_DOCKERD_PID=""
+  docker_ensure "${WORK_DIR}/data-root" >/dev/null 2>&1
+  echo "pid=${_CUOS_DOCKERD_PID}"
+}
+expect "docker_ensure: a daemon that never answers is not left running" "pid=" \
+  no_orphan_left
 MOCK_DOCKERD_FAILS=""
 
 # Driven through docker_ensure, so that it is the wiring under test and not the

@@ -82,20 +82,20 @@ df() {
       echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1.3G 733.8M 522.3M 58% ${path}"
       ;;
     *-Pk*)
-      # The default is the boot partition of the x86_64 build of 2026-09-10:
-      # 68.4 MiB of 252.7 MiB with one slot installed.
+      # Both checks read -Pk, so the answer follows the path. The boot defaults
+      # are the x86_64 build of 2026-09-10: 68.4 MiB of 252.7 MiB, one slot.
       echo "Filesystem     1024-blocks      Used Available Capacity Mounted on"
-      echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771 27% ${path}"
-      ;;
-    *-P*)
-      echo "Filesystem     1B-blocks       Used  Available Capacity Mounted on"
-      echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1446256640 769654784 ${MOCK_AVAIL_BYTES-5368709120} 53% ${path}"
+      if [[ "${path}" = "${TARGET_BOOT}" ]]; then
+        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771 27% ${path}"
+      else
+        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1412360 751616 ${MOCK_AVAIL_KB-5242880} 53% ${path}"
+      fi
       ;;
     *)
       # Without -P the device name gets a line of its own and the columns move.
-      echo "Filesystem     1B-blocks       Used  Available Use% Mounted on"
+      echo "Filesystem     1024-blocks      Used Available Use% Mounted on"
       echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788"
-      echo "               1446256640  769654784 ${MOCK_AVAIL_BYTES-5368709120}  53% ${path}"
+      echo "               1412360  751616 ${MOCK_AVAIL_KB-5242880}  53% ${path}"
       ;;
   esac
 }
@@ -140,9 +140,9 @@ expect "product_name: no config at all" "CuOS" product_name
 
 # The mock's device name is longer than the column, which is what -P is for.
 expect_rc "check_free_space: 5 GB is enough" 0 rc_of check_free_space
-MOCK_AVAIL_BYTES="1073741824"
+MOCK_AVAIL_KB="1048576"
 expect_rc "check_free_space: 1 GB is not" 101 rc_of check_free_space
-MOCK_AVAIL_BYTES="5368709120"
+MOCK_AVAIL_KB="5242880"
 MOCK_DF_UNSUPPORTED=1
 expect_rc "check_free_space: a df without -P is not guessed at" 100 \
   rc_of check_free_space

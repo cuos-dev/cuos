@@ -11,6 +11,9 @@
 
 CUOS_DOCKER_SOCKET="${CUOS_DOCKER_SOCKET:-"/run/cuos-docker.sock"}"
 
+# Seconds to wait for a daemon of our own to answer.
+CUOS_DOCKERD_WAIT="${CUOS_DOCKERD_WAIT:-100}"
+
 _CUOS_DOCKERD_PID=""
 _CUOS_DOCKERD_DATA_ROOT=""
 
@@ -53,7 +56,10 @@ docker_start() {
   echo "Waiting for Docker to be ready..."
   until docker_available; do
     counter="$((counter + 1))"
-    if [[ "${counter}" -gt 100 ]]; then
+    if [[ "${counter}" -gt "${CUOS_DOCKERD_WAIT}" ]]; then
+      # It is up and not answering. Left running it would keep the lock on the
+      # data root, and every further attempt would fail against it.
+      docker_stop
       return 1
     fi
     sleep 1

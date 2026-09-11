@@ -18,16 +18,18 @@ report_disk_usage() {
   echo "disc usage (boot, ${when} install): $(disk_usage "${TARGET_BOOT}")"
 }
 
+# df -Pk, like check_boot_reserve: this runs inside the updater image, which is
+# Alpine without coreutils, so df is busybox's and has no GNU block sizes.
 check_free_space() {
-  local avail_bytes required_bytes
+  local avail_kb required_kb
 
-  avail_bytes="$(df -P -B1 "${TARGET_ROOT}" | awk 'NR == 2 { print $4 }')"
-  [[ "${avail_bytes}" =~ ^[0-9]+$ ]] \
-    || raise 100 "Could not read the free space of ${TARGET_ROOT}: df -P -B1 gave \"${avail_bytes}\""
-  required_bytes="$((2 * 1024 * 1024 * 1024))"
+  avail_kb="$(df -Pk "${TARGET_ROOT}" | awk 'NR == 2 { print $4 }')"
+  [[ "${avail_kb}" =~ ^[0-9]+$ ]] \
+    || raise 100 "Could not read the free space of ${TARGET_ROOT}: df -Pk gave \"${avail_kb}\""
+  required_kb="$((2 * 1024 * 1024))"
 
-  if [[ "${avail_bytes}" -le "${required_bytes}" ]]; then
-    raise 101 "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((avail_bytes/1024/1024)) MB). Aborting update."
+  if [[ "${avail_kb}" -le "${required_kb}" ]]; then
+    raise 101 "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((avail_kb/1024)) MB). Aborting update."
   fi
 }
 

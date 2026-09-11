@@ -19,9 +19,12 @@ export TARGET_ROOT="${TARGET_ROOT:-"/mnt/os"}"
 # has room for a system image.
 export DOCKER_DIR="${TARGET_ROOT}/docker"
 
+# The trap stops a daemon of ours and unmounts, and does not delete anything:
+# target_mount raises between the two mounts, and a trap that removes
+# ${TARGET_ROOT}/docker would do that with the target's root already mounted.
 # shellcheck disable=SC2329 disable=SC2317
 cleanup() {
-  docker_cleanup "${DOCKER_DIR}"
+  docker_stop
   target_umount
 }
 
@@ -46,9 +49,14 @@ main() {
   shift
 
   "${script}" "$@"
+  local exit_code="$?"
 
-  # The trap takes the data root away and unmounts afterwards, in that order.
-  exit "$?"
+  # Whatever the task did, the data root is a copy of the system image that
+  # nothing reads again. Here and not in the trap: the failures before this line
+  # have not put anything there.
+  docker_cleanup "${DOCKER_DIR}"
+
+  exit "${exit_code}"
 }
 
 # Execute main only if script is run, not sourced
