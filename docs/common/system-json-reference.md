@@ -22,9 +22,9 @@ Schema for configuring CuOS system parameters including networking, update sourc
 |**docker\_net\_space\_size**|`number`|Subnet size for Docker container networks (CIDR suffix)<br/>Default: `26`<br/>Minimum: `0`<br/>Maximum: `32`<br/>||
 |**custom\_ca\_certs**||Custom CA certificates to be trusted by the system<br/>||
 |**swap\_size**|`number`|Swap size in GB (will only be extended if enough disk space is available)<br/>Default: `8`<br/>Minimum: `0`<br/>||
-|**initial\_image**|`string`|Initial application image to start<br/>Minimal Length: `1`<br/>||
-|**initial\_image\_version**|`string`|Version of the initial application image<br/>Minimal Length: `1`<br/>||
-|**initial\_image\_digest**|`string`|Digest of the initial image for integrity check (optional)<br/>||
+|**init\_image**|`string`|Application Init Container to start: the one container CuOS runs, and from which everything else is started. CuOS IaC is the default one, pinned by cuos-release's release.json<br/>Minimal Length: `1`<br/>||
+|**init\_image\_version**|`string`|Version of the Application Init Container<br/>Minimal Length: `1`<br/>||
+|**init\_image\_digest**|`string`|Digest of the Application Init Container for integrity check (optional)<br/>||
 |**updater\_image**|`string`|Image used for updating the system<br/>Minimal Length: `1`<br/>||
 |**updater\_image\_version**|`string`|Version of the updater image<br/>Minimal Length: `1`<br/>||
 |**updater\_image\_digest**|`string`|Digest of the updater image for integrity check (optional)<br/>||
@@ -109,4 +109,4 @@ SSH public keys accepted for root login, written to /root/.ssh/authorized_keys o
 the schema CuOS validates `system.json` against at boot. Edit the schema, then run
 `npm run docs:system-json`.*
 
-<!-- schema-sha256: 3dd3963b27338eb8b689b7c1eec4422f3f88acac1861d970e3053b3fa9b4e708 -->
+<!-- schema-sha256: 288c1c7b8303ef0c1741186ab46dad675bdefbe06377f30ffc90686baf7825fe -->

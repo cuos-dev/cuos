@@ -14,26 +14,21 @@ Relevant configuration fields, see [system.json](./system-json.md):
 
 ```json
 {
-  "initial_image": "your-registry/your-app",
-  "initial_image_version": "1.2.3",
-  "initial_image_digest": "sha256:..."
+  "init_image": "your-registry/your-app",
+  "init_image_version": "1.2.3",
+  "init_image_digest": "sha256:..."
 }
 ```
 
 ### CuOS IaC is the default one
 
-The same container can be named by `init_image` instead, and **`init_image`
-wins**: `system/cuos/app-init.sh:103` reads `init_image` first and falls back to
-`initial_image` only if it is unset.
+[CuOS IaC](https://github.com/cuos-dev/cuos-iac) is an Application Init
+Container like any other — the one you get if you do not bring your own.
+`cuos-release`'s `release.json` pins it as `init_image`, so a configuration that
+includes `release.json` **already has one** and starts CuOS IaC, which then
+deploys your services from a git repository.
 
-That is how [CuOS IaC](https://github.com/cuos-dev/cuos-iac) is delivered — it
-is an Application Init Container like any other, and `cuos-release`'s
-`release.json` pins it as `init_image`. So a configuration that includes
-`release.json` **already has one**, and starts CuOS IaC, which then deploys your
-services from a git repository.
-
-To run your own container instead of CuOS IaC, set `init_image` — writing
-`initial_image` next to an included `release.json` has no effect:
+Setting `init_image` yourself replaces it:
 
 ```json
 {
@@ -120,7 +115,7 @@ Don't forget to add execution permission to your script.
 | `SYSTEM_TYPE` | env | Always `cuos` for identification |
 | `SYSTEM_CONFIG_PATH` | env | Path to active config (`/system.json`) |
 | `VIRT_TYPE` | env | Result of `systemd-detect-virt` (e.g. `kvm`, `docker`, `none`) |
-| `$1` | arg | Current application version (from `initial_image_version`) |
+| `$1` | arg | Current application version (from `init_image_version`) |
 | `$2` | arg | Previous application version (if available) |
 
 ## Failure & Rollback Logic

@@ -39,9 +39,9 @@ custom_ca_certs:
 
 swap_size: 8
 
-initial_image: "myapp/initial"
-initial_image_version: "1.0.0"
-initial_image_digest: "sha256:abc123"
+init_image: "myapp/initial"
+init_image_version: "1.0.0"
+init_image_digest: "sha256:abc123"
 
 updater_image: "myapp/updater"
 updater_image_version: "1.0.1"

@@ -45,18 +45,18 @@ checkouts, which is where `output/` appears.
   "updater_image": "ghcr.io/cuos-dev/cuos-updater",
   "updater_image_version": "latest",
   "updater_image_digest": "",
-  "initial_image": "ghcr.io/my-org/my-init-app",
-  "initial_image_version": "latest",
-  "initial_image_digest": ""
+  "init_image": "ghcr.io/my-org/my-init-app",
+  "init_image_version": "latest",
+  "init_image_digest": ""
 }
 ```
 
 Place it beside the two checkouts, as `system.json`.
 
 > Tip: For production pin versions & use digests — or
-> `"#include": "cuos-release/release.json"`, which pins them for you. Note that
-> it also pins CuOS IaC as `init_image`, which takes precedence over
-> `initial_image` — see
+> `"#include": "cuos-release/release.json"`, which pins them for you. It also
+> pins CuOS IaC as `init_image`, so leave that key out unless you bring your own
+> container — see
 > [Your Application Init Container](./common/cuos-app-init.md#cuos-iac-is-the-default-one).
 
 ---
@@ -104,7 +104,7 @@ During first boot CuOS will:
 1. Mount BTRFS subvolumes (@os, @data, @swap)
 2. Initialize network (DHCP if not configured)
 3. Start CuOS services (`cuos-init`, `cuos-api`, `cuos-app` logic)
-4. Pull & run the `initial_image` as container `cuos-app`
+4. Pull & run the `init_image` as container `cuos-app`
 
 Verify:
 
@@ -189,7 +189,7 @@ touch /data/run-update
 systemctl restart cuos-app.service
 ```
 
-Or change `initial_image_version` via update or patch.
+Or change `init_image_version` via update or patch.
 
 Inside the OS your app container can request system info through the socket (see API reference):
 `/var/run/cuos.sock`

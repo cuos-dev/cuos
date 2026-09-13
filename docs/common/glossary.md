@@ -10,7 +10,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | CuOS | Container Update OS; system generated from a container image | Base platform for variants 1–3 |
 | System Image | Docker/OCI image containing kernel, userspace, systemd, CuOS scripts | Referenced via `os_image` (arch specific overrides possible) |
 | Updater Image | Image implementing update logic (pull, prepare, switch, rollback) | `updater_image` in `system.json` |
-| Application Image | User (initial) workload image started as container `cuos-app` | Controlled by `initial_image*` fields |
+| Application Init Container | The one container CuOS starts, and from which everything else is started; runs as `cuos-app` | Controlled by `init_image*` fields |
 | App Init Container | Mechanism / logic that pulls & launches the Application Image and re-triggers it after updates | Documented in `docs/common/cuos-app-init.md` |
 | Variant 1 | Minimal custom OS (no CuOS services) | Manual integration; smallest surface |
 | Variant 2 | OS with CuOS services (API, configuration helpers) | Balanced control vs. features |
@@ -40,7 +40,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | `rpi-arm64_image` | Raspberry Pi specific OS build | `...-rpi-arm64` |
 | `lxc_image` | LXC optimized OS build | `...-lxc` |
 | `updater_image` | Update mechanism image | `ghcr.io/cuos-dev/cuos-updater` |
-| `initial_image` | Application container image | `ghcr.io/org/app` |
+| `init_image` | Application Init Container image | `ghcr.io/org/app` |
 | `docker_bridge_net` | Bridge network CIDR | `10.235.255.1/24` |
 | `docker_net_space` | Pool for dynamic networks | `10.235.128.0/17` |
 | `custom_ca_certs` | Additional trust anchors (PEM) | Inline string or array |

@@ -144,19 +144,19 @@
       "minimum": 0,
       "default": 8
     },
-    "initial_image": {
+    "init_image": {
       "type": "string",
-      "description": "Initial application image to start",
+      "description": "Application Init Container to start: the one container CuOS runs, and from which everything else is started. CuOS IaC is the default one, pinned by cuos-release's release.json",
       "minLength": 1
     },
-    "initial_image_version": {
+    "init_image_version": {
       "type": "string",
-      "description": "Version of the initial application image",
+      "description": "Version of the Application Init Container",
       "minLength": 1
     },
-    "initial_image_digest": {
+    "init_image_digest": {
       "type": "string",
-      "description": "Digest of the initial image for integrity check (optional)"
+      "description": "Digest of the Application Init Container for integrity check (optional)"
     },
     "updater_image": {
       "type": "string",

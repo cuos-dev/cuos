@@ -28,9 +28,9 @@ Create a comprehensive `system.json` configuration:
   "updater_image": "ghcr.io/cuos-dev/cuos-updater",
   "updater_image_version": "latest",
   "updater_image_digest": "",
-  "initial_image": "your-app",
-  "initial_image_version": "latest",
-  "initial_image_digest": ""
+  "init_image": "your-app",
+  "init_image_version": "latest",
+  "init_image_digest": ""
 }
 ```
 
