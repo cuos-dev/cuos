@@ -39,7 +39,7 @@ and VMs, one machine or a fleet.
 | build a bootable system — disk image, ISO installer or LXC container | [cuos-release](https://github.com/cuos-dev/cuos-release#readme) |
 | deploy and manage services on one | [cuos-iac](https://github.com/cuos-dev/cuos-iac#readme) |
 | build your own OS or init app on CuOS | [Development Guide](docs/development-guide.md) |
-| see the pieces working end to end | [Quickstart](docs/quickstart.md) |
+| build one and take it apart, to learn how it works | [Getting to know CuOS](docs/getting-to-know-cuos.md) |
 
 The name is the description: **C**ontainer **U**pdate **OS** — built from a
 container, updates itself, and is a whole operating system rather than a runtime

@@ -1,15 +1,16 @@
-# CuOS Quickstart
+# Getting to know CuOS
 
-A minimal end-to-end walkthrough to build, boot and update a CuOS based system.
+Build one, boot it, then take it apart: update it, patch it, break it, roll it
+back. By the end you will have used every mechanism CuOS has, on a machine you
+can throw away.
 
-> Audience: Engineers who want to try CuOS quickly (Variant 2 or 3 style) without reading all reference docs first.
->
-> Prerequisites: Linux/macOS build host, Docker, `jq`, ~6 GB free disk space, a VM platform (QEMU/VirtualBox/Proxmox) or spare USB device.
+> Prerequisites: Linux/macOS build host, Docker, `jq`, ~6 GB free disk space, a VM platform (QEMU/VirtualBox/Proxmox) or spare USB device. Allow an hour.
 
-> **If you only want a running system**, you do not need this repository. Clone
+> **This is not the fast way to a running system.** For that you do not need
+> this repository at all: clone
 > [cuos-release](https://github.com/cuos-dev/cuos-release), write a
-> `system.json` and run `./cuos-release/tool.sh image` — its README walks you
-> through it. This page is for looking inside afterwards.
+> `system.json`, run `./cuos-release/tool.sh image` — its README is three
+> commands long. Come back here when you want to know what you just built.
 
 ---
 
