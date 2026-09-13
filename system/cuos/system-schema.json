@@ -146,17 +146,17 @@
     },
     "init_image": {
       "type": "string",
-      "description": "Application Init Container to start: the one container CuOS runs, and from which everything else is started. CuOS IaC is the default one, pinned by cuos-release's release.json",
+      "description": "CuOS Init App to start: the one container CuOS runs, and from which everything else is started. CuOS IaC is the default one, pinned by cuos-release's release.json",
       "minLength": 1
     },
     "init_image_version": {
       "type": "string",
-      "description": "Version of the Application Init Container",
+      "description": "Version of the CuOS Init App",
       "minLength": 1
     },
     "init_image_digest": {
       "type": "string",
-      "description": "Digest of the Application Init Container for integrity check (optional)"
+      "description": "Digest of the CuOS Init App for integrity check (optional)"
     },
     "updater_image": {
       "type": "string",

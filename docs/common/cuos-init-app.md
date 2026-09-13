@@ -1,12 +1,12 @@
-# Your Application Init Container
+# Your CuOS Init App
 
-To start your application (via variant 2 or 3) you have to define a container. Let's call it Application Init Container or `cuos-app`.
+To start your application you have to define a container. Let's call it CuOS Init App; it runs as `cuos-app`. Bringing your own is the [Own CuOS Init App](../development-guide.md#own-cuos-init-app) level — if you do not, you get CuOS IaC.
 
 What you can do within this container:
 
 * Start your application
 * Start more docker container (you need to mount the docker socket, see app_command label)
-* Interact with the [CuOS API](./cuos-api.md) via `/var/lib/cuos.sock`.
+* Interact with the [CuOS API](./cuos-api.md) via `/var/run/cuos.sock`.
 
 ## Start the container
 
@@ -22,8 +22,8 @@ Relevant configuration fields, see [system.json](./system-json.md):
 
 ### CuOS IaC is the default one
 
-[CuOS IaC](https://github.com/cuos-dev/cuos-iac) is an Application Init
-Container like any other — the one you get if you do not bring your own.
+[CuOS IaC](https://github.com/cuos-dev/cuos-iac) is a CuOS Init App like any
+other — the one you get if you do not bring your own.
 `cuos-release`'s `release.json` pins it as `init_image`, so a configuration that
 includes `release.json` **already has one** and starts CuOS IaC, which then
 deploys your services from a git repository.
@@ -43,7 +43,7 @@ The system's name follows the same key: `product_name` defaults to `CuOS IaC`
 when `init_image` contains `cuos-iac`, and to `CuOS` otherwise
 (`updater/perform_update.sh:80`).
 
-## Build you Application Init Container
+## Build your CuOS Init App
 
 ```dockerfile
 FROM your-base-image
@@ -138,7 +138,7 @@ Rollback resets to previous OS subvolume and replays last stable config.
 ## Launch Flow (Simplified)
 
 ```text
-[systemd] → cuos-app.service → app.sh
+[systemd] → cuos-app.service → app-init.sh
   └─ waits for Docker daemon ready
      └─ performs registry login (if configured)
         └─ evaluates desired vs current image digest

@@ -22,9 +22,9 @@ Schema for configuring CuOS system parameters including networking, update sourc
 |**docker\_net\_space\_size**|`number`|Subnet size for Docker container networks (CIDR suffix)<br/>Default: `26`<br/>Minimum: `0`<br/>Maximum: `32`<br/>||
 |**custom\_ca\_certs**||Custom CA certificates to be trusted by the system<br/>||
 |**swap\_size**|`number`|Swap size in GB (will only be extended if enough disk space is available)<br/>Default: `8`<br/>Minimum: `0`<br/>||
-|**init\_image**|`string`|Application Init Container to start: the one container CuOS runs, and from which everything else is started. CuOS IaC is the default one, pinned by cuos-release's release.json<br/>Minimal Length: `1`<br/>||
-|**init\_image\_version**|`string`|Version of the Application Init Container<br/>Minimal Length: `1`<br/>||
-|**init\_image\_digest**|`string`|Digest of the Application Init Container for integrity check (optional)<br/>||
+|**init\_image**|`string`|CuOS Init App to start: the one container CuOS runs, and from which everything else is started. CuOS IaC is the default one, pinned by cuos-release's release.json<br/>Minimal Length: `1`<br/>||
+|**init\_image\_version**|`string`|Version of the CuOS Init App<br/>Minimal Length: `1`<br/>||
+|**init\_image\_digest**|`string`|Digest of the CuOS Init App for integrity check (optional)<br/>||
 |**updater\_image**|`string`|Image used for updating the system<br/>Minimal Length: `1`<br/>||
 |**updater\_image\_version**|`string`|Version of the updater image<br/>Minimal Length: `1`<br/>||
 |**updater\_image\_digest**|`string`|Digest of the updater image for integrity check (optional)<br/>||
@@ -109,4 +109,4 @@ SSH public keys accepted for root login, written to /root/.ssh/authorized_keys o
 the schema CuOS validates `system.json` against at boot. Edit the schema, then run
 `npm run docs:system-json`.*
 
-<!-- schema-sha256: 288c1c7b8303ef0c1741186ab46dad675bdefbe06377f30ffc90686baf7825fe -->
+<!-- schema-sha256: 2b8d59d977d83713a0d37d99c501e3f52effcdff0113d0417e62ebc448cc1ef7 -->

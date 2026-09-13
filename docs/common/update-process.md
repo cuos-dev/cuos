@@ -169,4 +169,4 @@ cuos update - <<< "{\"config\": $NEW_CFG }"
 * `system/cuos/do-rollback.sh` – rollback logic
 * `system/cuos/app.sh` – app container behavior post-update
 * `docs/architecture.md` – overall architecture
-* `docs/common/cuos-app-init.md` – app lifecycle details
+* `docs/common/cuos-init-app.md` – app lifecycle details

@@ -57,7 +57,7 @@ Place it beside the two checkouts, as `system.json`.
 > `"#include": ["cuos-release/release.json"]`, which pins them for you. It also
 > pins CuOS IaC as `init_image`, so leave that key out unless you bring your own
 > container — see
-> [Your Application Init Container](./common/cuos-app-init.md#cuos-iac-is-the-default-one).
+> [Your CuOS Init App](./common/cuos-init-app.md#cuos-iac-is-the-default-one).
 
 ---
 
@@ -120,7 +120,7 @@ Check logs:
 cuos log
 ```
 
-Your [Application Init Container](./common/cuos-app-init.md) should be running:
+Your [CuOS Init App](./common/cuos-init-app.md) should be running:
 
 ```bash
 docker ps | grep cuos-app
@@ -220,7 +220,7 @@ cuos shutdown
 - Read the **Glossary** (`docs/common/glossary.md`) to align terminology.
 - Explore `system/cuos/api.sh` for full command list.
 - Dive into BTRFS layout (`docs/common/btrfs-usage.md`).
-- Learn more about the App Init Container concept (`docs/common/cuos-app-init.md`).
+- Learn more about the [CuOS Init App](./common/cuos-init-app.md) concept.
 
 ---
 

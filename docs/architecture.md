@@ -18,7 +18,7 @@ Core building blocks:
 | Base OS | System image (`os_image`) | Kernel, systemd, CuOS scripts |
 | Init | `cuos-init` (script + systemd service) | Apply `system.json` (hostname, network, CA, Docker setup) |
 | API Layer | `cuos-api` (`api.sh`, socket) | Commands: update, rollback, patch-*, resources, state |
-| App Layer | `cuos-app` (Application Init Container) | Validate & run `init_image` workload |
+| App Layer | `cuos-app` (CuOS Init App) | Validate & run `init_image` workload |
 | Update Layer | Updater image (`updater_image`) | Prepare new subvolume + boot switch, digest checks |
 | Persistence | BTRFS subvolumes `@os`, `@data`, `@swap` | Separate replaceable system from stable data |
 | Config files | `/system.json`, `/system_next.json` | Active vs staged (rollback) configuration |
