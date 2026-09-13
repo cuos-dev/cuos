@@ -120,7 +120,7 @@ place guaranteed to run once, after the new version is in place.
 CuOS your app has taken the update over; on 1 or 126 CuOS runs `cuos update`
 itself. So do not leave an empty stub there: it returns 0 and
 `cuos trigger-update` then does nothing at all. CuOS IaC's
-[implementation](https://github.com/cuos-dev/cuos-iac/blob/development/iac/api/cuos-trigger-update)
+[implementation](https://github.com/cuos-dev/cuos-iac/blob/HEAD/iac/api/cuos-trigger-update)
 wakes its poll loop, which does the work.
 
 Don't forget to add execution permission to your scripts.

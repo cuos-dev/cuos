@@ -3,7 +3,7 @@
 The structure the image factory produces, and what varies per platform.
 
 **To build one**, see
-[Building disk images](https://github.com/cuos-dev/cuos-release/blob/main/docs/building-images.md)
+[Building disk images](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/building-images.md)
 in `cuos-release`. "Image" means the OS is copied directly onto the target's
 storage; to install from removable media instead, see
 [Installation](./installation.md).

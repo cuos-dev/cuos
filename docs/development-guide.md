@@ -51,9 +51,17 @@ Only needed if you want to do everything from scratch. **Not recommended.**
 
 ### Boiler plate
 
-None. Copy the `Dockerfile` and the `/usr/local/cuos/install-kernel*.sh` scripts
-out of this repository — the image factory calls them by name to install the
-kernel and write the boot configuration, so your image has to provide them.
+None. Copy the `Dockerfile` and the `install-kernel-*.sh` scripts out of this
+repository.
+
+What the updater relies on is a pair of scripts at fixed paths inside your
+image: **`/usr/local/cuos/install-kernel.sh`** to install the kernel and write
+the boot configuration, and **`install-kernel-rollback.sh`** to undo it
+(`updater/perform_update.sh:298`, `system/cuos/do-rollback.sh:48`). Here they are
+per boot chain — `install-kernel-grub.sh`, `-rpi.sh`, `-uboot.sh` — and
+`install.sh <type>` renames the matching pair at image build time
+(`system/cuos/install.sh:16`). Your image has to arrive at the same two names,
+however you get there.
 
 ---
 
@@ -78,11 +86,14 @@ Above, plus:
   * Network configuration
   * Disk extension
   * Swap management
+  * Custom CA certificates, keyboard layout, docker network space
   * Start of the CuOS Init App
 * CuOS API
 * Console menu
-  * Network check
-  * Factory reset
+  * Hostname and network configuration
+  * Reboot, shutdown, trigger update, rollback
+  * Expand filesystem, factory reset
+  * Diagnostics: resources, logs, ping
 * Software
   * optional SSH for debugging and maintenance (`os_ssh_server`)
   * VM guest tools (x86 only)
@@ -161,9 +172,9 @@ The commands live in `cuos-release`, whichever level you are on:
 
 | Task | Guide |
 |---|---|
-| Disk image | [Building disk images](https://github.com/cuos-dev/cuos-release/blob/main/docs/building-images.md) |
-| ISO installer (x86 only) | [Building an installer](https://github.com/cuos-dev/cuos-release/blob/main/docs/building-installers.md) |
-| LXC container | [LXC and Proxmox](https://github.com/cuos-dev/cuos-release/blob/main/docs/lxc-proxmox.md) |
+| Disk image | [Building disk images](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/building-images.md) |
+| ISO installer (x86 only) | [Building an installer](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/building-installers.md) |
+| LXC container | [LXC and Proxmox](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/lxc-proxmox.md) |
 
 What the artefacts contain, and how a system finds its configuration on first
 boot, stays here: [What a CuOS image contains](common/building-images.md),

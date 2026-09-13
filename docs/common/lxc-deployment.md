@@ -3,7 +3,7 @@
 How the container variant of CuOS differs from a system running on its own disk.
 
 **To build and deploy one**, see
-[LXC and Proxmox](https://github.com/cuos-dev/cuos-release/blob/main/docs/lxc-proxmox.md)
+[LXC and Proxmox](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/lxc-proxmox.md)
 in `cuos-release`.
 
 ![System layers](../diagrams/layer_architecture_diagram_lxc.png)

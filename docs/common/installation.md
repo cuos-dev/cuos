@@ -3,7 +3,7 @@
 What the installer does, and how a system finds its configuration on first boot.
 
 **To build an installer**, see
-[Building an installer](https://github.com/cuos-dev/cuos-release/blob/main/docs/building-installers.md)
+[Building an installer](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/building-installers.md)
 in `cuos-release`. "Installation" means the OS is written onto another drive
 from removable media; to copy it directly onto the target's storage, see
 [What a CuOS image contains](./building-images.md).
