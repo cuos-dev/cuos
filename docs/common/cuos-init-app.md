@@ -116,6 +116,13 @@ file is not there, CuOS carries on.
 `post_update` is where migrations or internal reconfiguration belong — the one
 place guaranteed to run once, after the new version is in place.
 
+**`cuos-trigger-update` is the one hook whose exit code matters.** Exit 0 tells
+CuOS your app has taken the update over; on 1 or 126 CuOS runs `cuos update`
+itself. So do not leave an empty stub there: it returns 0 and
+`cuos trigger-update` then does nothing at all. CuOS IaC's
+[implementation](https://github.com/cuos-dev/cuos-iac/blob/development/iac/api/cuos-trigger-update)
+wakes its poll loop, which does the work.
+
 Don't forget to add execution permission to your scripts.
 
 What a hook is given:
@@ -154,5 +161,5 @@ Rollback resets to previous OS subvolume and replays last stable config.
         └─ evaluates desired vs current image digest
            ├─ pull if missing / version change / digest mismatch
            ├─ create or start container `cuos-app`
-           └─ invoke optional in-container update hook (/api/update)
+           └─ invoke optional in-container hook (/api/post_update)
 ```
