@@ -43,8 +43,6 @@ mkdir -p "${TARGET_ROOT}"
 mount -t btrfs -o subvol=@os "${TARGET_ROOT_PARTITION}" "${TARGET_ROOT}" \
 	|| raise 91 "Could not mount @os subvolume"
 
-mkdir -p "${DOCKER_DIR}"
-
 mkdir -p "${TARGET_BOOT}"
 # The charset is the kernel's own. A vfat mount that names one the running
 # kernel has no NLS table for is refused outright ("IO charset ... not found"),
@@ -126,6 +124,11 @@ shift
 "${SCRIPT}" "$@"
 EXIT_CODE="$?"
 
+# @os/docker is a leftover of the layout earlier versions used, where docker's
+# btrfs storage driver created the subvolumes and one of them was the OS root.
+# Nothing creates it any more - start_dockerd's --data-root does, and only where
+# no host daemon was handed in, which is why DOCKERD_PID guards this. Both slots
+# have to exist before deleting it, so a half-migrated system keeps its root.
 if [[ -z "${DOCKERD_PID}" && \
 		-d "${TARGET_ROOT}/docker" && \
 		-d "${TARGET_ROOT}/system-A" && \
