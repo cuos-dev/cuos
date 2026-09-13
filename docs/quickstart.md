@@ -54,7 +54,10 @@ checkouts, which is where `output/` appears.
 Place it beside the two checkouts, as `system.json`.
 
 > Tip: For production pin versions & use digests — or
-> `"#include": "cuos-release/release.json"`, which pins them for you.
+> `"#include": "cuos-release/release.json"`, which pins them for you. Note that
+> it also pins CuOS IaC as `init_image`, which takes precedence over
+> `initial_image` — see
+> [Your Application Init Container](./common/cuos-app-init.md#cuos-iac-is-the-default-one).
 
 ---
 

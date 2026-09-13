@@ -20,6 +20,34 @@ Relevant configuration fields, see [system.json](./system-json.md):
 }
 ```
 
+### CuOS IaC is the default one
+
+The same container can be named by `init_image` instead, and **`init_image`
+wins**: `system/cuos/app-init.sh:103` reads `init_image` first and falls back to
+`initial_image` only if it is unset.
+
+That is how [CuOS IaC](https://github.com/cuos-dev/cuos-iac) is delivered — it
+is an Application Init Container like any other, and `cuos-release`'s
+`release.json` pins it as `init_image`. So a configuration that includes
+`release.json` **already has one**, and starts CuOS IaC, which then deploys your
+services from a git repository.
+
+To run your own container instead of CuOS IaC, set `init_image` — writing
+`initial_image` next to an included `release.json` has no effect:
+
+```json
+{
+  "#include": "cuos-release/release.json",
+  "init_image": "your-registry/your-app",
+  "init_image_version": "1.2.3",
+  "init_image_digest": "sha256:..."
+}
+```
+
+The system's name follows the same key: `product_name` defaults to `CuOS IaC`
+when `init_image` contains `cuos-iac`, and to `CuOS` otherwise
+(`updater/perform_update.sh:80`).
+
 ## Build you Application Init Container
 
 ```dockerfile
