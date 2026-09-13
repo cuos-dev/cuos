@@ -100,12 +100,15 @@ fi
 init_dialogs
 
 CONTAINER_NAME="cuos-app"
-if ! INITIAL_IMAGE="$(image_url "init")"; then
+# "initial_image" is the pre-2025-10 name and stays readable for systems in the
+# field that still carry it. It is deliberately absent from the schema and the
+# docs - not an alternative spelling to choose from.
+if ! INITIAL_IMAGE="$(image_url "init" || image_url "initial")"; then
   report_err "cuos:application:image_not_defined" "Application image not defined"
   action_on_failure
 fi
 INITIAL_IMAGE_VERSION="$(image_version "${INITIAL_IMAGE}")"
-INITIAL_DIGEST="$(jq -r '.init_image_digest // empty' "${CONFIG_PATH}")"
+INITIAL_DIGEST="$(jq -r '.init_image_digest // .initial_image_digest // empty' "${CONFIG_PATH}")"
 
 LAST_INITIAL_IMAGE="$(docker inspect --format='{{.Config.Image}}' "${CONTAINER_NAME}" 2>/dev/null)" || true
 LAST_INITIAL_IMAGE_VERSION="$(image_version "${LAST_INITIAL_IMAGE}")" || true

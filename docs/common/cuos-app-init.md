@@ -32,7 +32,7 @@ Setting `init_image` yourself replaces it:
 
 ```json
 {
-  "#include": "cuos-release/release.json",
+  "#include": ["cuos-release/release.json"],
   "init_image": "your-registry/your-app",
   "init_image_version": "1.2.3",
   "init_image_digest": "sha256:..."
