@@ -2,82 +2,50 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE.txt)
 
-**CuOS** (short for **Container Update OS**) is a revolutionary operating system built entirely from Docker container images. It brings the power, flexibility, and familiarity of container development to the world of operating systems.
+🚀 **An operating system that is a container image.** You build it with a
+Dockerfile, ship it through a registry, and update it by replacing the image —
+the whole root filesystem at once, with an automatic rollback if the new one
+does not come up.
 
----
+To turn one into a bootable system, start at
+[cuos-release](https://github.com/cuos-dev/cuos-release#readme).
 
-## 🚀 What is CuOS?
+## What it is
 
-CuOS is a minimal, reliable, and automatically updating operating system that is **generated from a Docker container image**. This means:
+CuOS unpacks that image into one of two BTRFS subvolumes. An update pulls the
+new image, materialises it into the inactive slot, flips the boot configuration
+and reboots; if the system does not reach a running state, it goes back to the
+slot it came from. Data lives in a subvolume of its own that updates never
+touch.
 
-- You define your OS as a container.
-- You deploy it like a container.
-- You update it like a container.
+What makes it worth doing this way is that none of it is a new skill:
 
-If you know how to build and manage Docker containers, you already know how to manage CuOS.
+- **Your Dockerfile is the OS definition.** Add a package, rebuild, ship.
+- **Your registry is the update server.** No separate update infrastructure,
+  no package repository to run.
+- **Your CI already builds it.** It is a container build like any other.
+- **A failed update is not a dead device.** The previous slot is untouched
+  until the new one has proven it boots.
+- **One file configures a system.** `system.json` carries hostname, network,
+  images and their digests — the same file that built the artefact.
 
----
+Built for devices you do not stand in front of: edge, kiosks, embedded products
+and VMs, one machine or a fleet.
 
-## ✅ Why CuOS?
+## Where to start
 
-### 🔄 Familiar Workflow
+| You want to… | Go to |
+|---|---|
+| build a bootable system — disk image, ISO installer or LXC container | [cuos-release](https://github.com/cuos-dev/cuos-release#readme) |
+| deploy and manage services on one | [cuos-iac](https://github.com/cuos-dev/cuos-iac#readme) |
+| build your own OS or init app on CuOS | [Development Guide](docs/development-guide.md) |
+| see the pieces working end to end | [Quickstart](docs/quickstart.md) |
 
-CuOS uses the same tools and workflows you already use for container development. No need to learn a new packaging system or configuration language.
+The name is the description: **C**ontainer **U**pdate **OS** — built from a
+container, updates itself, and is a whole operating system rather than a runtime
+on top of one.
 
-### 🧰 All Your Tools, All Your Knowledge
-
-Since CuOS is built from a container image, **everything you know about Docker applies**:
-
-- Use your existing Dockerfiles.
-- Reuse your CI/CD pipelines.
-- Leverage your container registries.
-
-### 🔧 Automatic Updates & Rollbacks
-
-CuOS includes a built-in update container that:
-
-- Automatically checks for updates.
-- Applies them safely.
-- Rolls back if something goes wrong.
-
-### 🧪 Repeatable & Reliable
-
-Every CuOS system is built from a versioned container image, ensuring:
-
-- High reproducibility.
-- Easy testing and validation.
-- Consistent deployments across fleets.
-
-### 🛳️ Fleet-Ready
-
-CuOS is designed for **mass deployment**:
-
-- Perfect for edge devices, kiosks, and embedded systems.
-- Easy to manage across thousands of nodes.
-
----
-
-## 📛 Why the Name "CuOS"?
-
-**CuOS** stands for **Container Update OS**:
-
-- **Container**: The OS is built from a container image.
-- **Update**: It updates itself automatically and safely.
-- **OS**: It’s a full operating system, ready to boot and run.
-
----
-
-## 📦 Getting Started
-
-To build a bootable system — a disk image, an ISO installer or an LXC container — start at [cuos-release](https://github.com/cuos-dev/cuos-release/), the build tooling. You describe the system in a `system.json` and `./cuos-release/tool.sh image` produces it.
-
-For system administrators looking to deploy services using CuOS, please visit [cuos-iac](https://github.com/cuos-dev/cuos-iac/), our Infrastructure as Code repository. It provides tools and templates for deploying and managing services on CuOS.
-
-For developers looking to create custom CuOS-based systems, check out our [CuOS Development Guide](docs/development-guide.md), and the [Quickstart](docs/quickstart.md) to see the pieces working end to end.
-
----
-
-## 🧭 Supported Platforms
+## Supported platforms
 
 | Platform | Boards / form factor | Docker platform | Support level |
 |---|---|---|---|
@@ -87,13 +55,22 @@ For developers looking to create custom CuOS-based systems, check out our [CuOS 
 | Raspberry Pi 32-bit | Pi 1, Pi 2, Zero | `linux/arm/v6` | Legacy — may be removed |
 | Orange Pi Zero 3 | Orange Pi Zero 3 only | `linux/arm64` | Example — that board only |
 
-**32-bit Raspberry Pi** is a legacy compatibility target. The image is built for `linux/arm/v6`, so a single image covers Pi 1, Pi 2 and Zero. Debian provides no usable ARMv6 base for these boards, so this target is built from the Raspberry Pi OS repositories instead. Note that most upstream projects no longer publish 32-bit ARM images at all — CuOS may boot while the application containers you want do not exist for the board. This support may be removed in a future release.
+**32-bit Raspberry Pi** is a legacy compatibility target. The image is built for
+`linux/arm/v6`, so a single image covers Pi 1, Pi 2 and Zero. Debian provides no
+usable ARMv6 base for these boards, so this target is built from the Raspberry
+Pi OS repositories instead. Note that most upstream projects no longer publish
+32-bit ARM images at all — CuOS may boot while the application containers you
+want do not exist for the board. This support may be removed in a future
+release.
 
-**Orange Pi Zero 3** is kept as a worked example of a board-specific boot chain — kernel, device tree blob (DTB) and U-Boot at fixed image offsets — rather than as a ready-made target. An image is published as `cuos-system-orangepi-zero3`, but it is tuned for that exact board and will not boot on anything else.
+**Orange Pi Zero 3** is kept as a worked example of a board-specific boot chain
+— kernel, device tree blob (DTB) and U-Boot at fixed image offsets — rather than
+as a ready-made target. An image is published as `cuos-system-orangepi-zero3`,
+but it is tuned for that exact board and will not boot on anything else.
 
-See [Platform and Architecture Support](docs/common/platform-support.md) for the boot chains, the constraints behind these levels, and what adding a new board involves.
-
----
+See [Platform and Architecture Support](docs/common/platform-support.md) for the
+boot chains, the constraints behind these levels, and what adding a new board
+involves.
 
 ## Contributing
 
