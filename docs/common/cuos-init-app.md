@@ -102,13 +102,23 @@ Additional runtime environment variables, that are set by CuOS:
 | `VIRT_TYPE` | Result of `systemd-detect-virt` |
 | Positional Args | Current + previous app version (used by your entrypoint logic) |
 
-### In-Container Update Hook
+### In-Container Hooks
 
-After a successful OS/app update the script `/api/update` is executed in the container:
+CuOS runs scripts inside the container by name. All of them are optional — if the
+file is not there, CuOS carries on.
 
-This allows the application to perform migrations or internal reconfiguration. The hook is optional; failures are ignored (logged only). Provide an `/api/update` entrypoint if you need deterministic upgrade steps.
+| Script | When | Called by |
+|---|---|---|
+| `/api/post_update` | after a successful OS/app update | `system/cuos/app-init.sh:195`, exit code ignored |
+| `/api/trigger` | `cuos trigger`, with the input on stdin and the arguments passed through | `system/cuos/api.sh:344` |
+| `/api/cuos-trigger-update` | `cuos trigger-update`; if it is missing, CuOS runs `cuos update` itself | `system/cuos/api.sh:149` |
 
-Don't forget to add execution permission to your script.
+`post_update` is where migrations or internal reconfiguration belong — the one
+place guaranteed to run once, after the new version is in place.
+
+Don't forget to add execution permission to your scripts.
+
+What a hook is given:
 
 | Name | Type | Description |
 |------|------|-------------|
