@@ -1,8 +1,15 @@
-# System JSON Configuration Reference
+# Writing a system.json
+
+How a configuration is put together. **Every key, with its type, default and
+constraints, is in [the system.json reference](system-json-reference.md)** —
+generated from the schema the system validates against, so this page never
+restates a key.
 
 The `system.json` file is the central configuration file for CuOS. It defines system images, update sources, network configuration, system settings, and application configuration. This file is typically stored at `/system.json` and can be provided via boot partition or cloud-init.
 
 ## Basic Structure
+
+The smallest configuration names the OS and the updater:
 
 ```json
 {
@@ -14,6 +21,10 @@ The `system.json` file is the central configuration file for CuOS. It defines sy
   "updater_image_digest": ""
 }
 ```
+
+Rather than naming versions yourself, include `cuos-release/release.json`, which
+pins them — see the
+[cuos-release README](https://github.com/cuos-dev/cuos-release#readme).
 
 ## Configuration Options
 
@@ -40,21 +51,7 @@ absent, so a single configuration can describe several targets.
 These keys are not in the schema: their names depend on the platform, which a
 JSON Schema property list cannot express.
 
-## Example Configurations
-
-### Minimal Configuration (Variant 1)
-```json
-{
-  "os_image": "your-registry/your-os-image",
-  "os_image_version": "1.0.0",
-  "os_image_digest": "",
-  "updater_image": "ghcr.io/cuos-dev/cuos-updater",
-  "updater_image_version": "latest",
-  "updater_image_digest": ""
-}
-```
-
-### Full Configuration Example
+## A fuller example
 ```json
 {
   "hostname": "cuos-system",
@@ -72,8 +69,7 @@ JSON Schema property list cannot express.
       "ntp-server": ["pool.ntp.org"]
     }
   ],
-  "docker_bridge_net": "10.235.255.1/24",
-  "docker_net_space": "10.235.128.0/17",
+  "docker_net_space": "10.235.240.0/20",
   "docker_net_space_size": 26,
   "custom_ca_certs": [
     "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"

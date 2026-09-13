@@ -139,14 +139,21 @@ see the note under Self-test. Read the result from the output.
 | rollback | Rollback last update | `{}` | Status messages | Reverts to previous version |
 | resources | Show system resources | `{}` | `{ "cpu_cores": number, "cpu_usage": number, ... }` | System metrics |
 | selftest | Check this system's invariants | `{}` | `{ "ok": bool, "summary": {...}, "checks": [...] }` | Read-only; see [Self-test](#self-test) |
+| patch | Patch the current system | `{ "config": partial system config }` | Status message | No slot change |
 | patch-network | Set network configuration | `{"network_id": 0,"config": {"dhcp": true}}` | Status message | See [Documentation system.json](./system-json.md) |
 | patch-hostname | Set system hostname | `"myhostname"` | Status message | Set new hostname |
+| log | Get reports | `{}` | Report lines | `cuos log -f` follows |
+| factory-reset | Reset to a clean baseline | `{}` | Status messages | Destructive; runs asynchronously |
+| trigger-update | Ask the CuOS Init App to update | `{}` | Status messages | Runs `/api/cuos-trigger-update` in the app, else `cuos update` — see [Your CuOS Init App](./cuos-init-app.md#in-container-hooks) |
+| app | Call the app's own API | passed through | the app's output | Runs `/api/trigger` in the app |
+| report | Write a report | `{ "id": ..., "message": ... }` | — | Used by the system's own scripts |
+| reboot, shutdown | Restart or power off | `{}` | Status message | |
 
 ## API Integration Examples
 
 ### Bash Implementation
 ```bash
-# From cuos-iac/src/entrypoint.sh
+# From cuos-iac/iac/entrypoint.sh
 cuos_api() {
     local command="$1"
     local json_data="${2:-""}"
@@ -238,7 +245,7 @@ await cuosApi('patch-network', {
 ## Best Practices
 
 1. **Error Handling**
-   - Always check command exit codes
+   - Read the result from the output, not the exit code — see above
    - Handle system state changes gracefully
    - Implement proper logging
 

@@ -21,9 +21,8 @@ CuOS uses BTRFS subvolumes instead of traditional partitions for its A/B update 
 └── partition3: system # BTRFS root partition
     ├── @os            # OS subvolume
     │   └── docker     # Docker dir only used while updating
-    │       ├── btrfs  # 
-    │       │   ├──    # image layers as btrfs subvolumes
-    │       │   └──    # use use for the OS.
+    │       ├── btrfs  # image layers as BTRFS subvolumes; one of them
+    │       │          # is the running OS root
     │       └── ...
     ├── @data          # Persistent data
     │   ├── docker     # System docker dir
@@ -34,7 +33,7 @@ CuOS uses BTRFS subvolumes instead of traditional partitions for its A/B update 
 
 GRUB is setup as boot loader for both UEFI and non-UEFI setups.
 
-For partition switch we write two grub files and configure the default.
+For a slot switch we write two GRUB files and configure the default.
 
 ### Raspberry Pi
 
@@ -46,7 +45,7 @@ For partition switch we write two grub files and configure the default.
 
 Boot partition has the raspbian default structure. [RaspberryPi Documentation](https://www.raspberrypi.com/documentation/computers/config_txt.html#what-is-config-txt)
 
-For partition switch we write the subvol in cmdline.txt.
+For a slot switch we write the subvol in `cmdline.txt`.
 
 ### Mount Points
 ```

@@ -18,10 +18,11 @@ Schema for configuring CuOS system parameters including networking, update sourc
 |**update\_registry\_password**|`string`|Password for accessing the update registry<br/>||
 |**hostname**|`string`|Fully Qualified Domain Name (FQDN) of the system<br/>||
 |[**network**](#network)|`object[]`|List of network interface configurations<br/>||
-|**docker\_net\_space**|`string`|CIDR notation for Docker container network space (e.g., '10.235.128.0/18')<br/>Default: `"10.235.128.0/18"`<br/>Pattern: `^\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$`<br/>||
+|**docker\_net\_space**|`string`|CIDR notation for Docker container network space (e.g., '10.235.240.0/20')<br/>Default: `"10.235.240.0/20"`<br/>Pattern: `^\d{1,3}(\.\d{1,3}){3}/\d{1,2}$`<br/>||
 |**docker\_net\_space\_size**|`number`|Subnet size for Docker container networks (CIDR suffix)<br/>Default: `26`<br/>Minimum: `0`<br/>Maximum: `32`<br/>||
 |**custom\_ca\_certs**||Custom CA certificates to be trusted by the system<br/>||
 |**swap\_size**|`number`|Swap size in GB (will only be extended if enough disk space is available)<br/>Default: `8`<br/>Minimum: `0`<br/>||
+|**image\_size\_mb**|`number`|Size of the disk image the factory creates, in MB. Default: 1636, or 2048 for an MBR/FAT boot layout. Build-time only - the system grows the filesystem to the disk it finds on first boot<br/>Minimum: `1`<br/>||
 |**init\_image**|`string`|CuOS Init App to start: the one container CuOS runs, and from which everything else is started. CuOS IaC is the default one, pinned by cuos-release's release.json<br/>Minimal Length: `1`<br/>||
 |**init\_image\_version**|`string`|Version of the CuOS Init App<br/>Minimal Length: `1`<br/>||
 |**init\_image\_digest**|`string`|Digest of the CuOS Init App for integrity check (optional)<br/>||
@@ -53,7 +54,7 @@ Schema for configuring CuOS system parameters including networking, update sourc
             "dhcp": false
         }
     ],
-    "docker_net_space": "10.235.128.0/18",
+    "docker_net_space": "10.235.240.0/20",
     "docker_net_space_size": 26,
     "swap_size": 8
 }
@@ -109,4 +110,4 @@ SSH public keys accepted for root login, written to /root/.ssh/authorized_keys o
 the schema CuOS validates `system.json` against at boot. Edit the schema, then run
 `npm run docs:system-json`.*
 
-<!-- schema-sha256: 2b8d59d977d83713a0d37d99c501e3f52effcdff0113d0417e62ebc448cc1ef7 -->
+<!-- schema-sha256: 33e40663b4c86ab8bce830c281948a7dab33e9aba07f69c75bbfc2b9900d7dee -->

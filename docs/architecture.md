@@ -14,7 +14,7 @@ Core building blocks:
 
 | Layer | Component | Responsibility |
 |-------|-----------|----------------|
-| Boot | Firmware / GRUB | Load kernel + initramfs, select active root subvolume (@os) |
+| Boot | Firmware, then GRUB (x86), the Pi firmware or U-Boot | Load kernel + initramfs, select active root subvolume (@os) |
 | Base OS | System image (`os_image`) | Kernel, systemd, CuOS scripts |
 | Init | `cuos-init` (script + systemd service) | Apply `system.json` (hostname, network, CA, Docker setup) |
 | API Layer | `cuos-api` (`api.sh`, socket) | Commands: update, rollback, patch-*, resources, state |
@@ -58,11 +58,11 @@ sequenceDiagram
   FW->>GRUB: Boot Host
   GRUB->>Kernel: Load kernel + initramfs (active slot)
   Kernel->>Initramfs: Basic hardware init
-  Initramfs->>System: Start Systemd/PID 1 (active @os slot)
-  systemd->>cuosInit: Apply config (hostname, network, CA, docker)
-  systemd->>cuosApi: Activate CuoS API (socket)
-  systemd->>DockerD: Start dockerd
-  systemd->>cuosApp: Trigger application init
+  Initramfs->>System: Start systemd/PID 1 (active @os slot)
+  System->>cuosInit: Apply config (hostname, network, CA, docker)
+  System->>cuosApi: Activate CuOS API (socket)
+  System->>DockerD: Start dockerd
+  System->>cuosApp: Trigger application init
   cuosApp->>cuosApp: State = running
 ```
 
