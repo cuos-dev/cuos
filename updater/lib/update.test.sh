@@ -101,10 +101,10 @@ df() {
 }
 
 # shellcheck source=/dev/null
-source "${SCRIPT_DIR}/../system/cuos/lib-test.sh"
+source "${SCRIPT_DIR}/../../system/cuos/lib-test.sh"
 
 # shellcheck source=/dev/null
-source "${SCRIPT_DIR}/perform_update.sh"
+source "${SCRIPT_DIR}/update.sh"
 
 # raise() exits, so anything asserted to fail runs in a subshell.
 rc_of() {
@@ -129,11 +129,11 @@ expect "target_platform: the daemon's linux/arm is armv7" "linux/arm/v7" target_
 MOCK_SERVER_PLATFORM="linux/amd64"
 expect_rc "target_platform: unknown architecture" 1 rc_of target_platform "sparc64"
 
-export CONFIG_PATH="${SCRIPT_DIR}/perform_update.test.system.json"
+export CONFIG_PATH="${SCRIPT_DIR}/update.test.system.json"
 expect "product_name: from the config" "My OS" product_name
-export CONFIG_PATH="${SCRIPT_DIR}/perform_update.test.system-iac.json"
+export CONFIG_PATH="${SCRIPT_DIR}/update.test.system-iac.json"
 expect "product_name: guessed from init_image" "CuOS IaC" product_name
-export CONFIG_PATH="${SCRIPT_DIR}/perform_update.test.system-plain.json"
+export CONFIG_PATH="${SCRIPT_DIR}/update.test.system-plain.json"
 expect "product_name: neither" "CuOS" product_name
 export CONFIG_PATH="${WORK_DIR}/absent.json"
 expect "product_name: no config at all" "CuOS" product_name

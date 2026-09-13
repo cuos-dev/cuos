@@ -19,7 +19,7 @@ ENTRYPOINT ["/create_image.sh"]
 
 # tar: GNU tar, needed to restore xattrs when unpacking the exported rootfs.
 # Busybox tar has no xattr support and would silently drop file capabilities.
-# This factory runs updater/perform_update.sh, so it needs everything that
+# This factory runs updater/lib/update.sh, so it needs everything that
 # script needs - keep this list and updater/Dockerfile's in step.
 RUN apk add --no-cache \
     parted dosfstools btrfs-progs \
@@ -35,9 +35,8 @@ COPY --from=grub-x86_64 /usr/lib/grub/i386-pc/ /usr/lib/grub/i386-pc/
 COPY --from=grub-x86_64 /usr/lib/grub/x86_64-efi/ /usr/lib/grub/x86_64-efi/
 
 COPY image-factory/create_image.sh /create_image.sh
-# Named, not updater/*.sh: that glob also picks up perform_update.test.sh.
-COPY updater/updater.sh updater/perform_update.sh updater/docker_environment.sh \
-     updater/shell.sh /usr/local/updater/
+# Named, not updater/*.sh: that glob also picks up the test scripts.
+COPY updater/updater.sh updater/shell.sh /usr/local/updater/
 COPY updater/lib/ /usr/local/updater/lib/
 COPY image-factory/shell.sh /shell.sh
 COPY image-factory/lib/ /usr/local/image-factory/lib/

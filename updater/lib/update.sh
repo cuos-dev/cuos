@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
+# The steps of an update, in the order perform_update runs them. Sourced, never
+# run.
+#
 # pipefail: a failing "docker export" must not be masked by a succeeding tar,
 # which would install a truncated rootfs into the target slot.
 set -o pipefail
@@ -9,28 +12,26 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Named one by one, not globbed: this is the list of what an update is made of,
 # and "shellcheck -x" follows it.
-# shellcheck source=lib/log.sh
-source "${SCRIPT_DIR}/lib/log.sh"
-# shellcheck source=lib/config.sh
-source "${SCRIPT_DIR}/lib/config.sh"
-# shellcheck source=lib/platform.sh
-source "${SCRIPT_DIR}/lib/platform.sh"
-# shellcheck source=lib/disk.sh
-source "${SCRIPT_DIR}/lib/disk.sh"
-# shellcheck source=lib/docker.sh
-source "${SCRIPT_DIR}/lib/docker.sh"
-# shellcheck source=lib/target.sh
-source "${SCRIPT_DIR}/lib/target.sh"
-# shellcheck source=lib/image.sh
-source "${SCRIPT_DIR}/lib/image.sh"
-# shellcheck source=lib/slot.sh
-source "${SCRIPT_DIR}/lib/slot.sh"
+# shellcheck source=log.sh
+source "${SCRIPT_DIR}/log.sh"
+# shellcheck source=config.sh
+source "${SCRIPT_DIR}/config.sh"
+# shellcheck source=platform.sh
+source "${SCRIPT_DIR}/platform.sh"
+# shellcheck source=disk.sh
+source "${SCRIPT_DIR}/disk.sh"
+# shellcheck source=docker.sh
+source "${SCRIPT_DIR}/docker.sh"
+# shellcheck source=target.sh
+source "${SCRIPT_DIR}/target.sh"
+# shellcheck source=image.sh
+source "${SCRIPT_DIR}/image.sh"
+# shellcheck source=slot.sh
+source "${SCRIPT_DIR}/slot.sh"
 
 export CONFIG_PATH="${CONFIG_PATH:-"/system.json"}"
 
-main() {
-  set -x
-
+perform_update() {
   SLOT="$(target_slot "${1:-}")"
   IMAGE="${2:-}"
   IMAGE_DIGEST="${3:-""}"
@@ -103,11 +104,4 @@ main() {
   fi
 
   step "Slot ${SLOT} installed: ${IMAGE}"
-
-  exit 0
 }
-
-# Execute main only if script is run, not sourced
-if [ "${BASH_SOURCE[0]}" = "$0" ]; then
-  main "$@"
-fi
