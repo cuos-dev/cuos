@@ -1,5 +1,7 @@
 # CuOS – Container Update OS
 
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE.txt)
+
 **CuOS** (short for **Container Update OS**) is a revolutionary operating system built entirely from Docker container images. It brings the power, flexibility, and familiarity of container development to the world of operating systems.
 
 ---
@@ -93,24 +95,13 @@ See [Platform and Architecture Support](docs/common/platform-support.md) for the
 
 ---
 
-## 📄 License
+## Contributing
 
-CuOS is open-source and licensed under the **Apache License, Version 2.0**.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions need a Developer
+Certificate of Origin sign-off (`git commit -s`, see [DCO.txt](DCO.txt)).
 
-Please refer to the [LICENSE.txt](LICENSE.txt) file for full license details, and to [NOTICE](NOTICE) for attribution. Each source file carries an `SPDX-License-Identifier` line.
+## License
 
-## Disclaimer
-
-This software is provided without warranty. See [DISCLAIMER.md](DISCLAIMER.md) for more information.
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please check out our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## 📣 Stay Tuned
-
-More documentation, examples, and community links coming soon. Follow us for updates!
+Apache-2.0 — see [LICENSE.txt](LICENSE.txt) and [NOTICE](NOTICE). Each source
+file carries an `SPDX-License-Identifier` line.
+No warranty; see [DISCLAIMER.md](DISCLAIMER.md).
