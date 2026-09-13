@@ -5,7 +5,7 @@
 # an x86_64 stage and carried into whichever architecture this image is built
 # for. Both packages hold nothing but /usr/lib/grub/<target>/ - target data, no
 # host binaries - which is what makes the copy sound.
-FROM --platform=linux/amd64 alpine:3.23 AS grub-x86_64
+FROM --platform=linux/amd64 alpine:3.24 AS grub-x86_64
 RUN apk add --no-cache grub-bios grub-efi
 
 FROM docker:29.8.0-alpine3.24
