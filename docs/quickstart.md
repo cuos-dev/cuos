@@ -45,7 +45,7 @@ checkouts, which is where `output/` appears.
   "updater_image": "ghcr.io/cuos-dev/cuos-updater",
   "updater_image_version": "latest",
   "updater_image_digest": "",
-  "initial_image": "docker.io/library/nginx",
+  "initial_image": "ghcr.io/my-org/my-init-app",
   "initial_image_version": "latest",
   "initial_image_digest": ""
 }
@@ -117,7 +117,7 @@ Check logs:
 cuos log
 ```
 
-Your application container (nginx in the example) should be running:
+Your [Application Init Container](./common/cuos-app-init.md) should be running:
 
 ```bash
 docker ps | grep cuos-app

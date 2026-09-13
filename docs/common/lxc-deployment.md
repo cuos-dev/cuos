@@ -34,10 +34,8 @@ as a file instead:
 
 `system/cuos/init.sh` — `wait_for_lxc_system_init()`.
 
-The wait is what allows one generic image to serve many containers: create the
-container, then place its configuration, in that order. The build normally
-places the configuration into the image, so a purpose-built image needs no extra
-step.
+`tool.sh image --platform lxc` writes the configuration into the image, so a
+container built this way finds it and never waits.
 
 ## The update process
 
