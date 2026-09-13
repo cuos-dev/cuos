@@ -80,6 +80,15 @@ listening_on() {
   ss -ltn 2>/dev/null | grep -qE "[:.]$1[[:space:]]"
 }
 
+apparmor_enabled() {
+  [[ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" == "Y" ]]
+}
+
+# "<profile> (<mode>)" per line, for every profile loaded into the kernel.
+apparmor_profiles() {
+  cat /sys/kernel/security/apparmor/profiles 2>/dev/null
+}
+
 # How many cuos journal entries of priority error or worse this boot produced.
 journal_errors() {
   journalctl -t cuos -b -p 3 --no-pager -o cat 2>/dev/null | grep -c . || true
@@ -175,6 +184,35 @@ check_docker() {
     return
   fi
   failed "docker" "docker is not responding"
+}
+
+# docker-default is the only thing confining the application container, and
+# both ways of losing it - the LSM off, or dockerd never loading the profile -
+# are silent. So it is asked for by name.
+check_apparmor() {
+  if is_container; then
+    skipped "apparmor" "profiles belong to the host's kernel; a container loads none of its own"
+    return
+  fi
+  if ! apparmor_enabled; then
+    failed "apparmor" "the kernel has AppArmor off - check apparmor=1 on the command line"
+    return
+  fi
+
+  local profiles count mode
+  profiles="$(apparmor_profiles)"
+  count="$(grep -c . <<<"${profiles}")"
+  mode="$(sed -n 's/^docker-default (\(.*\))$/\1/p' <<<"${profiles}")"
+
+  if [[ -z "${mode}" ]]; then
+    failed "apparmor" "dockerd loaded no docker-default; profiles in the kernel: ${count}"
+    return
+  fi
+  if [[ "${mode}" != "enforce" ]]; then
+    failed "apparmor" "docker-default is in ${mode} mode, so it confines nothing"
+    return
+  fi
+  ok "apparmor" "${count} profiles loaded, docker-default enforcing"
 }
 
 check_app() {
@@ -278,6 +316,7 @@ selftest() {
   check_subvolumes
   check_state
   check_docker
+  check_apparmor
   check_app
   check_network
   check_hostname

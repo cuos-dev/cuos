@@ -27,7 +27,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     linux-image-amd64 \
     mtools \
     pv \
-    selinux-policy-default \
     syslinux \
     xorriso \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
