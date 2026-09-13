@@ -8,8 +8,8 @@ A minimal end-to-end walkthrough to build, boot and update a CuOS based system.
 
 > **If you only want a running system**, you do not need this repository. Clone
 > [cuos-release](https://github.com/cuos-dev/cuos-release), write a
-> `system.json` and run `./tool.sh image` — its README walks you through it.
-> This page is for looking inside afterwards.
+> `system.json` and run `./cuos-release/tool.sh image` — its README walks you
+> through it. This page is for looking inside afterwards.
 
 ---
 
@@ -28,7 +28,8 @@ This repository is the OS. Focus areas:
 - `system/cuos/` → Runtime scripts (API, update, init)
 
 `cuos-release` is the build tooling: `tool.sh` runs the two factories above as
-containers, so the commands below are run from there.
+containers. The commands below are run from the directory holding both
+checkouts, which is where `output/` appears.
 
 ---
 
@@ -50,25 +51,23 @@ containers, so the commands below are run from there.
 }
 ```
 
-Place it in the `cuos-release` checkout (e.g. `cuos-release/system.json`).
+Place it beside the two checkouts, as `system.json`.
 
-> Tip: For production pin versions & use digests — or `"#include": "release.json"`,
-> which pins them for you.
+> Tip: For production pin versions & use digests — or
+> `"#include": "cuos-release/release.json"`, which pins them for you.
 
 ---
 
 ## 3. Build a Raw Disk Image
 
-From the `cuos-release` checkout, which runs the image factory (raw BTRFS based
-target image):
+`tool.sh` runs the image factory (raw BTRFS based target image):
 
 ```bash
-cd cuos-release
-./tool.sh image ./system.json
+./cuos-release/tool.sh image ./system.json
 ```
 
 Result: a `.img` in `./output/`, named after your configuration —
-`./tool.sh name ./system.json` prints the name.
+`./cuos-release/tool.sh name ./system.json` prints the name.
 
 ---
 
@@ -77,7 +76,7 @@ Result: a `.img` in `./output/`, named after your configuration —
 Raw image can be started directly; allocate enough RAM & enable UEFI if desired.
 
 ```bash
-IMAGE="output/$(./tool.sh name ./system.json).img"
+IMAGE="output/$(./cuos-release/tool.sh name ./system.json).img"
 
 qemu-system-x86_64 \
   -m 2048 \
