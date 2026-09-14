@@ -48,7 +48,7 @@ can build:
   (`image-factory/create_image.sh`), which needs binfmt/QEMU emulation for a
   foreign architecture.
 - **The OS image is chosen per platform.** A configuration can carry
-  `os_image` plus `<platform>_image` variants — `rpi-arm64_image`,
+  `os_image` plus a `<platform>_image` key per platform — `rpi-arm64_image`,
   `lxc_image`, and so on — each with its own `_version` and `_digest`. The
   platform-specific key wins, `os_image` is the fallback.
 

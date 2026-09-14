@@ -1,6 +1,6 @@
 # CuOS in an LXC container
 
-How the container variant of CuOS differs from a system running on its own disk.
+How CuOS in a container differs from a system running on its own disk.
 
 **To build and deploy one**, see
 [LXC and Proxmox](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/lxc-proxmox.md)
