@@ -3,7 +3,7 @@
 # so we use Raspbian and build this from scratch with debootstrap
 # We base this on debian image, so that debootstrap is called,
 # when a new debian release is out.
-FROM debian:13.6-slim AS builder
+FROM debian:13.7-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
