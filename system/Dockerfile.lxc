@@ -16,6 +16,8 @@ RUN echo "Cache buster: v1" \
   ## cuos system dependencies (lxc) \
   busybox-static \
   ## cuos os dependencies \
+  # A container cannot load profiles - that is the LXC host's business \
+  #-apparmor \
   #-btrfs-progs \
   dbus \
   dbus-broker \
@@ -24,7 +26,6 @@ RUN echo "Cache buster: v1" \
   #-kbd \
   kmod \
   lsb-release \
-  #-selinux-policy-default \
   systemd \
   systemd-sysv \
   #-systemd-timesyncd \

@@ -140,6 +140,7 @@ In-place patch (`cuos patch*`) modifies `/system.json` directly and keeps previo
 | Network | Minimal exposed ports, host network only if required |
 | Privileges | App container without `--privileged`; granular capabilities |
 | CA | Inject custom CA via `custom_ca_certs` & rotate regularly |
+| Confinement | AppArmor is on, and dockerd confines the app container with `docker-default` — `docs/common/apparmor.md` |
 
 ---
 
@@ -150,3 +151,4 @@ In-place patch (`cuos patch*`) modifies `/system.json` directly and keeps previo
 * `image-factory/create_image.sh` – Raw image creation
 * `installer-factory/create_iso.sh` – Installer ISO
 * `docs/common/btrfs-usage.md` – Subvolume layout
+* `docs/common/apparmor.md` – What AppArmor confines, and what it does not

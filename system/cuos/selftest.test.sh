@@ -33,6 +33,10 @@ MOCK_DOCKER_OK=0
 MOCK_APP_STATE="running"
 MOCK_LISTENING=0
 MOCK_JOURNAL_ERRORS=0
+MOCK_APPARMOR_ENABLED=0
+MOCK_APPARMOR_PROFILES="docker-default (enforce)
+/usr/sbin/dhclient (enforce)
+unix-chkpwd (enforce)"
 
 virt_type() { echo "${MOCK_VIRT}"; }
 subvolumes() { echo "${MOCK_SUBVOLUMES}"; }
@@ -42,6 +46,8 @@ docker_ok() { return "${MOCK_DOCKER_OK}"; }
 container_state() { echo "${MOCK_APP_STATE}"; }
 listening_on() { return "${MOCK_LISTENING}"; }
 journal_errors() { echo "${MOCK_JOURNAL_ERRORS}"; }
+apparmor_enabled() { return "${MOCK_APPARMOR_ENABLED}"; }
+apparmor_profiles() { echo "${MOCK_APPARMOR_PROFILES}"; }
 
 # A healthy system, which each test then breaks in exactly one way.
 reset_system() {
@@ -56,6 +62,10 @@ reset_system() {
   MOCK_APP_STATE="running"
   MOCK_LISTENING=0
   MOCK_JOURNAL_ERRORS=0
+  MOCK_APPARMOR_ENABLED=0
+  MOCK_APPARMOR_PROFILES="docker-default (enforce)
+/usr/sbin/dhclient (enforce)
+unix-chkpwd (enforce)"
 
   cat >"${CONFIG_PATH}" <<'EOF'
 {
@@ -151,6 +161,36 @@ expect "state: anything but running fails" "failed" status_of state is_updating
 break_docker() { MOCK_DOCKER_OK=1; }
 expect "docker: an unresponsive daemon fails" "failed" status_of docker break_docker
 
+lsm_off() { MOCK_APPARMOR_ENABLED=1; }
+expect "apparmor: a kernel with the LSM off fails" "failed" status_of apparmor lsm_off
+expect "apparmor: the failure names the command line" \
+  "the kernel has AppArmor off - check apparmor=1 on the command line" \
+  detail_of apparmor lsm_off
+
+no_docker_default() { MOCK_APPARMOR_PROFILES="/usr/sbin/dhclient (enforce)"; }
+expect "apparmor: enabled but no docker-default fails" "failed" status_of \
+  apparmor no_docker_default
+expect "apparmor: the failure counts what did load" \
+  "dockerd loaded no docker-default; profiles in the kernel: 1" detail_of \
+  apparmor no_docker_default
+
+complaining() { MOCK_APPARMOR_PROFILES="docker-default (complain)"; }
+expect "apparmor: a complaining docker-default fails" "failed" status_of \
+  apparmor complaining
+expect "apparmor: and says it confines nothing" \
+  "docker-default is in complain mode, so it confines nothing" detail_of \
+  apparmor complaining
+
+# "docker-default-something" is a different profile, not this one.
+similar_name() { MOCK_APPARMOR_PROFILES="docker-default-old (enforce)"; }
+expect "apparmor: a profile merely starting with the name does not count" \
+  "failed" status_of apparmor similar_name
+
+expect "apparmor: a healthy system reports the count" \
+  "3 profiles loaded, docker-default enforcing" detail_of apparmor nothing
+expect "apparmor: skipped in a container" "skipped" status_of apparmor \
+  be_a_container
+
 app_exited() { MOCK_APP_STATE="exited"; }
 expect "app: a stopped application fails" "failed" status_of app app_exited
 app_missing() { MOCK_APP_STATE=""; }
@@ -193,7 +233,7 @@ expect "a skipped check does not" "true" overall be_a_container
 check_count() {
   report nothing | jq -r '.checks | length'
 }
-expect "every check reports" "11" check_count
+expect "every check reports" "12" check_count
 
 summary_adds_up() {
   report nothing | jq -r '
