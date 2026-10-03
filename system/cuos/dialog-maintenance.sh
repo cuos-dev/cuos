@@ -291,13 +291,14 @@ system_factory_reset() {
 diagnostics_menu() {
   while true; do
     local choice
-    choice="$(fmenu "Diagnostics" "Choose a diagnostic tool:" 17 72 10 \
+    choice="$(fmenu "Diagnostics" "Choose a diagnostic tool:" 18 72 11 \
       "resources" "View System Resources" \
       "clogs" "View CuOS Logs" \
       "logs" "View System Logs" \
       - " " \
       "ping" "Tool: Ping Test" \
       "dns" "Tool: DNS Resolution Test" \
+      "netcheck" "Tool: Update Connection Check" \
       "docker" "Tool: docker ps" \
       "expert" " " \
       "back" "\Z5Back\Z0")" || return 1
@@ -308,6 +309,7 @@ diagnostics_menu() {
       docker) api_stream_size "docker ps -a" 30 120 docker ps ;;
       ping) diagnostics_ping ;;
       dns) diagnostics_dns ;;
+      netcheck) term_all diagnostics_netcheck ;;
       "expert") expert ;;
       back|"") return 0 ;;
     esac
@@ -368,6 +370,18 @@ diagnostics_dns() {
   hn="$(input "Enter hostname to resolve:" "cuos.dev" "DNS Test" 9 60)" || return 1
   valid_hostname "$hn" || { msg "Invalid hostname"; return 1; }
   api_stream_background "DNS resolve" "diagnostics_dns_request" "$hn"
+}
+
+# In less like the logs: the report is longer than a dialog box, and less shows
+# each check as it finishes.
+diagnostics_netcheck() {
+  (
+    echo -e "\033[1;36m[ Update Connection Check - Press 'Q' to quit the view ]\033[0m";
+    "${SCRIPT_DIR}/netcheck.sh" 2>&1
+  ) | \
+    LESSSECURE=1 less \
+      --header=1,0 \
+      -R
 }
 
 check_password() {
