@@ -156,8 +156,11 @@ failure behind it.
   inspection is a supported mode, as update images are verified by digest, not
   by trusting the connection. Any other CA is an error
   with two ways out: exempt the registry from inspection, or have the inspection
-  CA added to the device — by its vendor, in the image, or in `custom_ca_certs`
-  where the customer manages the system configuration.
+  CA added to the device's trust store. The report refers to the device's
+  manual for how, since that depends on who builds and configures the device:
+  in CuOS it is `custom_ca_certs` in `system.json`, or the CA built into the
+  image. A vendor shipping CuOS-based devices should describe this in its
+  manual.
 - **Credentials** are checked by a `docker login` through the docker daemon,
   into a temporary client configuration — the daemon is what pulls the update,
   with its own TLS implementation.
