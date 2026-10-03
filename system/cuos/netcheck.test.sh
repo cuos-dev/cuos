@@ -221,6 +221,7 @@ reset_mocks() {
 run() {
   OUT="$( (main) )"
   RC=$?
+  sed -n '/^Recommendations$/,/^Result:/p' <<<"${OUT}" >>"${TMP}/all-recommendations"
 }
 
 # line TITLE: the status column of that check, e.g. "[OK]".
@@ -364,5 +365,11 @@ MOCK_HTTP="407"
 run
 expect "proxy auth: error" "[ERROR]" line "Registry answer"
 expect "proxy auth: credentials skipped" "[SKIPPED]" line "Credentials"
+
+# The report is read by the customer's IT, who may have a device from a vendor
+# and no say over its configuration: no recommendation names a config key.
+expect "recommendations name no configuration key" "" \
+  grep -oE 'update_registry[a-z_]*|custom_ca_certs|ntp-server|system\.json' "${TMP}/all-recommendations"
+expect "recommendations were collected" "yes" eval '[[ -s "${TMP}/all-recommendations" ]] && echo yes'
 
 summary

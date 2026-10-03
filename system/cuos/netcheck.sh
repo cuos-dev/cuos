@@ -272,11 +272,11 @@ classify_http() {
         "${location:-another address}"
       ;;
     403) printf 'error\taccess denied (HTTP 403)\tA proxy or firewall in the path probably refuses the request. Allow the registry host for this device.\n' ;;
-    404) printf 'error\tno registry at this address (HTTP 404)\tCheck update_registry in the system configuration.\n' ;;
+    404) printf 'error\tno registry at this address (HTTP 404)\tThere is no update registry at the configured address. Please check the update registry setting of the device, or contact your support.\n' ;;
     407) printf 'error\tproxy wants authentication (HTTP 407)\tThe proxy requires credentials the device does not send. Allow the device through the proxy without authentication.\n' ;;
     429) printf 'warning\trate limited (HTTP 429)\tTry again later.\n' ;;
-    5??) printf 'error\tserver-side problem (HTTP %s)\tTry again later; contact support if it persists.\n' "${code}" ;;
-    *) printf 'error\tunexpected answer (HTTP %s)\tContact support with this output.\n' "${code:-none}" ;;
+    5??) printf 'error\tserver-side problem (HTTP %s)\tTry again later; contact your support if it persists.\n' "${code}" ;;
+    *) printf 'error\tunexpected answer (HTTP %s)\tContact your support with this output.\n' "${code:-none}" ;;
   esac
 }
 
@@ -447,7 +447,7 @@ check_gateway() {
   mapfile -t gateways < <(default_gateways)
   if (( ${#gateways[@]} == 0 )); then
     record gateway error "no default route" \
-      "Configure a gateway for this device (network settings)."
+      "No gateway is configured. Please check the network settings of the device, or contact your support."
     return
   fi
   for gw in "${gateways[@]}"; do
@@ -480,7 +480,7 @@ check_dns_config() {
   mapfile -t servers < <(nameservers)
   if (( ${#servers[@]} == 0 )); then
     record dns_config error "no DNS server configured" \
-      "Configure DNS servers for this device (network settings)."
+      "No DNS server is configured. Please check the network settings of the device, or contact your support."
     return
   fi
   for server in "${servers[@]}"; do
@@ -587,26 +587,26 @@ check_tls_handshake() {
   case "$(diagnose_block "${no_pq}" "${no_sni}" "${dummy}")" in
     pq_clienthello)
       record tls_handshake error "$(describe_handshake "${main}") - the large ClientHello is not accepted" \
-        "A firewall or proxy in the path cannot handle the larger TLS ClientHello with a post-quantum key share (X25519MLKEM768). Update the firmware of that device; contact support for a workaround."
+        "A firewall or proxy in the path cannot handle the larger TLS ClientHello with a post-quantum key share (X25519MLKEM768). Update the firmware of that device; contact your support for a workaround."
       ;;
     sni_block)
       record tls_handshake error "$(describe_handshake "${main}") - blocked by server name" \
-        "A firewall or proxy in the path blocks the connection by its server name (SNI). Allow ${HOST} in ALL firewalls and proxies in the path (URL/category filter, application control, TLS inspection rules). Often there is a further firewall (corporate, site, provider) the local contact does not know about."
+        "A firewall or proxy in the path blocks the connection by its server name (SNI). Allow ${HOST} in ALL firewalls and proxies in the path (URL/category filter, application control, TLS inspection rules). Often there is a further firewall in the path (corporate, site, provider) that is not known locally."
       ;;
     *)
       if [[ "${main}" == alert* ]]; then
         record tls_handshake error "the server refuses the handshake (${main#alert })" \
-          "The server or a proxy in the path refuses the TLS connection. Contact support with this output."
+          "The server or a proxy in the path refuses the TLS connection. Contact your support with this output."
       else
         record tls_handshake error "$(describe_handshake "${main}") - every TLS connection to ${TARGET_IP} is cut" \
-          "Something in the path cuts every TLS connection to ${TARGET_IP}:${PORT}, whatever the server name. Allow ${HOST} in all firewalls in the path, including any the local contact may not know about (corporate, site, provider)."
+          "Something in the path cuts every TLS connection to ${TARGET_IP}:${PORT}, whatever the server name. Allow ${HOST} in all firewalls in the path, including any that are not known locally (corporate, site, provider)."
       fi
       ;;
   esac
 }
 
 check_time() {
-  local now build ntp rec="Configure NTP servers (network settings) and allow NTP (UDP 123) to them. A wrong clock makes certificates look invalid."
+  local now build ntp rec="Please check the NTP servers in the network settings of the device, and allow NTP (UDP 123) from the device; or contact your support. A wrong clock makes certificates look invalid."
   now="$(now_epoch)"
   build="$(build_epoch)"
   if [[ -n "${build}" ]] && (( now < build )); then
@@ -655,7 +655,7 @@ check_cert_ca() {
 
   if [[ "${sys_code}" == "aborted" || "${pub_code}" == "aborted" || -z "${LEAF}" ]]; then
     record cert_ca error "the certificate could not be fetched${SYS_MSG:+: ${SYS_MSG#curl: }}" \
-      "The connection broke off although the handshake worked before. Run the check again; if it happens again, contact support with this output."
+      "The connection broke off although the handshake worked before. Run the check again; if it happens again, contact your support with this output."
     return
   fi
 
@@ -677,7 +677,7 @@ check_cert_ca() {
       ;;
     time)
       record cert_ca error "certificate expired or not yet valid" \
-        "If the system time is wrong, fix it first (see System time). Otherwise contact support with this output."
+        "If the system time is wrong, fix it first (see System time). Otherwise contact your support with this output."
       ;;
     unknown)
       describe_cert "topmost certificate" "${top}"
@@ -691,7 +691,7 @@ Note: with b) the inspection infrastructure sees this traffic, credentials inclu
       ;;
     *)
       record cert_ca error "certificate not accepted${SYS_MSG:+: ${SYS_MSG#curl: }}" \
-        "Contact support with this output."
+        "Contact your support with this output."
       ;;
   esac
 }
@@ -711,7 +711,7 @@ check_hostname() {
   fi
   names="$(openssl x509 -in "${LEAF}" -noout -ext subjectAltName 2>/dev/null | sed -n '2,$p' | tr -d ' \n')"
   detail "certificate is for: ${names:-$(cert "${LEAF}" subject)}"
-  local rec="Contact support with this output."
+  local rec="Contact your support with this output."
   [[ "${CA_CLASS}" == "customer" ]] &&
     rec="The TLS inspection issues the certificate for the wrong name - check its configuration, or exempt ${HOST} from inspection."
   record hostname error "certificate is not valid for ${HOST}" "${rec}"
@@ -723,7 +723,7 @@ check_tls_connection() {
     record tls_connection ok "established, certificate verified"
   else
     record tls_connection error "${SYS_MSG:-curl failed (${SYS_RC})}" \
-      "Contact support with this output."
+      "Contact your support with this output."
   fi
 }
 
@@ -743,15 +743,16 @@ check_credentials() {
   local out rc
   out="$(registry_login "$(bracket "${HOST}"):${PORT}" "${REG_USER}" "${REG_PASS}")"
   rc=$?
-  local rec="Check update_registry_user and update_registry_password in the system configuration, and the licence; contact support."
+  local rec="The access data for the update registry is not accepted. Please check it, or contact your support."
   case "$(classify_login "${rc}" "${out}")" in
     ok) record credentials ok "accepted" ;;
     rejected) record credentials error "rejected" "${rec}" ;;
-    denied) record credentials error "accepted, but access denied" "${rec}" ;;
+    denied) record credentials error "accepted, but access denied" \
+      "The access data for the update registry is accepted, but does not give access to the updates (licence or permissions). Please check it, or contact your support." ;;
     *)
       detail "$(grep -m 1 -i 'error' <<<"${out}" | cut -c 1-200)"
       record credentials error "the docker daemon could not log in" \
-        "curl reached the registry, docker did not. Docker has its own TLS implementation and proxy settings. Contact support with this output."
+        "curl reached the registry, docker did not. Docker has its own TLS implementation and proxy settings. Contact your support with this output."
       ;;
   esac
 }
