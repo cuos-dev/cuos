@@ -686,7 +686,7 @@ check_cert_ca() {
       record cert_ca error "issued by an unknown CA (TLS inspection?)" \
         "The connection is probably inspected by a device whose CA this device does not trust. Two options, both supported:
 a) Exempt ${HOST} from TLS inspection.
-b) Add the CA certificate of the inspection to custom_ca_certs in the system configuration of the device.
+b) Have the CA certificate of the inspection added to the device: ask the vendor of the device to include it in its image, or, if you manage the system configuration of the device yourself, add it to custom_ca_certs.
 Note: with b) the inspection infrastructure sees this traffic, credentials included, in clear text; securing it is your responsibility."
       ;;
     *)
