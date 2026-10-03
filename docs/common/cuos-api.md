@@ -151,11 +151,13 @@ failure behind it.
   connection. Three more probes narrow it down: without the post-quantum key
   share (a middlebox that cannot handle the larger ClientHello), without a
   server name and with a neutral one (a filter by server name).
-- **Certificate / CA.** A public CA is OK. A CA from `custom_ca_certs` is a
-  **warning** — TLS inspection is a supported mode, as update images are
-  verified by digest, not by trusting the connection. Any other CA is an error
-  with two ways out: exempt the registry from inspection, or add the inspection
-  CA to `custom_ca_certs`.
+- **Certificate / CA.** A public CA is OK. A CA the device trusts beyond the
+  public ones, from its image or from `custom_ca_certs`, is a **warning**: TLS
+  inspection is a supported mode, as update images are verified by digest, not
+  by trusting the connection. Any other CA is an error
+  with two ways out: exempt the registry from inspection, or have the inspection
+  CA added to the device — by its vendor, in the image, or in `custom_ca_certs`
+  where the customer manages the system configuration.
 - **Credentials** are checked by a `docker login` through the docker daemon,
   into a temporary client configuration — the daemon is what pulls the update,
   with its own TLS implementation.

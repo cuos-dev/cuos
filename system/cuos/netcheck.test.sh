@@ -285,7 +285,8 @@ MOCK_SYS="60 20"
 run
 expect "unknown CA: error" "[ERROR]" line "Certificate / CA"
 expect "unknown CA: option a" "yes" has "a) Exempt registry.example.org from TLS inspection."
-expect "unknown CA: option b" "yes" has "b) Add the CA certificate of the inspection to custom_ca_certs"
+expect "unknown CA: option b, the vendor" "yes" has "vendor of the device to include it in its image"
+expect "unknown CA: option b, custom_ca_certs" "yes" has "add it to custom_ca_certs"
 expect "unknown CA: the hostname is still checked" "[OK]" line "Hostname"
 expect "unknown CA: the connection is skipped" "[SKIPPED]" line "TLS connection"
 
