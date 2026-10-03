@@ -499,6 +499,41 @@ configure_network() {
 
 }
 
+# The ntp-server entries of all network entries, for systemd-timesyncd. The
+# ntp-servers line in /etc/network/interfaces is not enough: no ifupdown hook in
+# the image hands it on, so timesyncd gets its servers from a drop-in of its
+# own. Without any ntp-server the drop-in is removed, and timesyncd uses what
+# DHCP offers, or Debian's pool. Configured servers are meant to win over the
+# ones DHCP offers - "cuos.conf" sorts after a "01-..." drop-in from the
+# dhclient hook - which has not been checked on a device yet.
+configure_ntp() {
+  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
+    # The clock belongs to the host
+    return
+  fi
+  local conf="${T_FILE_TIMESYNCD:-"/etc/systemd/timesyncd.conf.d/cuos.conf"}"
+  local servers old=""
+  servers="$(jq_config '
+    [ .network[]? | ."ntp-server" // empty
+      | if type == "array" then .[] else split(" ")[] end
+      | select(. != "") ]
+    | reduce .[] as $s ([]; if index([$s]) then . else . + [$s] end)
+    | join(" ")')"
+  [[ -f "${conf}" ]] && old="$(cat "${conf}")"
+
+  if [[ -z "${servers}" ]]; then
+    rm -f "${conf}"
+  else
+    mkdir -p "$(dirname "${conf}")"
+    printf '# Managed by cuos/init.sh\n[Time]\nNTP=%s\n' "${servers}" >"${conf}"
+  fi
+
+  if [[ -n "${TEST:-}" ]]; then return; fi
+  if [[ "${old}" != "$(cat "${conf}" 2>/dev/null)" ]]; then
+    systemctl try-restart systemd-timesyncd.service || true
+  fi
+}
+
 configure_udev() {
   local rules_file="${T_FILE_UDEV_RULES:-/etc/udev/rules.d/99-cuos.rules}"
   local rules_file_new="${T_FILE_UDEV_RULES_NEW:-"${rules_file}.new"}"
@@ -937,6 +972,8 @@ main() {
   set_hostname
 
   configure_network
+
+  configure_ntp
 
   import_custom_ca_certs
 

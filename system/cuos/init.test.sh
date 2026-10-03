@@ -165,4 +165,25 @@ expect \
   $'# Managed automatically\n\nSUBSYSTEM=="tty", ATTRS{serial}=="A50285BI", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE="0660", TAG+="iot", SYMLINK+="zigbee"\nSUBSYSTEM=="sound", ATTRS{idVendor}=="0499", ATTRS{idProduct}=="1503", MODE="0660", TAG+="audio", SYMLINK+="midi-keyboard"\nSUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c216", MODE="0660", TAG+="input", SYMLINK+="gamepad"\nSUBSYSTEM=="block", ATTRS{serial}=="4C530001230101118392", MODE="0660", TAG+="storage", SYMLINK+="backup-disk"\nSUBSYSTEM=="net", ATTR{address}=="02:11:22:33:44:55", MODE="0660", SYMLINK+="usbip-nic"' \
   configure_udev
 
+NTP_TMP="$(mktemp -d)"
+export T_FILE_TIMESYNCD="${NTP_TMP}/timesyncd.conf.d/cuos.conf"
+ntp_conf() {
+  configure_ntp
+  cat "${T_FILE_TIMESYNCD}" 2>/dev/null || echo "(none)"
+}
+export CONFIG_PATH="${SCRIPT_DIR}/init.test.system2.json"
+expect "configure_ntp: all entries, in order" \
+  $'# Managed by cuos/init.sh\n[Time]\nNTP=192.168.155.1 192.168.155.2 192.168.172.1 192.168.172.2' \
+  ntp_conf
+echo '{"network": [{"ntp-server": "a.example b.example"}, {"ntp-server": ["b.example", "c.example"]}]}' >"${NTP_TMP}/system.json"
+export CONFIG_PATH="${NTP_TMP}/system.json"
+expect "configure_ntp: a string, and duplicates once" \
+  $'# Managed by cuos/init.sh\n[Time]\nNTP=a.example b.example c.example' \
+  ntp_conf
+echo '{"network": [{"dhcp": true}]}' >"${NTP_TMP}/system.json"
+expect "configure_ntp: none configured removes the drop-in" "(none)" ntp_conf
+echo '{}' >"${NTP_TMP}/system.json"
+expect "configure_ntp: no network at all" "(none)" ntp_conf
+rm -rf "${NTP_TMP}"
+
 summary
