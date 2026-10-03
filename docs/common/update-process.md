@@ -60,6 +60,11 @@ flowchart LR
 | 8. Verification | App init / state sets `running` | Timeout / app fail → rollback |
 | 9. Finalize | New config becomes active | On rollback old remains |
 
+If step 4 fails and the reason is unclear, run `cuos netcheck` (or
+*Diagnostics → Tool: Update Connection Check* on the console): it checks the way
+to the registry step by step and says what to fix — see
+[Update connection check](./cuos-api.md#update-connection-check).
+
 ---
 
 ## Verification & Success Criteria

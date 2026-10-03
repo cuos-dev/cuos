@@ -31,6 +31,9 @@ cuos resources
 
 # Check the invariants of this system
 cuos selftest
+
+# Check the connection to the update registry
+cuos netcheck
 ```
 
 ### System Management
@@ -114,6 +117,56 @@ is configured by its host — never to hide a problem.
 **Read `ok` from the output, not the exit code**: the API exits 0 for every
 command, because systemd socket activation stops working otherwise.
 
+### Update connection check
+
+`cuos netcheck` checks the connection to the update registry step by step and
+says what to fix — written for the customer's IT, and for the case where an
+update only reports `curl: (35) TLS connect error`. On the console it is under
+*Diagnostics → Tool: Update Connection Check*. It changes nothing.
+
+```text
+CuOS update connection check - registry.example.org:443
+
+[OK]      Router            192.168.1.1 (eth0)
+[OK]      DNS servers       192.168.1.1 answering
+[OK]      DNS resolution    registry.example.org -> 203.0.113.10
+[OK]      Port              TCP 443 open
+[ERROR]   TLS handshake     aborted (close_notify) - blocked by server name
+                            without post-quantum key share: aborted (close_notify)
+                            without server name (SNI): ServerHello received
+                            with server name example.com: ServerHello received
+[OK]      System time       synchronized (NTP)
+[SKIPPED] Certificate / CA  depends on TLS handshake
+...
+```
+
+The target is the registry the update pulls from: `update_registry_proxy`, else
+`update_registry`, with `update_registry_user` / `update_registry_password`.
+The checks, in order: router, DNS servers, DNS resolution, port, TLS handshake,
+system time, certificate / CA, hostname, TLS connection, registry answer,
+credentials. A check whose predecessor failed is **skipped**, naming the
+failure behind it.
+
+- **TLS handshake.** No ServerHello means something in the path ends the
+  connection. Three more probes narrow it down: without the post-quantum key
+  share (a middlebox that cannot handle the larger ClientHello), without a
+  server name and with a neutral one (a filter by server name).
+- **Certificate / CA.** A public CA is OK. A CA from `custom_ca_certs` is a
+  **warning** — TLS inspection is a supported mode, as update images are
+  verified by digest, not by trusting the connection. Any other CA is an error
+  with two ways out: exempt the registry from inspection, or add the inspection
+  CA to `custom_ca_certs`.
+- **Credentials** are checked by a `docker login` through the docker daemon,
+  into a temporary client configuration — the daemon is what pulls the update,
+  with its own TLS implementation.
+
+The probes use curl, which sends a different ClientHello than the docker
+daemon; both carry the post-quantum key share, but a firewall that filters on
+other details may still treat them differently.
+
+`netcheck.sh` itself exits `0` (all ok), `1` (a warning) or `2` (an error); through
+`cuos` the exit code is always 0, so read the `Result:` line.
+
 ## Using the API in Your Application
 
 ### Error Handling
@@ -139,6 +192,7 @@ see the note under Self-test. Read the result from the output.
 | rollback | Rollback last update | `{}` | Status messages | Reverts to previous version |
 | resources | Show system resources | `{}` | `{ "cpu_cores": number, "cpu_usage": number, ... }` | System metrics |
 | selftest | Check this system's invariants | `{}` | `{ "ok": bool, "summary": {...}, "checks": [...] }` | Read-only; see [Self-test](#self-test) |
+| netcheck | Check the connection to the update registry | `{}` | Text report | Read-only; see [Update connection check](#update-connection-check) |
 | patch | Patch the current system | `{ "config": partial system config }` | Status message | No slot change |
 | patch-network | Set network configuration | `{"network_id": 0,"config": {"dhcp": true}}` | Status message | See [Documentation system.json](./system-json.md) |
 | patch-hostname | Set system hostname | `"myhostname"` | Status message | Set new hostname |
