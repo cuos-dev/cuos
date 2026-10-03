@@ -356,6 +356,13 @@ api_command_selftest() {
   "${SCRIPT_DIR}/selftest.sh"
 }
 
+## netcheck           - Check the connection to the update registry
+##                      Text report; the exit code is always 0 here, read
+##                      the "Result:" line.
+api_command_netcheck() {
+  "${SCRIPT_DIR}/netcheck.sh"
+}
+
 api_main() {
   local input="{}"
   local command="${1:-""}"
