@@ -120,7 +120,7 @@ edit_network() {
       edit '.network['"$i"']["network-mask"]' "Network mask" is_valid_ip || exit 1
       edit '.network['"$i"']["gateway"]' "Gateway" is_valid_ip || exit 1
       edit '.network['"$i"']["dns-server"]' "DNS server(s)" is_valid_ips || exit 1
-      edit '.network['"$i"']["ntp"]' "NTP server(s)" is_valid_names_or_ips || exit 1
+      edit '.network['"$i"']["ntp-server"]' "NTP server(s)" is_valid_names_or_ips || exit 1
     fi
   done
 }
