@@ -359,11 +359,15 @@ diagnostics_ping() {
   valid_ipv4 "$tgt" || valid_hostname "$tgt" || { msg "Invalid IP address or hostname"; return 1; }
   api_stream_background "Ping" ping -c 4 -w 4 -W 1 "$tgt"
 }
+diagnostics_dns_request() {
+  local hn="$1"
+  timeout 2 getent ahosts "$hn" && echo DNS resolution successful. || echo DNS resolution failed.
+}
 diagnostics_dns() {
   local hn
   hn="$(input "Enter hostname to resolve:" "cuos.dev" "DNS Test" 9 60)" || return 1
   valid_hostname "$hn" || { msg "Invalid hostname"; return 1; }
-  api_stream_background "DNS resolve" "timeout 2 getent ahosts $hn && echo DNS resolution successful. || echo DNS resolution failed."
+  api_stream_background "DNS resolve" "diagnostics_dns_request" "$hn"
 }
 
 check_password() {
