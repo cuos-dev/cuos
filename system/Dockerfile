@@ -48,6 +48,7 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   ## cuos os extra for wake on lan \
   ethtool \
   ## cuos os dependencies \
+  apparmor \
   btrfs-progs \
   console-setup \
   dbus \
@@ -57,7 +58,6 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   kbd \
   kmod \
   lsb-release \
-  selinux-policy-default \
   systemd \
   systemd-sysv \
   systemd-timesyncd \
@@ -89,6 +89,9 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   && systemctl disable hv-kvp-daemon.service \
   && systemctl disable hv-vss-daemon.service \
   && systemctl enable systemd-timesyncd.service \
+  && systemctl enable apparmor.service \
+  ## /var/lib/dhcp is a symlink into /data, and AppArmor sees the resolved path \
+  && printf "/data/dhcp/ r,\n/data/dhcp/dhclient* lrw,\n" >>/etc/apparmor.d/local/usr.sbin.dhclient \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \
   && printf "Port 4222\nPermitRootLogin yes\n" >/etc/ssh/sshd_config.d/cuos.conf \

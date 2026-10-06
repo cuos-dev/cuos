@@ -75,6 +75,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   # rpi-swap \
   # iw \
   ## cuos os dependencies \
+  apparmor \
   btrfs-progs \
   console-setup \
   dbus \
@@ -84,7 +85,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   kbd \
   kmod \
   lsb-release \
-  selinux-policy-default \
   systemd \
   systemd-sysv \
   systemd-timesyncd \
@@ -112,6 +112,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   vim-tiny \
   && apt-get clean && rm -rf /var/lib/apt/lists/* \
   && systemctl enable systemd-timesyncd.service \
+  && systemctl enable apparmor.service \
+  ## /var/lib/dhcp is a symlink into /data, and AppArmor sees the resolved path \
+  && printf "/data/dhcp/ r,\n/data/dhcp/dhclient* lrw,\n" >>/etc/apparmor.d/local/usr.sbin.dhclient \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \
   && printf "Port 4222\nPermitRootLogin yes\n" >/etc/ssh/sshd_config.d/cuos.conf \
