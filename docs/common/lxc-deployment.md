@@ -37,6 +37,12 @@ as a file instead:
 `tool.sh image --platform lxc` writes the configuration into the image, so a
 container built this way finds it and never waits.
 
+A container started straight from the image — under Docker, say — also has no
+record yet of which image it runs, which the update compares against. CuOS
+takes it from the container's environment, `CUOS_IMAGE` and
+`CUOS_IMAGE_DIGEST`, and writes `unknown` without them.
+`tool.sh docker-create` in `cuos-release` sets both.
+
 ## The update process
 
 1. The container pulls the new image version.

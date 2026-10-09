@@ -41,6 +41,18 @@ expect "mask_to_prefix 32" "32" mask_to_prefix "255.255.255.255"
 
 expect "mask_to_prefix invalid" "" mask_to_prefix "255.255.252.128"
 
+T_FILE_PID1_ENVIRON="$(mktemp)"
+export T_FILE_PID1_ENVIRON
+printf 'container=docker\0CUOS_IMAGE=ghcr.io/cuos-dev/cuos-system-lxc:v1\0CUOS_IMAGE_DIGEST=sha256:abc\0' \
+  >"${T_FILE_PID1_ENVIRON}"
+expect "container_env: image" "ghcr.io/cuos-dev/cuos-system-lxc:v1" container_env CUOS_IMAGE
+expect "container_env: digest" "sha256:abc" container_env CUOS_IMAGE_DIGEST
+expect "container_env: a prefix is not the name" "" container_env CUOS_IMAGE_DIG
+expect "container_env: absent" "" container_env MISSING
+rm -f "${T_FILE_PID1_ENVIRON}"
+expect "container_env: no environ" "" container_env CUOS_IMAGE
+unset T_FILE_PID1_ENVIRON
+
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system.json"
 export T_FILE_DOCKER_DAEMON="/dev/stdout"
 

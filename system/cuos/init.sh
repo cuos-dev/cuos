@@ -34,10 +34,23 @@ patch_system_config() {
   :
 }
 
+# A variable from the container's own environment - the one docker or LXC gave
+# PID 1. systemd hands none of it on to a service, so it is read from there.
+container_env() {
+  local environ="${T_FILE_PID1_ENVIRON:-/proc/1/environ}"
+  { tr '\0' '\n' <"${environ}"; } 2>/dev/null | sed -n "s/^$1=//p" | head -n 1
+}
+
 ensure_system_config() {
-  # Exec first-run if not yet started. E.g. for testing in docker containers.
+  # Exec first-run if not yet started: a container run straight from the image
+  # rather than from a tarball the image factory built. Who starts it can name
+  # the image in CUOS_IMAGE and CUOS_IMAGE_DIGEST ('tool.sh docker-create'
+  # does); without them /etc/image reads unknown@unknown.
   if [[ ! -f "/etc/active_slot" ]]; then
-    "${SCRIPT_DIR}/first-run.sh" "A" "unknown" "unknown"
+    local image digest
+    image="$(container_env CUOS_IMAGE)"
+    digest="$(container_env CUOS_IMAGE_DIGEST)"
+    "${SCRIPT_DIR}/first-run.sh" "A" "${image:-unknown}" "${digest:-unknown}"
   fi
 
   if [[ -f "${CONFIG_PATH}" ]]; then
