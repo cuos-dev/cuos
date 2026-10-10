@@ -138,7 +138,7 @@ main() {
     fi
     sleep 5
   done
-  echo "guest agent: ${up:+answered}${up:-no answer} after $(( SECONDS - start )) s"
+  echo "guest agent: $([[ -n "${up}" ]] && echo answered || echo "no answer") after $(( SECONDS - start )) s"
 
   if [[ -n "${up}" ]]; then
     # The agent starts before cuos-init has finished the first boot.
