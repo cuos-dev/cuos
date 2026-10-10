@@ -96,33 +96,36 @@ expect "image_version: no version" "latest" \
 expect "image_version: no image" "latest" \
   image_version
 
-ATOMIC_DIR="$(mktemp -d)"
-mkdir -p "${ATOMIC_DIR}/data"
-echo '{"old":1}' >"${ATOMIC_DIR}/data/system_B.json"
-chmod 640 "${ATOMIC_DIR}/data/system_B.json"
-ln -s "${ATOMIC_DIR}/data/system_B.json" "${ATOMIC_DIR}/system_next.json"
-ln -s "${ATOMIC_DIR}/data/system_A.json" "${ATOMIC_DIR}/system.json"
+REPLACE_DIR="$(mktemp -d)"
+mkdir -p "${REPLACE_DIR}/data"
+echo '{"old":1}' >"${REPLACE_DIR}/data/system_B.json"
+chmod 640 "${REPLACE_DIR}/data/system_B.json"
+ln -s "${REPLACE_DIR}/data/system_B.json" "${REPLACE_DIR}/system_next.json"
+ln -s "${REPLACE_DIR}/data/system_A.json" "${REPLACE_DIR}/system.json"
 
-echo '{"new":1}' | write_file_atomic "${ATOMIC_DIR}/system_next.json"
-expect "write_file_atomic: the file behind the link is replaced" '{"new":1}' \
-  cat "${ATOMIC_DIR}/data/system_B.json"
-expect "write_file_atomic: the link stays a link" "${ATOMIC_DIR}/data/system_B.json" \
-  readlink "${ATOMIC_DIR}/system_next.json"
-expect "write_file_atomic: the mode is kept" "640" \
-  stat -c %a "${ATOMIC_DIR}/data/system_B.json"
+INODE_BEFORE="$(stat -c %i "${REPLACE_DIR}/data/system_B.json")"
+echo '{"new":1}' | replace_file_content "${REPLACE_DIR}/system_next.json"
+expect "replace_file_content: the file behind the link is replaced" '{"new":1}' \
+  cat "${REPLACE_DIR}/data/system_B.json"
+expect "replace_file_content: the link stays a link" "${REPLACE_DIR}/data/system_B.json" \
+  readlink "${REPLACE_DIR}/system_next.json"
+expect "replace_file_content: the mode is kept" "640" \
+  stat -c %a "${REPLACE_DIR}/data/system_B.json"
+expect "replace_file_content: the inode is kept, for bind mounts" "${INODE_BEFORE}" \
+  stat -c %i "${REPLACE_DIR}/data/system_B.json"
 
-echo '{"a":1}' | write_file_atomic "${ATOMIC_DIR}/system.json"
-expect "write_file_atomic: a dangling link gets its file" '{"a":1}' \
-  cat "${ATOMIC_DIR}/data/system_A.json"
-expect "write_file_atomic: a new file is 644" "644" \
-  stat -c %a "${ATOMIC_DIR}/data/system_A.json"
+echo '{"a":1}' | replace_file_content "${REPLACE_DIR}/system.json"
+expect "replace_file_content: a dangling link gets its file" '{"a":1}' \
+  cat "${REPLACE_DIR}/data/system_A.json"
+expect "replace_file_content: a new file is 644" "644" \
+  stat -c %a "${REPLACE_DIR}/data/system_A.json"
 
-expect_rc "write_file_atomic: a failed write fails" 1 \
-  write_file_atomic "${ATOMIC_DIR}/system_next.json" <"${ATOMIC_DIR}"
-expect "write_file_atomic: a failed write leaves the old file" '{"new":1}' \
-  cat "${ATOMIC_DIR}/data/system_B.json"
-expect "write_file_atomic: and no temp file" "system_A.json system_B.json" \
-  bash -c "cd '${ATOMIC_DIR}/data' && echo *"
-rm -rf "${ATOMIC_DIR}"
+expect_rc "replace_file_content: a failed write fails" 1 \
+  replace_file_content "${REPLACE_DIR}/system_next.json" <"${REPLACE_DIR}"
+expect "replace_file_content: a failed write leaves the old file" '{"new":1}' \
+  cat "${REPLACE_DIR}/data/system_B.json"
+expect "replace_file_content: and no file.new" "system_A.json system_B.json" \
+  bash -c "cd '${REPLACE_DIR}/data' && echo *"
+rm -rf "${REPLACE_DIR}"
 
 summary

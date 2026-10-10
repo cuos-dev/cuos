@@ -127,7 +127,7 @@ edit_network() {
 
 save_configuration() {
   # Save to new config
-  echo "${CONFIG_JSON}" | write_file_atomic "${CONFIG_PATH}" || exit 1
+  echo "${CONFIG_JSON}" | replace_file_content "${CONFIG_PATH}" || exit 1
 }
 
 apply_configuration_hostname() {
