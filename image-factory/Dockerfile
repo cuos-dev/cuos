@@ -21,22 +21,20 @@ ENTRYPOINT ["/create_image.sh"]
 # Busybox tar has no xattr support and would silently drop file capabilities.
 # This factory runs updater/lib/update.sh, so it needs everything that
 # script needs - keep this list and updater/Dockerfile's in step.
+# mtools fills the boot filesystem without mounting it; kpartx is for
+# shell.sh alone, which does mount a finished image.
 RUN apk add --no-cache \
-    parted dosfstools btrfs-progs \
+    parted dosfstools btrfs-progs mtools \
     gptfdisk qemu-img kpartx util-linux jq btrfs-progs bash tar
 
-# grub: grub-install, grub-mkimage, grub-bios-setup and grub-probe. These build
-# and write a boot chain for any target whose modules are present, so this stage
-# needs no architecture of its own - system/cuos/install-kernel-grub.sh runs
-# them here in the factory, not inside the target rootfs.
+# grub: grub-mkimage builds the boot chain for any target whose modules are
+# present, so this stage needs no architecture of its own.
 RUN apk add --no-cache grub
 
 COPY --from=grub-x86_64 /usr/lib/grub/i386-pc/ /usr/lib/grub/i386-pc/
 COPY --from=grub-x86_64 /usr/lib/grub/x86_64-efi/ /usr/lib/grub/x86_64-efi/
 
 COPY image-factory/create_image.sh /create_image.sh
-# Named, not updater/*.sh: that glob also picks up the test scripts.
-COPY updater/updater.sh updater/shell.sh /usr/local/updater/
 COPY updater/lib/ /usr/local/updater/lib/
 COPY image-factory/shell.sh /shell.sh
 COPY image-factory/lib/ /usr/local/image-factory/lib/

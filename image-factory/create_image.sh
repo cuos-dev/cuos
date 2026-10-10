@@ -3,51 +3,54 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# This factory runs the updater's scripts and shares its libraries. In the image
-# the entrypoints sit at / and their libraries do not - / already has a lib. In
-# the tree both are beside each other.
+# This factory installs the system with the updater's own steps and shares its
+# libraries. In the image the entrypoint sits at / and the libraries do not - /
+# already has a lib. In the tree both are beside each other.
 CUOS_UPDATER_DIR="${CUOS_UPDATER_DIR:-"/usr/local/updater"}"
 [[ -d "${CUOS_UPDATER_DIR}/lib" ]] || CUOS_UPDATER_DIR="${SCRIPT_DIR}/../updater"
 CUOS_FACTORY_DIR="${CUOS_FACTORY_DIR:-"/usr/local/image-factory"}"
 [[ -d "${CUOS_FACTORY_DIR}/lib" ]] || CUOS_FACTORY_DIR="${SCRIPT_DIR}"
 
-# shellcheck source=../updater/lib/log.sh
-source "${CUOS_UPDATER_DIR}/lib/log.sh"
-# shellcheck source=../updater/lib/platform.sh
-source "${CUOS_UPDATER_DIR}/lib/platform.sh"
+# shellcheck source=../updater/lib/update.sh
+source "${CUOS_UPDATER_DIR}/lib/update.sh"
 # shellcheck source=lib/config.sh
 source "${CUOS_FACTORY_DIR}/lib/config.sh"
-# shellcheck source=lib/loopdev.sh
-source "${CUOS_FACTORY_DIR}/lib/loopdev.sh"
 # shellcheck source=lib/size.sh
 source "${CUOS_FACTORY_DIR}/lib/size.sh"
+# shellcheck source=lib/layout.sh
+source "${CUOS_FACTORY_DIR}/lib/layout.sh"
+# shellcheck source=lib/bootloader.sh
+source "${CUOS_FACTORY_DIR}/lib/bootloader.sh"
 
 OUTPUT_DIR="${OUTPUT_DIR:-"/output"}"
 IMAGE_NAME="${IMAGE_NAME:-"image"}"
-IMAGE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
-LOOPDEV=""
+# Not IMAGE: that is the updater's, the system image perform_update installs.
+IMAGE_FILE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
+BUILD_DIR=""
+IMAGE_WRITTEN=""
 
+# An image that stopped halfway looks just like a finished one.
 # shellcheck disable=SC2329 disable=SC2317
 cleanup() {
-  umount -R /mnt/os 2>/dev/null || true
-  umount -R /mnt/boot 2>/dev/null || true
-  umount -R /mnt/root 2>/dev/null || true
-
-  loopdev_detach "${LOOPDEV}"
+  [[ -z "${BUILD_DIR}" ]] || rm -rf "${BUILD_DIR}"
+  if [[ -z "${IMAGE_WRITTEN}" && "${IMAGE_FILE}" = *.img ]]; then
+    rm -f "${IMAGE_FILE}"
+  fi
 }
 
-# tool.sh hands the host's daemon in under a name of its own, so that
-# /var/run/docker.sock stays free for a dockerd started inside this container -
-# updater/lib/docker.sh explains why and picks the same socket up for the
-# disk-image path. This entrypoint never gets that far for '--platform lxc': it
-# pulls, runs and exports on the host's daemon and returns, so it has to find
-# the socket itself.
+# tool.sh hands the host's daemon in under a name of its own,
+# /run/cuos-docker.sock - updater/lib/docker.sh explains why. It is the only
+# daemon there is: one started in here would need a btrfs to keep its images
+# on, and the factory mounts nothing.
 use_handed_in_daemon() {
   export DOCKER_CONTEXT=default
 
-  if [[ -S "${CUOS_DOCKER_SOCKET:-"/run/cuos-docker.sock"}" ]]; then
-    export DOCKER_HOST="unix://${CUOS_DOCKER_SOCKET:-"/run/cuos-docker.sock"}"
-  fi
+  docker_use_handed_in || docker_available || raise "No docker daemon.
+
+       The factory pulls the system image and unpacks it through the host's
+       daemon. Hand it in the way tool.sh does it:
+
+         -v /var/run/docker.sock:/run/cuos-docker.sock"
 }
 
 check_output_dir() {
@@ -77,9 +80,9 @@ resolve_os_image() {
     '.[$arch+"_image_digest"] // .os_image_digest // empty' "${CONFIG_PATH}")"
 }
 
-# The size of the image is computed from the size of the system image, so it has
-# to be here before anything is written. The updater pulls again later, which
-# then costs one question to the registry.
+# The label has to be read before anything is installed, so the image is pulled
+# here. perform_update pulls again, which then costs one question to the
+# registry.
 pull_system_image() {
   # ':build' is a system image built here and handed over locally, the same tag
   # updater/lib/image.sh knows as is_local_build. There is no registry for it.
@@ -94,26 +97,22 @@ pull_system_image() {
   docker image pull --platform "${platform}" "${OS_IMAGE}" \
     || raise "Failed to fetch the system image ${OS_IMAGE}.
 
-       This step needs a docker daemon before anything is written, because the
-       size of the image is computed from the size of the system image. A
-       factory started by hand needs the host's daemon handed in, the way
-       tool.sh does it:
+       Is the host's daemon handed in, the way tool.sh does it?
 
-         -v /var/run/docker.sock:/run/cuos-docker.sock
-
-       The updater started one of its own later; this is earlier than that."
+         -v /var/run/docker.sock:/run/cuos-docker.sock"
 }
 
+# $1 is the size of the tree in KiB.
 image_size_mb() {
   local computed configured
 
-  computed="$(required_image_size_mb "${OS_IMAGE}")" \
-    || raise "Could not read the size of ${OS_IMAGE}"
+  computed="$(required_image_size_mb "${1}")" \
+    || raise "Could not compute the image size from \"${1}\" KiB"
 
   configured="$(jq -r '.image_size_mb // empty' "${CONFIG_PATH}")"
   if [[ -n "${configured}" ]]; then
     if (( configured < computed )); then
-      raise "image_size_mb is ${configured}, the rootfs of ${OS_IMAGE} needs
+      raise "image_size_mb is ${configured}, the system from ${OS_IMAGE} needs
        ${computed} MB. Raise it, or drop it and let the factory compute it."
     fi
     echo "${configured}"
@@ -128,7 +127,7 @@ build_lxc_image() {
 
   # The extension, not the first "img" in the path: an image whose name carries
   # those three letters would otherwise be renamed instead of its suffix.
-  IMAGE="${IMAGE%.img}.tar.gz"
+  IMAGE_FILE="${IMAGE_FILE%.img}.tar.gz"
 
   step "Fetching the system image ${OS_IMAGE}"
   docker image pull "${OS_IMAGE}" || raise "Faild to fetch image"
@@ -152,109 +151,138 @@ build_lxc_image() {
     || raise "Failed to copy system.json"
 
   step "Exporting the root filesystem"
-  if ! docker export "${container_name}" | gzip >"${IMAGE}"; then
+  if ! docker export "${container_name}" | gzip >"${IMAGE_FILE}"; then
     raise "Failed to export the container"
   fi
   docker rm -f "${container_name}" \
     || raise "Failed to remove the container"
 
-  step "${IMAGE/\//} written"
+  step "${IMAGE_FILE/\//} written"
 }
 
-create_empty_image() {
-  step "Creating an empty image of ${1} MB"
-  dd if=/dev/zero of="${IMAGE}" bs=1M count="${1}"
-  sync
-}
+# Sets BOOT_TYPE and LAYOUT from the image's dev.cuos.boot label. An image
+# without one writes its boot loader itself, onto a device this factory does
+# not have.
+#
+# TARGET is what tool.sh derives from --layout and the platform. The image knows
+# better, so it only serves as a check: a disagreement is a platform or a
+# layout given wrong, and the image would not boot.
+resolve_boot_type() {
+  local platform expected
 
-# The arguments parted is given, so that the layout can be read - and asserted -
-# without writing an image. The boot partition ends at 256MiB in both layouts,
-# which is what lib/size.sh adds in front of the root partition.
-partition_plan() {
-  if [[ "${1}" == "rpi" ]]; then
-    echo "mklabel msdos" \
-      "mkpart primary fat32 1MiB 256MiB" \
-      "mkpart primary btrfs 256MiB 100%" \
-      "set 1 boot on"
-    return
+  platform="$(target_platform "${OS_ARCH}")" || exit 1
+  BOOT_TYPE="$(boot_type_of "${OS_IMAGE}" "${platform}")" \
+    || raise "${OS_IMAGE} has no dev.cuos.boot label, so it cannot be told
+       which boot chain to write. The label is set by the system Dockerfiles
+       since this factory came out; build the image from those, or use the
+       image factory the system image was released with."
+
+  if [[ "${BOOT_TYPE}" == "lxc" ]]; then
+    raise "${OS_IMAGE} is a system image for LXC, which is exported, not written
+       to a disk. Build it with --platform lxc."
   fi
 
-  echo "mklabel gpt" \
-    "mkpart bios_boot 1MiB 3MiB" \
-    "set 1 bios_grub on" \
-    "mkpart ESP fat32 3MiB 256MiB" \
-    "set 2 boot on" \
-    "mkpart primary btrfs 256MiB 100%"
-}
-
-# The step lines name the layout as 'mbr' and 'gpt', the names tool.sh's
-# --layout uses. TARGET is the factory's own spelling of the same choice, and
-# for GPT it is empty.
-partition_image() {
-  local plan
-  read -r -a plan <<<"$(partition_plan "${TARGET}")"
-
-  if [[ "${TARGET}" == "rpi" ]]; then
-    step "Partitioning the image (mbr)"
-    TARGET_BOOT_PARTITION_NUM=1
-    TARGET_ROOT_PARTITION_NUM=2
-  else
-    step "Partitioning the image (gpt)"
-    TARGET_BOOT_PARTITION_NUM=2
-    TARGET_ROOT_PARTITION_NUM=3
+  LAYOUT="$(layout_of "${BOOT_TYPE}")"
+  if [[ -n "${TARGET+set}" ]]; then
+    expected="$([[ "${LAYOUT}" == "mbr" ]] && echo "rpi" || echo "")"
+    [[ "${TARGET}" == "${expected}" ]] || raise "${OS_IMAGE} boots with
+       ${BOOT_TYPE} from an ${LAYOUT} disk, but the layout asked for is
+       '${TARGET:-gpt}'. Check --platform and --layout."
   fi
 
-  parted "${IMAGE}" --script "${plan[@]}" \
-    || raise "Failed to partition ${IMAGE}"
-  sync
+  step "Boot chain: ${BOOT_TYPE} (${LAYOUT})"
 }
 
-map_partitions() {
-  loopdev_attach "${IMAGE}"
-  loopdev_map_partitions "${LOOPDEV}"
-
-  export TARGET_DEVICE="${LOOPDEV}"
-  TARGET_BOOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_BOOT_PARTITION_NUM}"
-  export TARGET_BOOT_PARTITION
-  TARGET_ROOT_PARTITION="/dev/mapper/$(basename "${LOOPDEV}")p${TARGET_ROOT_PARTITION_NUM}"
-  export TARGET_ROOT_PARTITION
-}
-
-create_filesystems() {
-  step "Creating the filesystems"
-  mkfs.vfat -n boot "${TARGET_BOOT_PARTITION}" \
-    || raise "Failed to format boot partition: ${TARGET_BOOT_PARTITION}"
-  mkfs.btrfs -L system "${TARGET_ROOT_PARTITION}" \
-    || raise "Failed to format root partition: ${TARGET_ROOT_PARTITION}"
-}
-
-create_subvolumes() {
-  mkdir -p /mnt/boot /mnt/system /mnt/root
-  mount -t btrfs "${TARGET_ROOT_PARTITION}" /mnt/root \
-    || raise "Failed to mount ${TARGET_ROOT_PARTITION}"
-
-  btrfs subvolume create /mnt/root/@os
-  btrfs subvolume create /mnt/root/@data
-  btrfs subvolume create /mnt/root/@swap
-  mkdir -p /mnt/root/@data/docker
-  mkdir -p /mnt/root/@data/dhcp
-  mkdir -p /mnt/root/@data/log
-
-  umount /mnt/root
-}
-
+# The slot, the kernel and the boot files, into two directories:
+# BUILD_DIR/root holds the subvolumes of the root filesystem as directories,
+# BUILD_DIR/boot the boot partition.
 install_system() {
-  local exit_code
+  export TARGET_ROOT="${BUILD_DIR}/root/@os"
+  export TARGET_BOOT="${BUILD_DIR}/boot"
+  mkdir -p "${TARGET_ROOT}" "${TARGET_BOOT}" \
+    "${BUILD_DIR}/root/@data/docker" \
+    "${BUILD_DIR}/root/@data/dhcp" \
+    "${BUILD_DIR}/root/@data/log" \
+    "${BUILD_DIR}/root/@swap"
+
+  export INSTALLIMAGE=true
+  # A file, not a device: the install-kernel-* scripts refuse a block device,
+  # which only an older factory hands them.
+  export TARGET_DEVICE="${IMAGE_FILE}"
 
   step "Installing the system from ${OS_IMAGE}"
-  export INSTALLIMAGE=true
-  "${CUOS_UPDATER_DIR}/updater.sh" "B" "${OS_IMAGE}" "${OS_DIGEST}"
-  exit_code="$?"
+  perform_update "B" "${OS_IMAGE}" "${OS_DIGEST}"
+}
 
-  loopdev_detach "${LOOPDEV}"
-  LOOPDEV=""
+partition_image() {
+  local size_mb="$1"
+  local plan
+  read -r -a plan <<<"$(partition_plan "${LAYOUT}")"
 
-  [[ "${exit_code}" = "0" ]] || raise "Failed to run updater script"
+  step "Partitioning an image of ${size_mb} MB (${LAYOUT})"
+  rm -f "${IMAGE_FILE}"
+  truncate -s "${size_mb}M" "${IMAGE_FILE}" || raise "Failed to create ${IMAGE_FILE}"
+  parted "${IMAGE_FILE}" --script "${plan[@]}" \
+    || raise "Failed to partition ${IMAGE_FILE}"
+  partition_numbers "${LAYOUT}"
+}
+
+write_boot_partition() {
+  local volume_id
+  volume_id="$(new_fat_volume_id)"
+  read_partition_geometry "${IMAGE_FILE}" "${BOOT_PARTITION_NUM}"
+
+  if [[ "${BOOT_TYPE}" == "grub" ]]; then
+    step "Writing the GRUB boot files"
+    grub_boot_files "${TARGET_BOOT}" "$(fat_uuid "${volume_id}")"
+  fi
+
+  check_boot_reserve "${TARGET_BOOT}" "$(( PART_SECTORS / 2 ))"
+
+  step "Writing the boot partition"
+  make_boot_filesystem "${BUILD_DIR}/boot.fat" "${PART_SECTORS}" \
+    "${PART_START}" "${volume_id}" "${TARGET_BOOT}"
+  write_partition "${IMAGE_FILE}" "${BOOT_PARTITION_NUM}" "${BUILD_DIR}/boot.fat"
+  rm -f "${BUILD_DIR}/boot.fat"
+}
+
+write_root_partition() {
+  local free_mb
+  read_partition_geometry "${IMAGE_FILE}" "${ROOT_PARTITION_NUM}"
+
+  step "Writing the root partition"
+  make_root_filesystem "${BUILD_DIR}/root.btrfs" "$(( PART_SECTORS * 512 ))" \
+    "${BUILD_DIR}/root" "${SLOT}"
+
+  free_mb="$(root_free_mb "${BUILD_DIR}/root.btrfs")" \
+    || raise "Could not read the free space of the root filesystem"
+  echo "disc usage (root, after install): ${free_mb} MB free"
+  if (( free_mb < FIRST_BOOT_FREE_MB )); then
+    raise "The root filesystem has ${free_mb} MB free, the first boot is given
+       ${FIRST_BOOT_FREE_MB}. lib/size.sh underestimates this system; raise
+       image_size_mb until it is fixed."
+  fi
+
+  rm -rf "${BUILD_DIR}/root"
+  write_partition "${IMAGE_FILE}" "${ROOT_PARTITION_NUM}" "${BUILD_DIR}/root.btrfs"
+  rm -f "${BUILD_DIR}/root.btrfs"
+}
+
+# What lives outside the partitions.
+write_boot_loader() {
+  case "${BOOT_TYPE}" in
+    grub)
+      step "Writing GRUB into the MBR and the bios_grub partition"
+      read_partition_geometry "${IMAGE_FILE}" "${BIOS_GRUB_PARTITION_NUM}"
+      install_grub_bios "${IMAGE_FILE}" "${PART_START}" "${PART_SECTORS}"
+      ;;
+    uboot)
+      step "Writing U-Boot in front of the first partition"
+      read_partition_geometry "${IMAGE_FILE}" 1
+      install_uboot "${IMAGE_FILE}" "${CONTAINER_ROOTFS_FS}/boot/u-boot.bin" \
+        "${PART_START}"
+      ;;
+  esac
 }
 
 main() {
@@ -268,24 +296,33 @@ main() {
 
   if [[ "${OS_ARCH}" == "lxc" ]]; then
     build_lxc_image
+    IMAGE_WRITTEN=1
     exit 0
   fi
 
   pull_system_image
+  resolve_boot_type
 
-  # Not create_empty_image "$(image_size_mb)": image_size_mb raises when the
-  # configured size is too small, and a raise inside "$( )" ends the subshell
-  # only - dd would then be given an empty count.
-  local size_mb
-  size_mb="$(image_size_mb)" || exit "$?"
-  create_empty_image "${size_mb}"
-  partition_image
-  map_partitions
-  create_filesystems
-  create_subvolumes
+  BUILD_DIR="$(mktemp -d "${BUILD_ROOT:-"/var/tmp"}/cuos-image.XXXXXX")" \
+    || raise "Failed to create a build directory"
+
+  set -x
   install_system
 
-  step "${IMAGE/\//} written"
+  # Not partition_image "$(image_size_mb …)": image_size_mb raises when the
+  # configured size is too small, and a raise inside "$( )" ends the subshell
+  # only - truncate would then be given an empty size.
+  local size_mb
+  size_mb="$(image_size_mb "$(du -sk "${BUILD_DIR}/root" | awk '{ print $1 }')")" \
+    || exit "$?"
+  partition_image "${size_mb}"
+  write_boot_partition
+  write_root_partition
+  write_boot_loader
+  set +x
+
+  IMAGE_WRITTEN=1
+  step "${IMAGE_FILE/\//} written"
   exit 0
 }
 
