@@ -77,25 +77,6 @@ ensure_system_config() {
       cat "${SCRIPT_DIR}/system-default.json" >"${CONFIG_PATH}"
     fi
 
-    # Grab system.json from installer image
-    mkdir -p "/mnt/installer"
-    mount -o ro LABEL=CUOS "/mnt/installer/"
-    if [[ -f "/mnt/installer/system.json" ]]; then
-      config_found=1
-      report_info "cuos:init:system-json-installer" "Found system.json on Installer, merging with system.json from system"
-      if ! NEW_CONFIG="$(jq -s '.[0] + .[1]' \
-        "${CONFIG_PATH}" "/mnt/installer/system.json")"; then
-
-        report_alert "cuos:init:invalid_installer_system_json" "Provided system.json on Installer is invalid. System will reboot in 30sec"
-        "${SCRIPT_DIR}/dialog-failed.sh" "Provided system.json file on Installer is invalid"
-        sync
-        /sbin/reboot
-
-      fi
-      echo "${NEW_CONFIG}" >"${CONFIG_PATH}"
-    fi
-    umount "/mnt/installer"
-
     # Grab Cloud Init data from boot dir
     if [[ -f "/mnt/boot/user-data" ]]; then
       config_found=1
@@ -135,7 +116,8 @@ ensure_system_config() {
     umount "/mnt/cidata"
 
     # Without its boot partition the system would come up on the defaults, as
-    # a device nobody configured - and say nothing.
+    # a device nobody configured - and say nothing. A cloud-init drive may
+    # stand in for it.
     if [[ -z "${boot_mounted}" && -z "${config_found}" ]]; then
       report_alert "cuos:init:boot_partition_unreadable" "Boot partition could not be mounted and no other configuration was found. System will reboot in 30sec"
       "${SCRIPT_DIR}/dialog-failed.sh" "Boot partition could not be mounted, no configuration found"

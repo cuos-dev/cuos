@@ -2,6 +2,10 @@ iso9660
 udf
 hfsplus
 nls_utf8
+# the installed disk's boot partition, written after the image
+vfat
+nls_cp437
+nls_ascii
 ahci
 nvme
 sd_mod
