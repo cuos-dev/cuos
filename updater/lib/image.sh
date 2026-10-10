@@ -53,7 +53,7 @@ pull_image() {
   if is_local_build; then return; fi
 
   docker image pull --platform "${TARGET_PLATFORM}" "${IMAGE}" \
-    || raise 103 "Faild to fetch system image"
+    || raise 103 "Failed to fetch system image"
 }
 
 export_rootfs() {

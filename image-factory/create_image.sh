@@ -28,12 +28,16 @@ IMAGE_NAME="${IMAGE_NAME:-"image"}"
 IMAGE_FILE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
 BUILD_DIR=""
 IMAGE_WRITTEN=""
+# The lxc build's container runs on the host's daemon and outlives this one.
+LXC_CONTAINER=""
 
 # An image that stopped halfway looks just like a finished one.
 # shellcheck disable=SC2329 disable=SC2317
 cleanup() {
   [[ -z "${BUILD_DIR}" ]] || rm -rf "${BUILD_DIR}"
-  if [[ -z "${IMAGE_WRITTEN}" && "${IMAGE_FILE}" = *.img ]]; then
+  [[ -z "${LXC_CONTAINER}" ]] || docker rm -f "${LXC_CONTAINER}" >/dev/null 2>&1
+  if [[ -z "${IMAGE_WRITTEN}" &&
+    ( "${IMAGE_FILE}" = *.img || "${IMAGE_FILE}" = *.tar.gz ) ]]; then
     rm -f "${IMAGE_FILE}"
   fi
 }
@@ -123,14 +127,14 @@ image_size_mb() {
 }
 
 build_lxc_image() {
-  local image_digest container_name
+  local image_digest
 
   # The extension, not the first "img" in the path: an image whose name carries
   # those three letters would otherwise be renamed instead of its suffix.
   IMAGE_FILE="${IMAGE_FILE%.img}.tar.gz"
 
   step "Fetching the system image ${OS_IMAGE}"
-  docker image pull "${OS_IMAGE}" || raise "Faild to fetch image"
+  docker image pull "${OS_IMAGE}" || raise "Failed to fetch image"
   image_digest="$(docker inspect --format='{{index .RepoDigests 0}}' \
     "${OS_IMAGE}" 2>/dev/null | cut -d '@' -f 2)"
   if [[ -n "${OS_DIGEST}" && "${OS_DIGEST}" != "${image_digest}" ]]; then
@@ -138,24 +142,25 @@ build_lxc_image() {
   fi
 
   step "Initialising the system"
-  container_name="cuos-lxc-$$"
+  LXC_CONTAINER="cuos-lxc-$$"
   docker run -it -d \
     --pull=never \
-    --name "${container_name}" \
+    --name "${LXC_CONTAINER}" \
     "${OS_IMAGE}" || raise "Failed to run container"
-  docker exec "${container_name}" /usr/local/cuos/first-run.sh \
+  docker exec "${LXC_CONTAINER}" /usr/local/cuos/first-run.sh \
     "A" "${OS_IMAGE}" "${image_digest}" \
     || raise "Failed to run first-run script in container"
 
-  docker cp "${CONFIG_PATH}" "${container_name}:/system_init.json" \
+  docker cp "${CONFIG_PATH}" "${LXC_CONTAINER}:/system_init.json" \
     || raise "Failed to copy system.json"
 
   step "Exporting the root filesystem"
-  if ! docker export "${container_name}" | gzip >"${IMAGE_FILE}"; then
+  if ! docker export "${LXC_CONTAINER}" | gzip >"${IMAGE_FILE}"; then
     raise "Failed to export the container"
   fi
-  docker rm -f "${container_name}" \
+  docker rm -f "${LXC_CONTAINER}" \
     || raise "Failed to remove the container"
+  LXC_CONTAINER=""
 
   step "${IMAGE_FILE/\//} written"
 }
@@ -279,7 +284,9 @@ write_boot_loader() {
     uboot)
       step "Writing U-Boot in front of the first partition"
       read_partition_geometry "${IMAGE_FILE}" 1
-      install_uboot "${IMAGE_FILE}" "${CONTAINER_ROOTFS_FS}/boot/u-boot.bin" \
+      # The root tree is gone by now; install-kernel-uboot.sh copied /boot,
+      # u-boot.bin with it, to the boot side.
+      install_uboot "${IMAGE_FILE}" "${TARGET_BOOT}/u-boot.bin" \
         "${PART_START}"
       ;;
   esac
