@@ -27,6 +27,7 @@ target_mount() { echo "mount" >>"${LOG}"; }
 target_umount() { echo "umount" >>"${LOG}"; }
 docker_ensure() { echo "docker_ensure $1" >>"${LOG}"; }
 docker_cleanup() { echo "docker_cleanup ${1:-<own>}" >>"${LOG}"; }
+docker_stop() { echo "docker_stop" >>"${LOG}"; }
 docker() { :; }
 
 steps_of() {
@@ -39,6 +40,14 @@ steps_of() {
 task_that_works() {
   echo "task" >>"${LOG}"
 }
+
+# One slot only: the system may still run from inside ${TARGET_ROOT}/docker.
+mkdir -p "${TARGET_ROOT}/system-A"
+expect "with_environment: with one slot, docker/ is left alone" \
+  "mount docker_ensure ${TARGET_ROOT}/docker task docker_stop umount " \
+  steps_of task_that_works
+mkdir -p "${TARGET_ROOT}/system-B"
+
 expect "with_environment: mount, daemon, task, cleanup, unmount" \
   "mount docker_ensure ${TARGET_ROOT}/docker task docker_cleanup ${TARGET_ROOT}/docker docker_cleanup <own> umount " \
   steps_of task_that_works
