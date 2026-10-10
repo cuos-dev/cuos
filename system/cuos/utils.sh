@@ -96,6 +96,29 @@ jq_config() {
   jq -r "$@" "${CONFIG_PATH}"
 }
 
+# Usage: write_file_atomic file <content
+# Replaces the file in one step: the content goes into a file beside it, which
+# is then renamed over it, so a crash or a full disk leaves the old file or the
+# new one, never half of one. A symlink is followed - /system.json and
+# /system_next.json are links into /data, and it is the file there that is
+# replaced, not the link.
+write_file_atomic() {
+  local dest tmp
+  dest="$(readlink -f -- "$1")" || return 1
+  tmp="$(mktemp "${dest}.XXXXXX")" || return 1
+
+  if ! cat >"${tmp}" || ! sync -- "${tmp}"; then
+    rm -f -- "${tmp}"
+    return 1
+  fi
+  chmod --reference="${dest}" -- "${tmp}" 2>/dev/null || chmod 644 -- "${tmp}"
+  if ! mv -f -- "${tmp}" "${dest}"; then
+    rm -f -- "${tmp}"
+    return 1
+  fi
+  sync -- "$(dirname -- "${dest}")"
+}
+
 jq_replace() {
   # Usage: jq_replace jq_expression file
   # like jq, but with inplace edit function
@@ -108,7 +131,7 @@ jq_replace() {
 
     local new_config
     new_config="$(jq "${args[@]}" "${file}")" || exit "$?"
-    echo "${new_config}" >"${file}"
+    echo "${new_config}" | write_file_atomic "${file}"
 
   ) 200>"/tmp/jq_replace.lock"
 }

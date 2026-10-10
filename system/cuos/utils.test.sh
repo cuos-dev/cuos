@@ -96,4 +96,33 @@ expect "image_version: no version" "latest" \
 expect "image_version: no image" "latest" \
   image_version
 
+ATOMIC_DIR="$(mktemp -d)"
+mkdir -p "${ATOMIC_DIR}/data"
+echo '{"old":1}' >"${ATOMIC_DIR}/data/system_B.json"
+chmod 640 "${ATOMIC_DIR}/data/system_B.json"
+ln -s "${ATOMIC_DIR}/data/system_B.json" "${ATOMIC_DIR}/system_next.json"
+ln -s "${ATOMIC_DIR}/data/system_A.json" "${ATOMIC_DIR}/system.json"
+
+echo '{"new":1}' | write_file_atomic "${ATOMIC_DIR}/system_next.json"
+expect "write_file_atomic: the file behind the link is replaced" '{"new":1}' \
+  cat "${ATOMIC_DIR}/data/system_B.json"
+expect "write_file_atomic: the link stays a link" "${ATOMIC_DIR}/data/system_B.json" \
+  readlink "${ATOMIC_DIR}/system_next.json"
+expect "write_file_atomic: the mode is kept" "640" \
+  stat -c %a "${ATOMIC_DIR}/data/system_B.json"
+
+echo '{"a":1}' | write_file_atomic "${ATOMIC_DIR}/system.json"
+expect "write_file_atomic: a dangling link gets its file" '{"a":1}' \
+  cat "${ATOMIC_DIR}/data/system_A.json"
+expect "write_file_atomic: a new file is 644" "644" \
+  stat -c %a "${ATOMIC_DIR}/data/system_A.json"
+
+expect_rc "write_file_atomic: a failed write fails" 1 \
+  write_file_atomic "${ATOMIC_DIR}/system_next.json" <"${ATOMIC_DIR}"
+expect "write_file_atomic: a failed write leaves the old file" '{"new":1}' \
+  cat "${ATOMIC_DIR}/data/system_B.json"
+expect "write_file_atomic: and no temp file" "system_A.json system_B.json" \
+  bash -c "cd '${ATOMIC_DIR}/data' && echo *"
+rm -rf "${ATOMIC_DIR}"
+
 summary

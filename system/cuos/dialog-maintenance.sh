@@ -427,7 +427,7 @@ expert() {
   elif ! check_config < /tmp/edit-system.json; then
     term msg "Invalid Configuration"
   else
-    cat /tmp/edit-system.json >/system.json
+    write_file_atomic /system.json </tmp/edit-system.json
     api_stream "Applying system.json" cuos patch
   fi
   rm -f /tmp/edit-system.json

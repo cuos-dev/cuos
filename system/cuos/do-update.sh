@@ -118,9 +118,8 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
   # The new slot is installed, and the boot chain points at it. Its
   # configuration is the one this update was given, and the reboot waits for it:
   # a slot that came up with the configuration of whatever image it held before
-  # would be worse than none. Not "mv": /system_next.json is a symlink into
-  # /data, and replacing the link would leave the slot's real file behind.
-  if ! cat "${CONFIG_PATH}" >"/system_next.json"; then
+  # would be worse than none.
+  if ! write_file_atomic "/system_next.json" <"${CONFIG_PATH}"; then
     state '.update_state' "update of slot ${SLOT_NEXT} to ${OS_IMAGE} failed: its configuration could not be written"
     report_err "cuos:update:failed" "Update installed, but the configuration of slot ${SLOT_NEXT} could not be written. Not rebooting"
     raise 36 "Failed to write /system_next.json; slot ${SLOT_NEXT} is installed and will boot next"
