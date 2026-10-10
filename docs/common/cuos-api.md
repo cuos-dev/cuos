@@ -42,8 +42,17 @@ cuos netcheck
 # Update system
 cuos update - <<< $CONFIG
 
+# Replace what came from outside instead of merging into it
+cuos update - <<< '{"config": {...}, "replace": true}'
+
 # Fetch what an update with this config would install, install nothing
 cuos pull - <<< $CONFIG
+
+# Show the configuration: what is set on the device, what came from outside
+cuos config
+
+# Drop every setting made on the device
+cuos reset-local
 
 # Rollback to previous version
 cuos rollback
@@ -175,6 +184,33 @@ other details may still treat them differently.
 `netcheck.sh` itself exits `0` (all ok), `1` (a warning) or `2` (an error); through
 `cuos` the exit code is always 0, so read the `Result:` line.
 
+### Configuration layers
+
+`/system.json` is what everything on the device reads. It is built from two
+layers, which `cuos config` shows:
+
+| Layer | Holds | Written by |
+|---|---|---|
+| remote | what came from outside: the provisioning `system.json` (boot partition, installer, a container's `/system_init.json`) and every `update` | `update`, first start. One per slot, because it carries the image references; a rollback boots with the old slot's |
+| local | what was set on the device | `patch`, `patch-network`, `patch-hostname`, the console's dialogs, cloud-init. Shared by both slots |
+
+`/system.json` is `remote * local` (jq's deep merge): **a local setting wins
+until the remote layer changes the same key** — a new value or its removal.
+Then the key leaves the local layer. A key is a path down to a value; arrays are
+one value, so `network` is local or remote as a whole. A network set at the
+console lasts until an update changes `network`, not until any update. A local
+value equal to the remote one is not kept.
+
+`cuos state` lists the keys the device sets itself as `local_overrides`, e.g.
+`["network", "hostname"]`. `cuos reset-local` drops them all.
+
+A device that ran a CuOS from before the layers is split on its next start:
+`network` and `hostname` become local, everything else remote.
+
+**Do not edit `/system.json` by hand.** It is rebuilt from the layers, and an
+edit is lost at the next rebuild. Use `cuos patch`, or the console's expert
+editor, which keeps what it changed as local settings.
+
 ## Using the API in Your Application
 
 ### Error Handling
@@ -196,15 +232,17 @@ see the note under Self-test. Read the result from the output.
 | help | See help page | `{}` | Help page | |
 | version | Show current system version | `{}` | String: "registry/image:tag" | Returns current active system image |
 | state | Show current OS system state | `{}` | `{ "state": "running\|updating\|error" }` | System operational state |
-| update | Apply system update | `{ "config": new system config }` | Status messages | Initiates system update |
+| update | Apply system update | `{ "config": new system config, "replace": bool }` | Status messages | Initiates system update. The config is merged into the [remote layer](#configuration-layers); with `"replace": true` it **is** the new remote layer, so a key it lacks is removed. `replace` needs a non-empty config |
 | pull | Fetch the images of an update | same as `update` | Status messages | Pulls the updater and the system image into the host's Docker and installs nothing, so a later `update` with the same config only installs. Touches neither slot nor `/system.json`. Exits 35 (`update:json`-style: `"err": "35"`) if the configuration names an updater too old to pull; then nothing is done |
 | rollback | Rollback last update | `{}` | Status messages | Reverts to previous version |
 | resources | Show system resources | `{}` | `{ "cpu_cores": number, "cpu_usage": number, ... }` | System metrics |
 | selftest | Check this system's invariants | `{}` | `{ "ok": bool, "summary": {...}, "checks": [...] }` | Read-only; see [Self-test](#self-test) |
 | netcheck | Check the connection to the update registry | `{}` | Text report | Read-only; see [Update connection check](#update-connection-check) |
-| patch | Patch the current system | `{ "config": partial system config }` | Status message | No slot change |
-| patch-network | Set network configuration | `{"network_id": 0,"config": {"dhcp": true}}` | Status message | See [Documentation system.json](./system-json.md) |
-| patch-hostname | Set system hostname | `"myhostname"` | Status message | Set new hostname |
+| patch | Patch the current system | `{ "config": partial system config }` | Status message | No slot change. Kept in the [local layer](#configuration-layers). Without a config it re-applies the configuration |
+| patch-network | Set network configuration | `{"network_id": 0,"config": {"dhcp": true}}` | Status message | Local layer; `network` becomes local as a whole. See [Documentation system.json](./system-json.md) |
+| patch-hostname | Set system hostname | `"myhostname"` | Status message | Local layer |
+| config | Show the configuration | `{}` | `{ "local": {...}, "remote": {...}, "effective": {...} }` | Read-only; see [Configuration layers](#configuration-layers) |
+| reset-local | Drop the settings made on the device | `{}` | Status message | Empties the local layer; what came from outside applies again |
 | log | Get reports | `{}` | Report lines | `cuos log -f` follows |
 | factory-reset | Reset to a clean baseline | `{}` | Status messages | Destructive; runs asynchronously |
 | trigger-update | Ask the CuOS Init App to update | `{}` | Status messages | Runs `/api/cuos-trigger-update` in the app, else `cuos update` — see [Your CuOS Init App](./cuos-init-app.md#in-container-hooks) |

@@ -26,6 +26,12 @@ Rather than naming versions yourself, include `cuos-release/release.json`, which
 pins them — see the
 [cuos-release README](https://github.com/cuos-dev/cuos-release#readme).
 
+On the device, `/system.json` is put together from what came from outside — this
+file, and every update — and what was set on the device itself, such as a
+network configured at the console. How the two combine, and how an update can
+remove a key, is in
+[Configuration layers](cuos-api.md#configuration-layers).
+
 ## Configuration Options
 
 Every key, with its type, default and constraints, is listed in

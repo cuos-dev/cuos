@@ -37,11 +37,15 @@ api_command_state() {
   version="${version/@*/}"
   local slot
   slot="$(cat "${file_slot}")"
+  # The keys this device sets itself, over what came from outside.
+  local overrides
+  overrides="$(config_overrides "$(config_read "${LOCAL_LAYER}")")" || overrides="[]"
   jq \
     --arg slot "${slot}" \
     --arg version "${version}" \
     --arg virt_type "${virt_type}" \
-    '. + {"slot": $slot, "version": $version, "virt_type": $virt_type}' \
+    --argjson overrides "${overrides}" \
+    '. + {"slot": $slot, "version": $version, "virt_type": $virt_type, "local_overrides": $overrides}' \
      "${file_state}"
 }
 
@@ -63,6 +67,9 @@ api_handle_code() {
   if [[ "${exit_code}" == "0" && "${action}" == "pull" ]]; then
     jq -nc \
       '{"err": 0, "message": "images fetched, an update installs them"}'
+  elif [[ "${exit_code}" == "0" && "${action}" == "reset-local" ]]; then
+    jq -nc \
+      '{"err": 0, "message": "settings made on the device dropped"}'
   elif [[ "${exit_code}" == "0" ]]; then
     jq -nc \
       '{"err": 0, "message": "os update successful"}'
@@ -97,15 +104,18 @@ api_do_update() {
   "${SCRIPT_DIR}/do-update.sh" "$@"
 }
 api_reinit() {
-  "${SCRIPT_DIR}/init.sh" --reinit
+  "${SCRIPT_DIR}/init.sh" --reinit "$@"
 }
 
-# $1 is "update" or "pull". Builds the configuration to update to - the current
-# one with the given config merged in - into a file of its own, and hands it to
-# do-update.sh. /system_next.json is the standby slot's configuration, the one a
+# $1 is "update" or "pull". Works out what the update changes in the
+# configuration layers (lib-config.sh): the remote layer it leads to - the given
+# config merged into this slot's remote layer, or, with "replace": true, the
+# given config as it is - and the local keys that withdraws. The effective
+# configuration that results goes to a file of its own for the updater, the plan
+# beside it. /system_next.json is the standby slot's configuration, the one a
 # rollback boots with, so nothing is written there before the slot holds the new
-# image: do-update.sh does that itself, right before it reboots. A pull only
-# needs the configuration to know what to fetch, and drops it again.
+# image: do-update.sh commits the plan itself, right before it reboots. A pull
+# only needs the configuration to know what to fetch, and drops it again.
 api_update_func() {
   local action="$1"
   local label="Update"
@@ -114,43 +124,57 @@ api_update_func() {
   input="$(cat)"
 
   report_info "cuos:${action}:start" "${label} process was triggered"
-  local config
+  local config replace
   config="$(echo "${input}" | jq -c '.config // {}')"
+  replace="$(echo "${input}" | jq -c '.replace == true')"
   if ! echo "${config}" | check_config; then
     report_err "cuos:${action}:err_invalid_config" "${label}: Invalid configuration provided."
     echo "Invalid configuration provided."
     return 60
   fi
+  # A replace without a config would leave a remote layer without images.
+  if [[ "${replace}" == "true" ]] && ! echo "${input}" | jq -e '.config | type == "object" and length > 0' >/dev/null; then
+    report_err "cuos:${action}:err_invalid_config" "${label}: replace needs a config."
+    echo "replace needs a config."
+    return 60
+  fi
+
+  config_migrate_if_needed "${CONFIG_PATH}" || return 61
+
+  local remote plan
+  remote="$(config_read "$(config_remote_path "$(config_active_slot)")")" || return 61
+  plan="$(config_plan_update "${remote}" "${config}" "${replace}")" || return 61
 
   local config_file
   config_file="$(mktemp "${T_RUN_DIR:-"/run"}/cuos-${action}.XXXXXX")" || return 1
 
-  if ! echo "${config}" | jq -s '.[0] * .[1]' "${CONFIG_PATH}" - >"${config_file}"; then
-    rm -f "${config_file}"
+  if ! echo "${plan}" >"${config_file}.plan" \
+      || ! config_effective "$(jq -c .remote <<<"${plan}")" \
+        "$(config_withdraw "$(config_read "${LOCAL_LAYER}")" \
+          "$(jq -c .changed <<<"${plan}")" "$(jq -c .remote <<<"${plan}")")" \
+        >"${config_file}"; then
+    rm -f "${config_file}" "${config_file}.plan"
     return 61
   fi
 
   # perform update; on success it reboots and does not come back
-  api_do_update "${action}" "${config_file}"
+  api_do_update "${action}" "${config_file}" "${config_file}.plan"
   local update_exit_code="$?"
 
-  # if system container did not need an update
+  # if system container did not need an update, the plan is for this slot
   if [[ "${action}" == "update" && \
       ( "${update_exit_code}" = "22" || "${update_exit_code}" = "102" ) ]]; then
-    if ! json_equal "${config_file}" "${CONFIG_PATH}"; then
-      # save the current configuration for rollback, then apply the new one to
-      # the CURRENT system. Not "mv": both paths are symlinks into /data.
-      if ! cat "${CONFIG_PATH}" >"${NEXT_CONFIG_PATH}" \
-          || ! cat "${config_file}" >"${CONFIG_PATH}"; then
-        rm -f "${config_file}"
+    rm -f "${config_file}" "${config_file}.plan"
+
+    config_commit "${plan}" "$(config_active_slot)" "${CONFIG_PATH}"
+    case "$?" in
+      0) api_reinit ;;
+      1) ;;
+      *)
         report_err "cuos:update:failed" "The new configuration could not be written"
         return 62
-      fi
-    fi
-    rm -f "${config_file}"
-
-    # apply changes to current partition
-    api_reinit
+        ;;
+    esac
 
     # we need to check, if app container needs update
     touch "/data/run-update-app"
@@ -159,11 +183,14 @@ api_update_func() {
     return "${update_exit_code}"
   fi
 
-  rm -f "${config_file}"
+  rm -f "${config_file}" "${config_file}.plan"
   return "${update_exit_code}"
 }
 
-## update             - Perform OS update
+## update             - Perform OS update. Provide {"config": ...}; the config
+##                      is merged into what came from outside before, or
+##                      replaces it with "replace": true. Settings made on the
+##                      device stay until the update changes the same key.
 api_command_update() {
   api_update_func update
 }
@@ -173,8 +200,8 @@ api_command_update_json() {
 }
 
 ## pull               - Fetch the images of an update; installs nothing
-##                      Same input as update. A later update with the same
-##                      config then only installs.
+##                      Same input as update, "replace" included. A later
+##                      update with the same config then only installs.
 api_command_pull() {
   api_update_func pull
 }
@@ -193,6 +220,8 @@ api_command_trigger_update() {
 }
 
 ## patch              - Patch the current system. Provide config object.
+##                      Kept as a setting of this device (the local layer).
+##                      Without a config, it re-applies the configuration.
 api_command_patch_func() {
   local input
   input="$(cat)"
@@ -200,23 +229,23 @@ api_command_patch_func() {
   report_info "cuos:patch" "Patching the system"
   local config
   config="$(echo "${input}" | jq -c '.config // empty')"
-  if [[ -n "${config}" ]]; then
-    if ! echo "${config}" | check_config; then
-      report_err "cuos:update:err_invalid_config" "Update: Invalid configuration provided."
-      echo "Invalid configuration provided."
-      return 60
-    fi
-    # save current config for rollback:
-    cat "${CONFIG_PATH}" >"${NEXT_CONFIG_PATH}"
-
-    jq_replace \
-      --argjson config "${config}" \
-      '. * $config' \
-      "${CONFIG_PATH}" || return 61
+  if [[ -z "${config}" ]]; then
+    api_reinit
+    return
   fi
 
-  # apply changes to current slot
-  "${SCRIPT_DIR}/init.sh" --reinit
+  if ! echo "${config}" | check_config; then
+    report_err "cuos:update:err_invalid_config" "Update: Invalid configuration provided."
+    echo "Invalid configuration provided."
+    return 60
+  fi
+
+  config_local_patch "${config}"
+  case "$?" in
+    0) api_reinit ;;
+    1) ;;
+    *) return 61 ;;
+  esac
 }
 api_command_patch() {
   api_command_patch_func >&2
@@ -234,13 +263,20 @@ api_command_patch_network_func() {
   local network_id
   network_id="$(echo "${input}" | jq -r '.network_id // 0')"
   if [[ -n "${config}" ]]; then
-    jq_replace \
+    # "network" is one key: the whole list becomes this device's own.
+    local network
+    network="$(jq -c \
       --argjson config "${config}" \
       --arg network_id "${network_id}" \
-      '.network[$network_id | tonumber] = $config' \
-      "${CONFIG_PATH}" || return 61
+      '(.network // []) | .[$network_id | tonumber] = $config' \
+      "${CONFIG_PATH}")" || return 61
 
-    "${SCRIPT_DIR}/init.sh" --reinit configure_network
+    config_local_patch "$(jq -nc --argjson network "${network}" '{network: $network}')"
+    case "$?" in
+      0) api_reinit configure_network ;;
+      1) ;;
+      *) return 61 ;;
+    esac
   fi
 }
 api_command_patch_network() {
@@ -257,17 +293,47 @@ api_command_patch_hostname_func() {
   local config
   config="$(echo "${input}" | jq -c '.config // empty')"
   if [[ -n "${config}" ]]; then
-    jq_replace \
-      --argjson config "${config}" \
-      '.hostname = $config' \
-      "${CONFIG_PATH}" || return 61
-
-    "${SCRIPT_DIR}/init.sh" --reinit set_hostname
+    config_local_patch "$(jq -nc --argjson hostname "${config}" '{hostname: $hostname}')"
+    case "$?" in
+      0) api_reinit set_hostname ;;
+      1) ;;
+      *) return 61 ;;
+    esac
   fi
 }
 api_command_patch_hostname() {
   api_command_patch_hostname_func >&2
   api_handle_code "$?"
+}
+
+## config             - Show the configuration: {local, remote, effective}
+##                      local is what was set on this device, remote what
+##                      came from outside, effective what is in use.
+api_command_config() {
+  jq -n \
+    --argjson local "$(config_read "${LOCAL_LAYER}")" \
+    --argjson remote "$(config_read "$(config_remote_path "$(config_active_slot)")")" \
+    --argjson effective "$(config_read "${CONFIG_PATH}")" \
+    '{local: $local, remote: $remote, effective: $effective}'
+}
+api_command_config_json() {
+  api_command_config | jq -c .
+}
+
+## reset-local        - Drop every setting made on this device; what came
+##                      from outside applies again.
+api_command_reset_local_func() {
+  report_notice "cuos:useraction:reset-local" "Settings made on the device dropped"
+  config_local_reset
+  case "$?" in
+    0) api_reinit ;;
+    1) ;;
+    *) return 61 ;;
+  esac
+}
+api_command_reset_local() {
+  api_command_reset_local_func >&2
+  api_handle_code "$?" reset-local
 }
 
 ## rollback           - Rollback last OS update

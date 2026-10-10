@@ -53,13 +53,13 @@ flowchart LR
 |------|-------------|------------------|
 | 1. Trigger | `cuos update` with optional partial config | Invalid JSON → abort |
 | 2. Validation | Schema / structure check (`check_config`) | Message + no switch |
-| 3. Merge | Old config + patch → a temporary file in `/run` | Write failure → abort |
+| 3. Merge | This slot's remote layer + config (or the config alone with `"replace": true`), with the local layer over it → a temporary file in `/run`. Local keys the update changes are withdrawn | Write failure → abort |
 | 4. Make room | The image the inactive slot was installed from is removed (by digest, never the running one or the one about to be installed). The slot itself stays | — |
 | 5. Space check | Estimated from the running image's size: the update must leave 300 MB free | Too little → abort, nothing removed but that image |
 | 6. Pull OS image | Updater pulls new OS image (`docker pull`), checks its digest, then checks the space again with the new image's real size | Network/registry error, digest mismatch, too little space → abort; the inactive slot and its config are untouched |
 | 7. Subvolume prep | Only now: delete the inactive slot, wait for btrfs to free it, create it anew | BTRFS error → abort |
 | 8. Boot switch | GRUB / cmdline switched to new subvolume | Write error → abort |
-| 9. Config | The merged config is written to `/system_next.json`, the new slot's config | Write failure → no reboot, reported |
+| 9. Config | The new slot's remote layer, the local layer and `/system_next.json` are written | Write failure → no reboot, reported |
 | 10. Reboot | System restarts | Boot failure → potential rollback |
 | 11. Verification | App init / state sets `running` | Timeout / app fail → rollback |
 | 12. Finalize | New config becomes active | On rollback old remains |
@@ -93,12 +93,14 @@ Failure: app doesn't start or timeout > 3600s → rollback.
 
 Flow for `cuos patch` / `cuos patch-network` / `cuos patch-hostname`:
 
-1. Copy current active config to `/system_next.json`
-2. Apply diff directly to `/system.json`
+1. The change goes into the local layer, shared by both slots — see
+   [Configuration layers](./cuos-api.md#configuration-layers)
+2. `/system.json` is rebuilt from the layers; if nothing changed, nothing is
+   written and nothing re-initialised
 3. Re-init specific components (`init.sh --reinit ...`)
-4. App restart trigger (`/data/run-update`)
 
-No reboot required; OS slot unchanged.
+No reboot required; OS slot unchanged. A rollback keeps local settings: each
+slot has its own remote layer, the local one applies to both.
 
 ---
 

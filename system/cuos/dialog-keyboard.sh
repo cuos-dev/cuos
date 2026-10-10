@@ -30,10 +30,9 @@ choose_keyboard() {
 
   if [[ -n "${TEST:-}" ]]; then return; fi
 
-  jq_replace \
-    --arg layout "${layout}" \
-    '.keyboard_layout = $layout' \
-    "${CONFIG_PATH}" || return 1
+  # A setting made at the console, so the local layer's (lib-config.sh).
+  config_local_patch "$(jq -nc --arg layout "${layout}" '{keyboard_layout: $layout}')"
+  [[ "$?" == "2" ]] && return 1
 
   "${SCRIPT_DIR}/init.sh" --reinit configure_keyboard
 }

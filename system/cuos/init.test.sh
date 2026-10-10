@@ -186,4 +186,32 @@ echo '{}' >"${NTP_TMP}/system.json"
 expect "configure_ntp: no network at all" "(none)" ntp_conf
 rm -rf "${NTP_TMP}"
 
+
+# First start: provisioning is the remote layer, cloud-init the local one.
+LAYERS_TMP="$(mktemp -d)"
+(
+  export LAYER_DIR="${LAYERS_TMP}"
+  export LOCAL_LAYER="${LAYERS_TMP}/system.local.json"
+  export LAYER_LOCK="${LAYERS_TMP}/lock"
+  export T_FILE_SLOT="${LAYERS_TMP}/active_slot"
+  export CONFIG_PATH="${LAYERS_TMP}/system_A.json"
+  echo "A" >"${T_FILE_SLOT}"
+
+  config_first_layers \
+    '{"os_image": "x", "hostname": "from-the-image", "keyboard_layout": "de"}' \
+    '{"hostname": "from-cloud-init", "keyboard_layout": "de"}'
+  echo "$(jq -c . "${LAYERS_TMP}/system_A.remote.json")"
+  echo "$(jq -c . "${LOCAL_LAYER}")"
+  echo "$(jq -c . "${CONFIG_PATH}")"
+) >"${LAYERS_TMP}/out" 2>/dev/null
+expect "config_first_layers: provisioning is remote" \
+  '{"os_image":"x","hostname":"from-the-image","keyboard_layout":"de"}' \
+  sed -n 1p "${LAYERS_TMP}/out"
+expect "config_first_layers: cloud-init is local, without what remote has anyway" \
+  '{"hostname":"from-cloud-init"}' sed -n 2p "${LAYERS_TMP}/out"
+expect "config_first_layers: cloud-init wins" \
+  '{"os_image":"x","hostname":"from-cloud-init","keyboard_layout":"de"}' \
+  sed -n 3p "${LAYERS_TMP}/out"
+rm -rf "${LAYERS_TMP}"
+
 summary

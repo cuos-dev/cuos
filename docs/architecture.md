@@ -123,14 +123,20 @@ Instead of physical A/B partitions CuOS uses two subvolume slots. Advantages:
 
 ## Configuration Flow
 
-1. Base `system.json` merged with update payload (patch / update)
-2. Result stored in a temporary file, which the updater reads
-3. On update: once the new slot is installed, the result is written to
-   `/system_next.json` — the new slot's config — and becomes its `/system.json`
-   after the reboot. A failed update writes nothing
-4. Rollback: swap files back
+`/system.json` is built from two layers — remote (what came from outside, one
+per slot) and local (set on the device, shared) — see
+[Configuration layers](common/cuos-api.md#configuration-layers).
 
-In-place patch (`cuos patch*`) modifies `/system.json` directly and keeps previous version at `/system_next.json` for potential rollback.
+1. An update payload is merged into the remote layer, or replaces it
+2. Result stored in a temporary file, which the updater reads
+3. On update: once the new slot is installed, its remote layer and
+   `/system_next.json` — the new slot's config — are written, and the latter
+   becomes its `/system.json` after the reboot. A failed update writes nothing
+4. Rollback: the old slot boots with its own remote layer and the shared local
+   one
+
+In-place patch (`cuos patch*`) writes the local layer and rebuilds
+`/system.json`.
 
 ---
 

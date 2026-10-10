@@ -53,26 +53,44 @@ ensure_system_config() {
     "${SCRIPT_DIR}/first-run.sh" "A" "${image:-unknown}" "${digest:-unknown}"
   fi
 
+  # A device that has run before: its layers - from before them, made from
+  # what it has - and the effective configuration rebuilt from them. That is
+  # also how the local layer, shared by both slots, reaches this one after an
+  # update or a rollback; rebuilt only if anything differs.
   if [[ -f "${CONFIG_PATH}" ]]; then
+    if ! config_migrate_if_needed "${CONFIG_PATH}"; then
+      report_alert "cuos:init:config_layers" "Could not split /system.json into its layers"
+    fi
+    config_rebuild
+    if [[ "$?" == "2" ]]; then
+      report_alert "cuos:init:config_layers" "Could not rebuild /system.json from its layers"
+    fi
     return
   fi
+
+  # The first start. What comes with the system - the boot partition's
+  # system.json, the installer's, a container's /system_init.json - is the
+  # remote layer: it comes from the same system.json a repository holds, and
+  # only as remote can the repository take a key of it back. cloud-init is
+  # per instance (hostname, network, ssh keys) and the local layer.
+  local remote="{}"
+  local local_layer="{}"
   if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
     wait_for_lxc_system_init
-    cat "/system_init.json" >"${CONFIG_PATH}"
+    remote="$(jq -c . "/system_init.json")"
   else
     mkdir -p "/mnt/boot"
     mount -o ro -t vfat LABEL=boot "/mnt/boot"
     if [[ -f "/mnt/boot/system.json" ]]; then
       report_info "cuos:init:system-json" "Found system.json for system configuration"
-      if ! jq . "/mnt/boot/system.json" >/dev/null 2>&1; then
+      if ! remote="$(jq -c . "/mnt/boot/system.json" 2>/dev/null)"; then
         report_alert "cuos:init:invalid_system_json" "Provided system.json file is invalid. System will reboot in 30sec"
         "${SCRIPT_DIR}/dialog-failed.sh" "Provided system.json file is invalid"
         sync
         /sbin/reboot
       fi
-      cat "/mnt/boot/system.json" >"${CONFIG_PATH}"
     else
-      cat "${SCRIPT_DIR}/system-default.json" >"${CONFIG_PATH}"
+      remote="$(jq -c . "${SCRIPT_DIR}/system-default.json")"
     fi
 
     # Grab system.json from installer image
@@ -80,8 +98,8 @@ ensure_system_config() {
     mount -o ro LABEL=CUOS "/mnt/installer/"
     if [[ -f "/mnt/installer/system.json" ]]; then
       report_info "cuos:init:system-json-installer" "Found system.json on Installer, merging with system.json from system"
-      if ! NEW_CONFIG="$(jq -s '.[0] + .[1]' \
-        "${CONFIG_PATH}" "/mnt/installer/system.json")"; then
+      if ! NEW_CONFIG="$(jq -c --argjson remote "${remote}" '$remote + .' \
+        "/mnt/installer/system.json")"; then
 
         report_alert "cuos:init:invalid_installer_system_json" "Provided system.json on Installer is invalid. System will reboot in 30sec"
         "${SCRIPT_DIR}/dialog-failed.sh" "Provided system.json file on Installer is invalid"
@@ -89,7 +107,7 @@ ensure_system_config() {
         /sbin/reboot
 
       fi
-      echo "${NEW_CONFIG}" >"${CONFIG_PATH}"
+      remote="${NEW_CONFIG}"
     fi
     umount "/mnt/installer"
 
@@ -98,8 +116,7 @@ ensure_system_config() {
     if [[ -f "/mnt/boot/user-data" ]]; then
       report_info "cuos:init:cloud-init" "Found Cloud Init user-data on boot, merging with system.json"
       if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/boot/user-data" "/mnt/boot/network-config" | \
-        jq -s '.[0] + .[1]' \
-        "${CONFIG_PATH}" -)"; then
+        jq -c --argjson local "${local_layer}" '$local + .')"; then
 
         report_alert "cuos:init:invalid_cloud_init" "Provided cloud-init file is invalid. System will reboot in 30sec"
         "${SCRIPT_DIR}/dialog-failed.sh" "Provided cloud-init file is invalid"
@@ -107,7 +124,7 @@ ensure_system_config() {
         /sbin/reboot
 
       fi
-      echo "${NEW_CONFIG}" >"${CONFIG_PATH}"
+      local_layer="${NEW_CONFIG}"
     fi
 
     # Grab Cloud Init data if available
@@ -116,8 +133,7 @@ ensure_system_config() {
     if [[ -f "/mnt/cidata/user-data" ]]; then
       report_info "cuos:init:cloud-init" "Found Cloud Init user-data, merging with system.json"
       if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/cidata/user-data" "/mnt/cidata/network-config" | \
-        jq -s '.[0] + .[1]' \
-        "${CONFIG_PATH}" -)"; then
+        jq -c --argjson local "${local_layer}" '$local + .')"; then
 
         report_alert "cuos:init:invalid_cloud_init" "Provided cloud-init file is invalid. System will reboot in 30sec"
         "${SCRIPT_DIR}/dialog-failed.sh" "Provided cloud-init file is invalid"
@@ -125,18 +141,36 @@ ensure_system_config() {
         /sbin/reboot
 
       fi
-      echo "${NEW_CONFIG}" >"${CONFIG_PATH}"
+      local_layer="${NEW_CONFIG}"
     fi
     umount "/mnt/cidata"
+  fi
 
-    if ! check_schema_system_json; then
-      report_alert "cuos:init:invalid_system_json" "Provided system.json file is invalid. System will reboot in 30sec"
-      "${SCRIPT_DIR}/dialog-failed.sh" "Provided system.json file is invalid"
-      sync
-      /sbin/reboot
-    fi
+  config_first_layers "${remote}" "${local_layer}"
+
+  if [[ "${VIRT_TYPE}" != "lxc" && "${VIRT_TYPE}" != "docker" ]] \
+      && ! check_schema_system_json; then
+    report_alert "cuos:init:invalid_system_json" "Provided system.json file is invalid. System will reboot in 30sec"
+    "${SCRIPT_DIR}/dialog-failed.sh" "Provided system.json file is invalid"
+    sync
+    /sbin/reboot
   fi
   patch_system_config "${CONFIG_PATH}"
+}
+
+# $1 remote, $2 local layer of a first start. Writes both - the local one
+# normalised against the remote - and the effective configuration.
+config_first_layers() {
+  local remote="$1"
+  local local_layer
+
+  local_layer="$(config_normalise "$2" "${remote}")" || local_layer="{}"
+  config_write "$(config_remote_path "$(config_active_slot)")" "${remote}"
+  config_write "${LOCAL_LAYER}" "${local_layer}"
+  config_rebuild
+  if [[ "$?" == "2" ]]; then
+    report_alert "cuos:init:config_layers" "Could not write /system.json from its layers"
+  fi
 }
 
 check_schema_system_json() {
@@ -172,20 +206,15 @@ set_hostname() {
       r1=$(printf "%02X" $(( RANDOM % 256 )))
       r2=$(printf "%02X" $(( RANDOM % 256 )))
       SYSTEM_HOSTNAME="device-${r1}${r2}"
-      jq_replace \
-        --arg hn "${SYSTEM_HOSTNAME}" \
-        '.hostname = $hn' \
-        "${CONFIG_PATH}"
+      # The device's own name, so the local layer's.
+      config_local_patch "$(jq -nc --arg hn "${SYSTEM_HOSTNAME}" '{hostname: $hn}')"
       hostname "$SYSTEM_HOSTNAME"
   elif [[ -n "${SYSTEM_HOSTNAME}" ]]; then
     echo "Setting hostname to $SYSTEM_HOSTNAME"
     echo "$SYSTEM_HOSTNAME" > "/etc/hostname"
     hostname "$SYSTEM_HOSTNAME"
   elif [[ -n "${OLD_HOSTNAME}" ]]; then
-      jq_replace \
-        --arg hn "${OLD_HOSTNAME}" \
-        '.hostname = $hn' \
-        "${CONFIG_PATH}"
+      config_local_patch "$(jq -nc --arg hn "${OLD_HOSTNAME}" '{hostname: $hn}')"
   fi
   if [[ -n "${REINIT:-}" && "${OLD_HOSTNAME}" != "${SYSTEM_HOSTNAME}" ]]; then
     systemctl restart networking

@@ -16,11 +16,12 @@ if [[ "${CURRENT_SLOT}" == "A" ]]; then
   SLOT="B"
 fi
 
-# Same arguments as do-update.sh: "update" or "pull", and the configuration
-# to update to. /system_next.json is the other slot's, and is written only once
-# that slot holds the new image.
+# Same arguments as do-update.sh: "update" or "pull", the configuration to
+# update to, and its plan. /system_next.json is the other slot's, and is
+# written only once that slot holds the new image.
 ACTION="${1:-}"
 export CONFIG_PATH="${2:-}"
+PLAN_PATH="${3:-}"
 
 case "${ACTION}" in
   update|pull) ;;
@@ -28,6 +29,8 @@ case "${ACTION}" in
 esac
 [[ -f "${CONFIG_PATH}" ]] \
   || raise 1 "No configuration to ${ACTION} to: ${CONFIG_PATH}"
+[[ "${ACTION}" == "pull" || -f "${PLAN_PATH}" ]] \
+  || raise 1 "No configuration plan: ${PLAN_PATH}"
 
 LXC_IMAGE="$(image_url "lxc")" || \
   raise 41 "LXC image not defined"
@@ -111,9 +114,11 @@ else
 fi
 
 # The last step that can still fail without consequence: from the init swap
-# below on, the next start is the new root. Not "mv": /system_next.json is a
-# symlink into /data, and the new root links the same file.
-if ! cat "${CONFIG_PATH}" >"/system_next.json"; then
+# below on, the next start is the new root. config_commit writes the slot's
+# remote layer, the shared local one, and /system_next.json - through the
+# symlink, which the new root links as well.
+config_commit "$(cat "${PLAN_PATH}")" "${SLOT}" "/system_next.json"
+if [[ "$?" == "2" ]]; then
   state '.update_state' "update of slot ${SLOT} to ${LXC_IMAGE} failed: its configuration could not be written"
   report_err "cuos:update:failed" "The configuration of slot ${SLOT} could not be written. Not rebooting"
   raise 51 "Failed to write /system_next.json"

@@ -16,8 +16,10 @@ if [[ -n "${TEST:-}" ]]; then
 fi
 
 
-# Load initial config into a variable
+# Load initial config into a variable. CONFIG_START stays as it was: saving
+# keeps only what the dialog changed (config_local_edit).
 CONFIG_JSON="$(cat "$CONFIG_PATH" || echo '{}')"
+CONFIG_START="${CONFIG_JSON}"
 CONFIG_NEW="{}"
 
 # --- Validation functions ---
@@ -125,9 +127,15 @@ edit_network() {
   done
 }
 
+# A setting made at the console, so the local layer's (lib-config.sh).
 save_configuration() {
-  # Save to new config
-  echo "${CONFIG_JSON}" >"${CONFIG_PATH}" || exit 1
+  if [[ -n "${TEST:-}" ]]; then
+    echo "${CONFIG_JSON}" >"${CONFIG_PATH}" || exit 1
+    return
+  fi
+  config_local_edit "${CONFIG_START}" "${CONFIG_JSON}"
+  [[ "$?" == "2" ]] && exit 1
+  return 0
 }
 
 apply_configuration_hostname() {

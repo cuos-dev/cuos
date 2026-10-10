@@ -197,3 +197,6 @@ rename_function() {
     eval "$(declare -f "${func_name}" | sed '1s/'"${func_name}"'/'"${new_name}"'/')"
   fi
 }
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/lib-config.sh"

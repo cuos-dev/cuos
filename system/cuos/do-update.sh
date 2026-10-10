@@ -14,12 +14,14 @@ fi
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/utils.sh"
 
-# $1 is "update" or "pull", $2 the merged configuration to update to. It is a
-# file of its own and not /system_next.json: that one is the standby slot's
-# configuration, and it is only replaced once the slot holds the image this
-# configuration names. A pull leaves both alone.
+# $1 is "update" or "pull", $2 the effective configuration to update to, $3
+# the plan it comes from (lib-config.sh, config_plan_update). The configuration
+# is a file of its own and not /system_next.json: that one is the standby
+# slot's configuration, and it is only replaced - with its remote layer - once
+# the slot holds the image this configuration names. A pull leaves both alone.
 ACTION="${1:-}"
 export CONFIG_PATH="${2:-}"
+PLAN_PATH="${3:-}"
 
 case "${ACTION}" in
   update|pull) ;;
@@ -27,6 +29,8 @@ case "${ACTION}" in
 esac
 [[ -f "${CONFIG_PATH}" ]] \
   || raise 1 "No configuration to ${ACTION} to: ${CONFIG_PATH}"
+[[ "${ACTION}" == "pull" || -f "${PLAN_PATH}" ]] \
+  || raise 1 "No configuration plan: ${PLAN_PATH}"
 
 SLOT="$(cat "/etc/active_slot")"
 
@@ -118,9 +122,10 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
   # The new slot is installed, and the boot chain points at it. Its
   # configuration is the one this update was given, and the reboot waits for it:
   # a slot that came up with the configuration of whatever image it held before
-  # would be worse than none. Not "mv": /system_next.json is a symlink into
-  # /data, and replacing the link would leave the slot's real file behind.
-  if ! cat "${CONFIG_PATH}" >"/system_next.json"; then
+  # would be worse than none. config_commit writes the slot's remote layer, the
+  # shared local one, and /system_next.json - through the symlink, not with mv.
+  config_commit "$(cat "${PLAN_PATH}")" "${SLOT_NEXT}" "/system_next.json"
+  if [[ "$?" == "2" ]]; then
     state '.update_state' "update of slot ${SLOT_NEXT} to ${OS_IMAGE} failed: its configuration could not be written"
     report_err "cuos:update:failed" "Update installed, but the configuration of slot ${SLOT_NEXT} could not be written. Not rebooting"
     raise 36 "Failed to write /system_next.json; slot ${SLOT_NEXT} is installed and will boot next"

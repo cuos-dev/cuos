@@ -168,10 +168,8 @@ change_admin_password() {
     fi
     (
       set +x
-      jq_replace \
-        --arg password "$(hash_admin_password "$p1")" \
-        '.system_admin_password = $password' \
-        "${CONFIG_PATH}"
+      config_local_patch "$(jq -nc --arg password "$(hash_admin_password "$p1")" \
+        '{system_admin_password: $password}')"
     )
     report_notice "cuos:system:admin_password" "Administrator password changed"
     msg "Administrator password set." "Password"
@@ -194,10 +192,8 @@ change_console_password() {
     fi
     (
       set +x
-      jq_replace \
-        --arg password "$(hash_password "$p1")" \
-        '.console_password = $password' \
-        "${CONFIG_PATH}"
+      config_local_patch "$(jq -nc --arg password "$(hash_password "$p1")" \
+        '{console_password: $password}')"
     )
     msg "Console password changed." "Password"
     report_notice "cuos:console:password" "Console password changed"
@@ -419,6 +415,7 @@ expert() {
     return 1
   fi
   cp "/system.json" /tmp/edit-system.json
+  cp "/system.json" /tmp/edit-system-start.json
   chown nobody:nogroup /tmp/edit-system.json
   # "vim.tiny -Z" is restricted vim (rvim)
   term_all sudo -u nobody vim.tiny -Z /tmp/edit-system.json
@@ -427,10 +424,11 @@ expert() {
   elif ! check_config < /tmp/edit-system.json; then
     term msg "Invalid Configuration"
   else
-    cat /tmp/edit-system.json >/system.json
+    # What the editor changed becomes a setting of this device.
+    config_local_edit "$(jq -c . /tmp/edit-system-start.json)" "$(jq -c . /tmp/edit-system.json)"
     api_stream "Applying system.json" cuos patch
   fi
-  rm -f /tmp/edit-system.json
+  rm -f /tmp/edit-system.json /tmp/edit-system-start.json
 }
 
 
