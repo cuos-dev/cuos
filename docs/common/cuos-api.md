@@ -42,6 +42,9 @@ cuos netcheck
 # Update system
 cuos update - <<< $CONFIG
 
+# Fetch what an update with this config would install, install nothing
+cuos pull - <<< $CONFIG
+
 # Rollback to previous version
 cuos rollback
 
@@ -194,6 +197,7 @@ see the note under Self-test. Read the result from the output.
 | version | Show current system version | `{}` | String: "registry/image:tag" | Returns current active system image |
 | state | Show current OS system state | `{}` | `{ "state": "running\|updating\|error" }` | System operational state |
 | update | Apply system update | `{ "config": new system config }` | Status messages | Initiates system update |
+| pull | Fetch the images of an update | same as `update` | Status messages | Pulls the updater and the system image into the host's Docker and installs nothing, so a later `update` with the same config only installs. Touches neither slot nor `/system.json`. Exits 35 (`update:json`-style: `"err": "35"`) if the configuration names an updater too old to pull; then nothing is done |
 | rollback | Rollback last update | `{}` | Status messages | Reverts to previous version |
 | resources | Show system resources | `{}` | `{ "cpu_cores": number, "cpu_usage": number, ... }` | System metrics |
 | selftest | Check this system's invariants | `{}` | `{ "ok": bool, "summary": {...}, "checks": [...] }` | Read-only; see [Self-test](#self-test) |

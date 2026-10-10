@@ -41,10 +41,6 @@ perform_update() {
   export PRODUCT_NAME
   PRODUCT_NAME="$(product_name)"
 
-  if [[ "${INSTALLIMAGE}" != "true" ]]; then
-    check_free_space
-  fi
-
   # Read by the libraries above, which shellcheck has already inlined.
   # shellcheck disable=SC2034
   TARGET_PLATFORM="$(target_platform "${OS_ARCH}")" || exit 1
@@ -58,8 +54,12 @@ perform_update() {
     raise_info 102 "No OS update available"
   fi
 
-  step "Clearing slot ${SLOT}"
-  prepare_slot
+  if [[ "${INSTALLIMAGE}" != "true" ]]; then
+    step "Removing the image slot ${SLOT} was installed from"
+    remove_standby_image
+
+    check_space_before_pull
+  fi
 
   if ! is_local_build; then
     step "Fetching ${IMAGE}"
@@ -74,6 +74,13 @@ perform_update() {
   if image_is_installed "${NEW_DIGEST}"; then
     raise_info 102 "No OS update available"
   fi
+
+  if [[ "${INSTALLIMAGE}" != "true" ]]; then
+    check_space_after_pull
+  fi
+
+  step "Clearing slot ${SLOT}"
+  prepare_slot
 
   echo "INFO: Updating OS slot ${SLOT} to ${IMAGE}"
 
@@ -104,4 +111,51 @@ perform_update() {
   fi
 
   step "Slot ${SLOT} installed: ${IMAGE}"
+}
+
+# "cuos pull": what perform_update does up to the point where the standby slot
+# would be cleared, without removing anything - the image is fetched into the
+# host's daemon, checked, and left there, so that a later update only installs.
+#
+# Exit codes are perform_update's. 127 is never one of them: it is what docker
+# reports for an updater that has no /api/pull, and do-update.sh reads it that
+# way.
+perform_pull() {
+  SLOT="$(target_slot "${1:-}")"
+  IMAGE="${2:-}"
+  IMAGE_DIGEST="${3:-""}"
+
+  check_environment
+
+  # Into a daemon of the updater's own the image would be fetched for nothing:
+  # it goes when the updater ends.
+  [[ -z "${_CUOS_DOCKERD_PID}" ]] \
+    || raise 100 "The host's docker daemon is not reachable, so there is nowhere to keep the image"
+
+  # shellcheck disable=SC2034
+  TARGET_PLATFORM="$(target_platform "${OS_ARCH}")" || exit 1
+  # shellcheck disable=SC2034
+  CONTAINER_ROOTFS_FS="${TARGET_ROOT}/system-${SLOT}"
+
+  if remote_digest_is_installed; then
+    raise_info 102 "No OS update available"
+  fi
+
+  check_space_before_pull
+
+  step "Fetching ${IMAGE}"
+  pull_image
+
+  NEW_DIGEST="$(repo_digest)"
+  if [[ -n "${IMAGE_DIGEST}" && "${IMAGE_DIGEST}" != "${NEW_DIGEST}" ]]; then
+    raise 104 "Image digest mismatch: ${IMAGE_DIGEST} != ${NEW_DIGEST}"
+  fi
+
+  if image_is_installed "${NEW_DIGEST}"; then
+    raise_info 102 "No OS update available"
+  fi
+
+  check_space_after_pull
+
+  step "Fetched ${IMAGE}: an update installs it without downloading it again"
 }

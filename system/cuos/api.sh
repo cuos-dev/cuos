@@ -55,12 +55,21 @@ api_command_version_json() {
     '{"version": $version}'
 }
 
+# $2 is the action, "update" if not given.
 api_handle_code() {
   local exit_code="${1:-}"
+  local action="${2:-update}"
   # we only report potential user errors:
-  if [[ "${exit_code}" == "0" ]]; then
+  if [[ "${exit_code}" == "0" && "${action}" == "pull" ]]; then
+    jq -nc \
+      '{"err": 0, "message": "images fetched, an update installs them"}'
+  elif [[ "${exit_code}" == "0" ]]; then
     jq -nc \
       '{"err": 0, "message": "os update successful"}'
+  elif [[ "${exit_code}" == "35" ]]; then
+    jq -nc \
+      --arg code "${exit_code}" \
+      '{"err": $code, "message": "The updater of this configuration cannot pull"}'
   elif [[ "${exit_code}" == "60" ]]; then
     jq -nc \
       --arg code "${exit_code}" \
@@ -83,48 +92,65 @@ api_handle_code() {
   fi
 }
 
-## update             - Perform OS update
-api_command_update() {
+# Seams for the tests, which redefine them.
+api_do_update() {
+  "${SCRIPT_DIR}/do-update.sh" "$@"
+}
+api_reinit() {
+  "${SCRIPT_DIR}/init.sh" --reinit
+}
+
+# $1 is "update" or "pull". Builds the configuration to update to - the current
+# one with the given config merged in - into a file of its own, and hands it to
+# do-update.sh. /system_next.json is the standby slot's configuration, the one a
+# rollback boots with, so nothing is written there before the slot holds the new
+# image: do-update.sh does that itself, right before it reboots. A pull only
+# needs the configuration to know what to fetch, and drops it again.
+api_update_func() {
+  local action="$1"
+  local label="Update"
+  [[ "${action}" == "pull" ]] && label="Pull"
   local input
   input="$(cat)"
 
-  report_info "cuos:update:start" "Update process was triggered"
+  report_info "cuos:${action}:start" "${label} process was triggered"
   local config
   config="$(echo "${input}" | jq -c '.config // {}')"
   if ! echo "${config}" | check_config; then
-    report_err "cuos:update:err_invalid_config" "Update: Invalid configuration provided."
+    report_err "cuos:${action}:err_invalid_config" "${label}: Invalid configuration provided."
     echo "Invalid configuration provided."
     return 60
   fi
 
-  # update and swap configuration (config -> new)
-  local new_config
-  new_config="$(echo "${config}" | jq -s '.[0] * .[1]' "${CONFIG_PATH}" -)" || return 61
-  local curr_config
-  curr_config="$(cat "${CONFIG_PATH}")"
-  local prev_config
-  prev_config="$(cat "${NEXT_CONFIG_PATH}")"
+  local config_file
+  config_file="$(mktemp "${T_RUN_DIR:-"/run"}/cuos-${action}.XXXXXX")" || return 1
 
-  echo "${new_config}" >"${NEXT_CONFIG_PATH}"
+  if ! echo "${config}" | jq -s '.[0] * .[1]' "${CONFIG_PATH}" - >"${config_file}"; then
+    rm -f "${config_file}"
+    return 61
+  fi
 
-  # perform update
-  "${SCRIPT_DIR}/do-update.sh"
+  # perform update; on success it reboots and does not come back
+  api_do_update "${action}" "${config_file}"
   local update_exit_code="$?"
 
   # if system container did not need an update
-  if [[ "${update_exit_code}" = "22" || "${update_exit_code}" = "102" ]]; then
-    if [[ "${new_config}" != "${curr_config}" ]]; then
-      # apply new configuration to CURRENT system:
-      echo "${new_config}" >"${CONFIG_PATH}"
-      # and save old configuration for rollback
-      echo "${curr_config}" >"${NEXT_CONFIG_PATH}"
-    else
-      # reset prev config:
-      echo "${prev_config}" >"${NEXT_CONFIG_PATH}"
+  if [[ "${action}" == "update" && \
+      ( "${update_exit_code}" = "22" || "${update_exit_code}" = "102" ) ]]; then
+    if ! json_equal "${config_file}" "${CONFIG_PATH}"; then
+      # save the current configuration for rollback, then apply the new one to
+      # the CURRENT system. Not "mv": both paths are symlinks into /data.
+      if ! cat "${CONFIG_PATH}" >"${NEXT_CONFIG_PATH}" \
+          || ! cat "${config_file}" >"${CONFIG_PATH}"; then
+        rm -f "${config_file}"
+        report_err "cuos:update:failed" "The new configuration could not be written"
+        return 62
+      fi
     fi
+    rm -f "${config_file}"
 
     # apply changes to current partition
-    "${SCRIPT_DIR}/init.sh" --reinit
+    api_reinit
 
     # we need to check, if app container needs update
     touch "/data/run-update-app"
@@ -133,16 +159,28 @@ api_command_update() {
     return "${update_exit_code}"
   fi
 
+  rm -f "${config_file}"
   return "${update_exit_code}"
+}
+
+## update             - Perform OS update
+api_command_update() {
+  api_update_func update
 }
 api_command_update_json() {
   api_command_update >&2
   api_handle_code "$?"
 }
 
+## pull               - Fetch the images of an update; installs nothing
+##                      Same input as update. A later update with the same
+##                      config then only installs.
 api_command_pull() {
-  echo "Pull not jet implemented."
-  return 1
+  api_update_func pull
+}
+api_command_pull_json() {
+  api_command_pull >&2
+  api_handle_code "$?" pull
 }
 
 api_command_trigger_update() {

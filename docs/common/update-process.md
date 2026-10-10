@@ -33,11 +33,12 @@ This document describes the full lifecycle of a system (OS) update and in-place 
 ```mermaid
 flowchart LR
   A[Trigger: cuos update] --> B[Validate configuration]
-  B --> C[Merge: new config → /system_next.json]
+  B --> C[Merge: new config → temporary file]
   C --> D[Pull OS image (updater)]
   D --> E[Materialize new @os subvolume]
   E --> F[Write boot configuration]
-  F --> G[Reboot]
+  F --> F2[Write config → /system_next.json]
+  F2 --> G[Reboot]
   G --> H[Boot & verification]
   H --> I{Success?}
   I -- Yes --> J[Finalize: /system_next.json -> /system.json]
@@ -52,15 +53,23 @@ flowchart LR
 |------|-------------|------------------|
 | 1. Trigger | `cuos update` with optional partial config | Invalid JSON → abort |
 | 2. Validation | Schema / structure check (`check_config`) | Message + no switch |
-| 3. Merge | Old config + patch → `/system_next.json` | Write failure → abort |
-| 4. Pull OS image | Updater pulls new OS image (`docker pull`) | Network/registry error → retry/abort |
-| 5. Subvolume prep | Create new root under inactive slot | BTRFS error → abort |
-| 6. Boot switch | GRUB / cmdline switched to new subvolume | Write error → abort |
-| 7. Reboot | System restarts | Boot failure → potential rollback |
-| 8. Verification | App init / state sets `running` | Timeout / app fail → rollback |
-| 9. Finalize | New config becomes active | On rollback old remains |
+| 3. Merge | Old config + patch → a temporary file in `/run` | Write failure → abort |
+| 4. Make room | The image the inactive slot was installed from is removed (by digest, never the running one or the one about to be installed). The slot itself stays | — |
+| 5. Space check | Estimated from the running image's size: the update must leave 300 MB free | Too little → abort, nothing removed but that image |
+| 6. Pull OS image | Updater pulls new OS image (`docker pull`), checks its digest, then checks the space again with the new image's real size | Network/registry error, digest mismatch, too little space → abort; the inactive slot and its config are untouched |
+| 7. Subvolume prep | Only now: delete the inactive slot, wait for btrfs to free it, create it anew | BTRFS error → abort |
+| 8. Boot switch | GRUB / cmdline switched to new subvolume | Write error → abort |
+| 9. Config | The merged config is written to `/system_next.json`, the new slot's config | Write failure → no reboot, reported |
+| 10. Reboot | System restarts | Boot failure → potential rollback |
+| 11. Verification | App init / state sets `running` | Timeout / app fail → rollback |
+| 12. Finalize | New config becomes active | On rollback old remains |
 
-If step 4 fails and the reason is unclear, run `cuos netcheck` (or
+Until step 7 an update that fails costs nothing: the slot a rollback would
+return to, and its configuration, are as they were. `cuos pull` runs steps 1–6
+without step 4 and stops there; the image it fetched stays in Docker, so a later
+`cuos update` with the same configuration only installs.
+
+If step 6 fails and the reason is unclear, run `cuos netcheck` (or
 *Diagnostics → Tool: Update Connection Check* on the console): it checks the way
 to the registry step by step and says what to fix — see
 [Update connection check](./cuos-api.md#update-connection-check).

@@ -46,4 +46,140 @@ expect \
   $'{"date":"2026-03-11T11:57:28","level":"info","type":"cuos:startup:start","message":"System starting up ..."}\n{"date":"2026-03-11T11:57:30","level":"warning","type":"cuos:init:ssh_server","message":"Start SSH server"}\n{"date":"2026-06-03T14:52:30","level":"error","type":"cuos:mytest:err","message":"My Error"}' \
   api_main log-follow
 
+# update and pull. The device's files live in a scratch directory; do-update.sh
+# and init.sh are replaced by functions that record what they were given.
+WORK_DIR="$(mktemp -d)"
+# shellcheck disable=SC2064
+trap "rm -rf '${WORK_DIR}'" EXIT
+
+export T_RUN_DIR="${WORK_DIR}/run"
+mkdir -p "${T_RUN_DIR}"
+CONFIG_PATH="${WORK_DIR}/system.json"
+NEXT_CONFIG_PATH="${WORK_DIR}/system_next.json"
+
+check_config() {
+  jq -e 'type == "object"' >/dev/null
+}
+systemctl() {
+  :
+}
+touch() {
+  :
+}
+report_info() {
+  :
+}
+report_err() {
+  :
+}
+
+MOCK_DO_UPDATE_RC=0
+api_do_update() {
+  echo "$1" >"${WORK_DIR}/action"
+  jq -c . "$2" >"${WORK_DIR}/given"
+  return "${MOCK_DO_UPDATE_RC}"
+}
+api_reinit() {
+  echo "reinit" >>"${WORK_DIR}/reinit"
+}
+
+device() {
+  echo '{"os_image_version": "v1", "hostname": "box"}' >"${CONFIG_PATH}"
+  echo '{"os_image_version": "v0", "hostname": "box"}' >"${NEXT_CONFIG_PATH}"
+  rm -f "${WORK_DIR}/action" "${WORK_DIR}/given" "${WORK_DIR}/reinit"
+}
+
+# $1 is the command, $2 the config given, $3 the code do-update.sh returns.
+# Prints the code, then both configuration files and what is left in /run.
+call() {
+  local rc
+
+  MOCK_DO_UPDATE_RC="$3"
+  echo "{\"config\": $2}" | "api_command_$1" >/dev/null 2>&1
+  rc="$?"
+  echo "rc=${rc}"
+  echo "action=$(cat "${WORK_DIR}/action" 2>/dev/null)"
+  echo "given=$(cat "${WORK_DIR}/given" 2>/dev/null)"
+  echo "system=$(jq -c . "${CONFIG_PATH}")"
+  echo "next=$(jq -c . "${NEXT_CONFIG_PATH}")"
+  echo "reinit=$(cat "${WORK_DIR}/reinit" 2>/dev/null | wc -l | tr -d ' ')"
+  echo "run=$(ls "${T_RUN_DIR}")"
+}
+
+device
+expect "update: a failed update leaves the rollback slot's config alone" \
+'rc=103
+action=update
+given={"os_image_version":"v2","hostname":"box"}
+system={"os_image_version":"v1","hostname":"box"}
+next={"os_image_version":"v0","hostname":"box"}
+reinit=0
+run=' \
+  call update '{"os_image_version": "v2"}' 103
+
+device
+expect "update: no new image - the config applies to this slot, the old one is kept" \
+'rc=102
+action=update
+given={"os_image_version":"v1","hostname":"other"}
+system={"os_image_version":"v1","hostname":"other"}
+next={"os_image_version":"v1","hostname":"box"}
+reinit=1
+run=' \
+  call update '{"hostname": "other"}' 102
+
+device
+expect "update: no new image, no new config - nothing is written" \
+'rc=22
+action=update
+given={"os_image_version":"v1","hostname":"box"}
+system={"os_image_version":"v1","hostname":"box"}
+next={"os_image_version":"v0","hostname":"box"}
+reinit=1
+run=' \
+  call update '{}' 22
+
+device
+expect "update: an invalid config reaches nothing" \
+'rc=60
+action=
+given=
+system={"os_image_version":"v1","hostname":"box"}
+next={"os_image_version":"v0","hostname":"box"}
+reinit=0
+run=' \
+  call update '"not an object"' 0
+
+device
+expect "pull: fetches for the merged config and writes nothing" \
+'rc=0
+action=pull
+given={"os_image_version":"v2","hostname":"box"}
+system={"os_image_version":"v1","hostname":"box"}
+next={"os_image_version":"v0","hostname":"box"}
+reinit=0
+run=' \
+  call pull '{"os_image_version": "v2"}' 0
+
+device
+expect "pull: nothing new applies nothing either" \
+'rc=102
+action=pull
+given={"os_image_version":"v1","hostname":"other"}
+system={"os_image_version":"v1","hostname":"box"}
+next={"os_image_version":"v0","hostname":"box"}
+reinit=0
+run=' \
+  call pull '{"hostname": "other"}' 102
+
+expect "api_handle_code: a pull that worked" \
+  '{"err":0,"message":"images fetched, an update installs them"}' \
+  api_handle_code 0 pull
+expect "api_handle_code: an updater that cannot pull" \
+  '{"err":"35","message":"The updater of this configuration cannot pull"}' \
+  api_handle_code 35 pull
+expect "api_handle_code: an update that worked" \
+  '{"err":0,"message":"os update successful"}' \
+  api_handle_code 0
+
 summary

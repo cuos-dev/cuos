@@ -16,7 +16,18 @@ if [[ "${CURRENT_SLOT}" == "A" ]]; then
   SLOT="B"
 fi
 
-export CONFIG_PATH="/system_next.json"
+# Same arguments as do-update.sh: "update" or "pull", and the configuration
+# to update to. /system_next.json is the other slot's, and is written only once
+# that slot holds the new image.
+ACTION="${1:-}"
+export CONFIG_PATH="${2:-}"
+
+case "${ACTION}" in
+  update|pull) ;;
+  *) raise 1 "Unknown action: ${ACTION}" ;;
+esac
+[[ -f "${CONFIG_PATH}" ]] \
+  || raise 1 "No configuration to ${ACTION} to: ${CONFIG_PATH}"
 
 LXC_IMAGE="$(image_url "lxc")" || \
   raise 41 "LXC image not defined"
@@ -42,7 +53,9 @@ if [ "$AVAIL_BYTES" -le "$REQUIRED_BYTES" ]; then
   raise 21 "Not enough free space in ${TARGET_ROOT} (required: >2GB, available: $((AVAIL_BYTES/1024/1024)) MB). Aborting update." >&2
 fi
 
-state jq '.last_update_check = (now | todate)'
+if [[ "${ACTION}" == "update" ]]; then
+  state jq '.last_update_check = (now | todate)'
+fi
 
 "${SCRIPT_DIR}/utils-docker-login.sh" || raise 42 "Docker login failed"
 
@@ -55,6 +68,13 @@ fi
 if [[ "${IMAGE_VERSION}@${NEW_DIGEST}" == "$(cat /etc/image)" ]]; then
   report_info "cuos:update:not_needed" "The system is up-to-date"
   raise_info 22 "No new image version available (post). Exiting."
+fi
+
+# There is no updater in a container: the image is fetched by the host's
+# daemon, and that is all a pull is.
+if [[ "${ACTION}" == "pull" ]]; then
+  report_info "cuos:pull:done" "Fetched ${IMAGE_VERSION}; an update installs it without downloading"
+  exit 0
 fi
 
 rm -Rf /next /prev
@@ -88,6 +108,15 @@ if [[ -f "/next/bin/busybox" ]]; then
 else
   cp /bin/busybox /swaproot/ \
     || raise 50 "Failed to copy busybox"
+fi
+
+# The last step that can still fail without consequence: from the init swap
+# below on, the next start is the new root. Not "mv": /system_next.json is a
+# symlink into /data, and the new root links the same file.
+if ! cat "${CONFIG_PATH}" >"/system_next.json"; then
+  state '.update_state' "update of slot ${SLOT} to ${LXC_IMAGE} failed: its configuration could not be written"
+  report_err "cuos:update:failed" "The configuration of slot ${SLOT} could not be written. Not rebooting"
+  raise 51 "Failed to write /system_next.json"
 fi
 
 mv /sbin/init /sbin/init-old

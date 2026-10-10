@@ -11,16 +11,64 @@ target_slot() {
   fi
 }
 
+# What deleting the standby slot gives back. Measured, not assumed: a slot an
+# earlier update left half-written holds less than an image. du -x stays inside
+# the subvolume, which is a filesystem of its own to it.
+standby_slot_kb() {
+  local size
+
+  if [[ ! -d "${CONTAINER_ROOTFS_FS}" ]]; then
+    echo 0
+    return
+  fi
+  size="$(du -skx "${CONTAINER_ROOTFS_FS}" 2>/dev/null | awk '{ print $1 }')"
+  echo "${size:-0}"
+}
+
+# The image the standby slot was unpacked from. The slot does not need it - it
+# is a copy - so it goes before the pull, to make room, and the slot itself stays
+# until the new image is there.
+#
+# Found by digest, not by name: with an unchanged tag the name has moved on to
+# a newer image - the running one, or one fetched by "cuos pull" - and the
+# standby's own would be left dangling for good.
+#
+# Removed by id, not by the digest reference: while a tag still points at the
+# image as well (the standby of an update to a new tag), "docker image rm
+# name@digest" takes the digest reference away and leaves the image under its
+# tag (moby, daemon/images/image_delete.go, read 2026-10-10). By id, every
+# reference within its repository goes, and the image with them.
+#
+# Never the image the active slot runs or the one the update is about to
+# install. No "docker image prune": the daemon is the app's as well.
+remove_standby_image() {
+  local standby active ref id
+
+  standby="$(cat "${CONTAINER_ROOTFS_FS}/etc/image" 2>/dev/null)"
+  ref="$(digest_ref "${standby}")" || return 0
+  active="$(cat "${T_FILE_IMAGE:-"/etc/image"}" 2>/dev/null)"
+
+  if [[ "${standby##*@}" == "${active##*@}" || "${standby##*@}" == "${IMAGE_DIGEST}" ]]; then
+    return 0
+  fi
+
+  id="$(image_id "${ref}")" || return 0
+  if [[ -n "${active}" && "${id}" == "$(image_id "$(digest_ref "${active}")")" ]]; then
+    return 0
+  fi
+
+  docker image rm "${id}" || true
+}
+
+# Only once the new image is there: from here on the standby slot is gone, and
+# with it the system this one could roll back to.
+#
+# btrfs gives the space of a deleted subvolume back in the background; the sync
+# waits for it, so the export below finds the room the space check counted on.
 prepare_slot() {
-  local old_image_path
-  old_image_path="$(grep -oE '^[^@]+' "${CONTAINER_ROOTFS_FS}/etc/image" 2>/dev/null)"
-
   if [[ -d "${CONTAINER_ROOTFS_FS}" ]]; then
-    if [[ -n "${old_image_path}" ]]; then
-      docker image rm --platform "${TARGET_PLATFORM}" "${old_image_path}" || true
-    fi
-
     btrfs subvolume delete -R "${CONTAINER_ROOTFS_FS}" || true
+    btrfs subvolume sync "${TARGET_ROOT}" || true
   fi
   rm -f "${TARGET_BOOT}/${SLOT}"_* || true
 

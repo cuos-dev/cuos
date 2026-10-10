@@ -145,6 +145,11 @@ state() {
   echo "${new_state}" >"${state_file}"
 }
 
+# Same JSON, whatever the formatting and the order of the keys.
+json_equal() {
+  jq -e -n --slurpfile a "$1" --slurpfile b "$2" '$a == $b' >/dev/null 2>&1
+}
+
 check_config() {
   jv "${SCRIPT_DIR}/system-schema.json" "/dev/stdin"
 }

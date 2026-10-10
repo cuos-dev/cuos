@@ -14,9 +14,21 @@ fi
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/utils.sh"
 
-SLOT="$(cat "/etc/active_slot")"
+# $1 is "update" or "pull", $2 the merged configuration to update to. It is a
+# file of its own and not /system_next.json: that one is the standby slot's
+# configuration, and it is only replaced once the slot holds the image this
+# configuration names. A pull leaves both alone.
+ACTION="${1:-}"
+export CONFIG_PATH="${2:-}"
 
-export CONFIG_PATH="/system_next.json"
+case "${ACTION}" in
+  update|pull) ;;
+  *) raise 1 "Unknown action: ${ACTION}" ;;
+esac
+[[ -f "${CONFIG_PATH}" ]] \
+  || raise 1 "No configuration to ${ACTION} to: ${CONFIG_PATH}"
+
+SLOT="$(cat "/etc/active_slot")"
 
 UPDATE_IMAGE="$(image_url "updater")" || \
   raise 31 "Updater image not defined"
@@ -35,7 +47,9 @@ if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
   raise_info 22 "No new image version available. Exiting (pre)"
 fi
 
-state jq '.last_update_check = (now | todate)'
+if [[ "${ACTION}" == "update" ]]; then
+  state jq '.last_update_check = (now | todate)'
+fi
 
 "${SCRIPT_DIR}/utils-docker-login.sh" || raise 33 "Docker login failed"
 
@@ -48,6 +62,14 @@ fi
 # Get Root Disk:
 ROOT_DEV="$(findmnt -n -o SOURCE -T "/" | sed 's/\[.*\]//')"
 ROOT_DISK="/dev/$(lsblk -no PKNAME "$ROOT_DEV" | head -n1)"
+
+# An update runs the image's default entrypoint, because a downgrade runs an
+# updater whose only one that is (updater.sh). Everything else is asked for by
+# name, and an updater too old to have it is told apart by docker's 127.
+ENTRYPOINT=()
+if [[ "${ACTION}" == "pull" ]]; then
+  ENTRYPOINT=(--entrypoint /api/pull)
+fi
 
 touch "/root/.docker/config.json"
 # The host's docker socket goes in under a name of its own, because
@@ -64,9 +86,10 @@ docker run --rm \
   -v "/var/run/docker.sock:/run/cuos-docker.sock:ro" \
   -v "/usr/local/share/ca-certificates/custom:/usr/local/share/ca-certificates/custom:ro" \
   -v "/etc/image:/etc/image:ro" \
-  -v "${CONFIG_PATH}:/system.json" \
+  -v "${CONFIG_PATH}:/system.json:ro" \
   -e "TARGET_DEVICE=${ROOT_DISK}" \
   -e "OS_ARCH=${OS_ARCH}" \
+  "${ENTRYPOINT[@]}" \
   "${UPDATE_IMAGE}" \
   "${SLOT}" "${OS_IMAGE}" "${OS_DIGEST}"
 
@@ -77,7 +100,32 @@ echo "Exit Code: ${DOCKER_EXIT_CODE}"
 SLOT_NEXT="A"
 [[ "${SLOT}" == "A" ]] && SLOT_NEXT="B"
 
+if [[ "${ACTION}" == "pull" ]]; then
+  if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
+    report_info "cuos:pull:done" "Fetched ${OS_IMAGE}; an update installs it without downloading"
+  elif [[ "${DOCKER_EXIT_CODE}" = "127" ]]; then
+    report_err "cuos:pull:not_supported" "The updater ${UPDATE_IMAGE} cannot pull"
+    raise 35 "The updater ${UPDATE_IMAGE} cannot pull: it has no /api/pull"
+  elif [[ "${DOCKER_EXIT_CODE}" = "102" ]]; then
+    report_info "cuos:update:not_needed" "The system is up-to-date"
+  else
+    report_err "cuos:pull:failed" "Pull failed. Exit code ${DOCKER_EXIT_CODE}"
+  fi
+  exit "${DOCKER_EXIT_CODE}"
+fi
+
 if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
+  # The new slot is installed, and the boot chain points at it. Its
+  # configuration is the one this update was given, and the reboot waits for it:
+  # a slot that came up with the configuration of whatever image it held before
+  # would be worse than none. Not "mv": /system_next.json is a symlink into
+  # /data, and replacing the link would leave the slot's real file behind.
+  if ! cat "${CONFIG_PATH}" >"/system_next.json"; then
+    state '.update_state' "update of slot ${SLOT_NEXT} to ${OS_IMAGE} failed: its configuration could not be written"
+    report_err "cuos:update:failed" "Update installed, but the configuration of slot ${SLOT_NEXT} could not be written. Not rebooting"
+    raise 36 "Failed to write /system_next.json; slot ${SLOT_NEXT} is installed and will boot next"
+  fi
+
   touch "/data/run-update"
   state '.state' 'updating'
   state jq '.last_update_date = (now | todate)'

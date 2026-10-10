@@ -1,7 +1,13 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# The updater image's default entrypoint, reached as /api/update as well. An
+# old system calls the updater without --entrypoint, so this is what an update
+# runs whichever path the image starts it by. /usr/local/updater/updater.sh is
+# what image-factory/create_image.sh calls; keep it.
+#
+# Reached through a symlink, so the directory is the link target's.
+SCRIPT_DIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
 
 # shellcheck source=lib/log.sh
 source "${SCRIPT_DIR}/lib/log.sh"

@@ -6,7 +6,11 @@ ENV container=docker
 
 LABEL dev.cuos.system=updater
 
-ENTRYPOINT ["/usr/local/updater/updater.sh"]
+# One entrypoint per action, under /api/ like the CuOS Init App's hooks. The
+# host starts an update without --entrypoint - the updater of an older release,
+# which a downgrade runs, knows only its default - and every other action with
+# --entrypoint /api/<action>, which an updater lacking it answers with 127.
+ENTRYPOINT ["/api/update"]
 
 # tar: GNU tar, needed to restore xattrs when unpacking the exported rootfs.
 # Busybox tar has no xattr support and would silently drop file capabilities.
@@ -29,5 +33,9 @@ RUN apk add --no-cache jq btrfs-progs util-linux bash tar
 ## Allow systemd to run inside Docker
 #VOLUME [ "/sys/fs/cgroup" ]
 
-COPY updater.sh shell.sh /usr/local/updater/
+COPY updater.sh pull.sh shell.sh /usr/local/updater/
 COPY lib/ /usr/local/updater/lib/
+
+RUN mkdir /api \
+  && ln -s /usr/local/updater/updater.sh /api/update \
+  && ln -s /usr/local/updater/pull.sh /api/pull

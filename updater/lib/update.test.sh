@@ -42,10 +42,66 @@ docker() {
       echo "rm ${2}" >>"${WORK_DIR}/docker.log"
       ;;
     image)
-      echo "${1} ${2}" >>"${WORK_DIR}/docker.log"
+      case "${2}" in
+        inspect)
+          mock_image_inspect "$@"
+          return
+          ;;
+        rm)
+          mock_image_rm "${*: -1}"
+          ;;
+        pull)
+          echo "${1} ${2}" >>"${WORK_DIR}/docker.log"
+          return "${MOCK_PULL_RC-0}"
+          ;;
+        *)
+          echo "${1} ${2}" >>"${WORK_DIR}/docker.log"
+          ;;
+      esac
       ;;
   esac
   return 0
+}
+
+# The daemon's images: reference -> id, and id -> size in bytes.
+declare -A MOCK_REF=()
+declare -A MOCK_BYTES=()
+
+mock_image_inspect() {
+  local ref="${*: -1}"
+  local id="${MOCK_REF[${ref}]-}"
+
+  [[ -n "${id}" ]] || return 1
+  case "$*" in
+    *.Size*) echo "${MOCK_BYTES[${id}]-0}" ;;
+    *) echo "${id}" ;;
+  esac
+}
+
+# Only removal by id is modelled: every reference to the image goes, and the
+# image with them.
+mock_image_rm() {
+  local id="$1"
+  local ref
+
+  echo "image rm ${id}" >>"${WORK_DIR}/docker.log"
+  for ref in "${!MOCK_REF[@]}"; do
+    if [[ "${MOCK_REF[${ref}]}" == "${id}" ]]; then
+      unset "MOCK_REF[${ref}]"
+    fi
+  done
+}
+
+mock_refs() {
+  local ref
+
+  for ref in "${!MOCK_REF[@]}"; do
+    echo "${ref} ${MOCK_REF[${ref}]}"
+  done | sort
+}
+
+du() {
+  printf '%s\t%s\n' "${MOCK_SLOT_KB-0}" "${*: -1}"
 }
 
 mountpoint() {
@@ -62,6 +118,7 @@ btrfs() {
   case "${2}" in
     delete) rm -rf "${4}" ;;
     create) mkdir -p "${3}" ;;
+    sync) echo "btrfs sync ${3}" >>"${WORK_DIR}/docker.log" ;;
   esac
 }
 
@@ -138,15 +195,6 @@ expect "product_name: neither" "CuOS" product_name
 export CONFIG_PATH="${WORK_DIR}/absent.json"
 expect "product_name: no config at all" "CuOS" product_name
 
-# The mock's device name is longer than the column, which is what -P is for.
-expect_rc "check_free_space: 5 GB is enough" 0 rc_of check_free_space
-MOCK_AVAIL_KB="1048576"
-expect_rc "check_free_space: 1 GB is not" 101 rc_of check_free_space
-MOCK_AVAIL_KB="5242880"
-MOCK_DF_UNSUPPORTED=1
-expect_rc "check_free_space: a df without -P is not guessed at" 100 \
-  rc_of check_free_space
-MOCK_DF_UNSUPPORTED=""
 
 export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
 export T_FILE_IMAGE="${WORK_DIR}/image"
@@ -252,6 +300,151 @@ expect "report_disk_usage: both partitions, both numbers" \
 disc usage (boot, before install): 733.8M of 1.3G used, 522.3M free" \
   report_disk_usage "before"
 
+expect "digest_ref: the tag goes" "ghcr.io/cuos-dev/cuos-system@sha256:aaaa" \
+  digest_ref "ghcr.io/cuos-dev/cuos-system:v1@sha256:aaaa"
+expect "digest_ref: a registry port stays" "reg.local:5000/cuos-system@sha256:aaaa" \
+  digest_ref "reg.local:5000/cuos-system:v1@sha256:aaaa"
+expect "digest_ref: a port and no tag" "reg.local:5000/cuos-system@sha256:aaaa" \
+  digest_ref "reg.local:5000/cuos-system@sha256:aaaa"
+expect_rc "digest_ref: no digest" 1 digest_ref "ghcr.io/cuos-dev/cuos-system:v1"
+
+REPO="ghcr.io/cuos-dev/cuos-system"
+MiB=1048576
+
+# The running image, "id-active", 1000 MiB, installed from :development.
+reset_images() {
+  MOCK_REF=()
+  MOCK_BYTES=()
+  MOCK_REF["${REPO}@sha256:aaaa"]="id-active"
+  MOCK_BYTES["id-active"]="$(( 1000 * MiB ))"
+  echo "${REPO}:development@sha256:aaaa" >"${T_FILE_IMAGE}"
+  rm -rf "${CONTAINER_ROOTFS_FS}"
+  : >"${WORK_DIR}/docker.log"
+}
+
+standby_installed_from() {
+  mkdir -p "${CONTAINER_ROOTFS_FS}/etc"
+  echo "$1" >"${CONTAINER_ROOTFS_FS}/etc/image"
+}
+
+removals() {
+  grep -c "^image rm" "${WORK_DIR}/docker.log" || true
+}
+
+export IMAGE_DIGEST=""
+
+# Same tag: the tag has moved on to the running image, the standby's image is
+# left with its digest reference alone.
+reset_images
+MOCK_REF["${REPO}:development"]="id-active"
+MOCK_REF["${REPO}@sha256:eeee"]="id-standby"
+standby_installed_from "${REPO}:development@sha256:eeee"
+remove_standby_image >/dev/null 2>&1
+expect "remove_standby_image: same tag - the standby's image goes, the running one stays" \
+  "${REPO}:development id-active
+${REPO}@sha256:aaaa id-active" mock_refs
+
+# New tag: the standby's tag still points at its image, and has to go with it.
+reset_images
+MOCK_REF["${REPO}:v1"]="id-standby"
+MOCK_REF["${REPO}@sha256:eeee"]="id-standby"
+standby_installed_from "${REPO}:v1@sha256:eeee"
+remove_standby_image >/dev/null 2>&1
+expect "remove_standby_image: new tag - the image goes with its tag" \
+  "${REPO}@sha256:aaaa id-active" mock_refs
+
+reset_images
+standby_installed_from "${REPO}:development@sha256:aaaa"
+remove_standby_image >/dev/null 2>&1
+expect "remove_standby_image: never the running image" "0" removals
+
+reset_images
+MOCK_REF["${REPO}@sha256:ffff"]="id-target"
+standby_installed_from "${REPO}:v3@sha256:ffff"
+IMAGE_DIGEST="sha256:ffff"
+remove_standby_image >/dev/null 2>&1
+IMAGE_DIGEST=""
+expect "remove_standby_image: never the image about to be installed" "0" removals
+
+reset_images
+MOCK_REF["${REPO}@sha256:eeee"]="id-active"
+standby_installed_from "${REPO}:mirror@sha256:eeee"
+remove_standby_image >/dev/null 2>&1
+expect "remove_standby_image: never the running image under another digest" "0" removals
+
+reset_images
+mkdir -p "${CONTAINER_ROOTFS_FS}"
+remove_standby_image >/dev/null 2>&1
+expect "remove_standby_image: a slot without /etc/image removes no image" "0" removals
+
+reset_images
+standby_installed_from "${REPO}:v1@sha256:eeee"
+remove_standby_image >/dev/null 2>&1
+expect "remove_standby_image: an image the daemon does not have" "0" removals
+
+# Space. 300 MiB have to be left: free + standby slot - what the update needs.
+reset_images
+MOCK_AVAIL_KB="$(( 2300 * 1024 ))"
+expect_rc "check_space_before_pull: 2300 MiB free, no standby, 2 x 1000 needed" 0 \
+  rc_of check_space_before_pull
+MOCK_AVAIL_KB="$(( 2299 * 1024 ))"
+expect_rc "check_space_before_pull: one MiB short of the reserve" 101 \
+  rc_of check_space_before_pull
+mkdir -p "${CONTAINER_ROOTFS_FS}"
+MOCK_SLOT_KB="$(( 900 * 1024 ))"
+MOCK_AVAIL_KB="$(( 1400 * 1024 ))"
+expect_rc "check_space_before_pull: the standby slot it frees counts" 0 \
+  rc_of check_space_before_pull
+MOCK_SLOT_KB=0
+MOCK_DF_UNSUPPORTED=1
+expect_rc "check_space_before_pull: a df without -P is not guessed at" 100 \
+  rc_of check_space_before_pull
+MOCK_DF_UNSUPPORTED=""
+
+MOCK_REF=()
+MOCK_AVAIL_KB="$(( 2049 * 1024 ))"
+expect_rc "check_space_before_pull: running image unknown, more than 2 GB" 0 \
+  rc_of check_space_before_pull
+MOCK_AVAIL_KB="$(( 2048 * 1024 ))"
+expect_rc "check_space_before_pull: running image unknown, 2 GB" 101 \
+  rc_of check_space_before_pull
+
+reset_images
+MOCK_AVAIL_KB="$(( 500 * 1024 ))"
+MOCK_REF["${REPO}@sha256:ffff"]="id-target"
+IMAGE_DIGEST="sha256:ffff"
+expect_rc "check_space_before_pull: a pinned image fetched before is not counted twice" 0 \
+  rc_of check_space_before_pull
+IMAGE_DIGEST=""
+MOCK_REF["${IMAGE}"]="id-target"
+expect_rc "check_space_before_pull: so is a tag moved by an earlier pull" 0 \
+  rc_of check_space_before_pull
+MOCK_REF["${IMAGE}"]="id-active"
+expect_rc "check_space_before_pull: a tag still on the running image is not" 101 \
+  rc_of check_space_before_pull
+
+# After the pull: the image is in docker's storage, the slot is what is left.
+reset_images
+MOCK_REF["${IMAGE}"]="id-new"
+MOCK_REF["${REPO}@sha256:ffff"]="id-new"
+MOCK_BYTES["id-new"]="$(( 1000 * MiB ))"
+MOCK_AVAIL_KB="$(( 1300 * 1024 ))"
+expect_rc "check_space_after_pull: 1300 MiB free, 1000 to unpack" 0 \
+  rc_of check_space_after_pull
+expect "check_space_after_pull: the image stays" "0" removals
+MOCK_AVAIL_KB="$(( 1299 * 1024 ))"
+expect_rc "check_space_after_pull: one MiB short" 101 rc_of check_space_after_pull
+expect "check_space_after_pull: the pulled image goes again" "1" removals
+refs_after_failed_check() {
+  # check_space_after_pull exits, so the refs are read on the way out.
+  ( exec 3>&1; trap "mock_refs >&3" EXIT; check_space_after_pull >/dev/null 2>&1 )
+}
+expect "check_space_after_pull: and only that one" \
+  "${REPO}@sha256:aaaa id-active" refs_after_failed_check
+unset "MOCK_REF[${IMAGE}]"
+expect_rc "check_space_after_pull: no size to read" 100 rc_of check_space_after_pull
+unset MOCK_AVAIL_KB
+
 mkdir -p "${CONTAINER_ROOTFS_FS}"
 touch "${TARGET_BOOT}/A_vmlinuz" "${TARGET_BOOT}/A_initrd.img" \
   "${TARGET_BOOT}/B_vmlinuz" "${TARGET_BOOT}/B_initrd.img"
@@ -269,16 +462,13 @@ slot_exists() {
 }
 expect "prepare_slot: the slot subvolume is there afterwards" "yes" slot_exists
 
-image_removals() {
+syncs_of_prepare_slot() {
   : >"${WORK_DIR}/docker.log"
   prepare_slot >/dev/null 2>&1
-  grep -c "^image rm$" "${WORK_DIR}/docker.log" || true
+  grep -c "^btrfs sync ${TARGET_ROOT}$" "${WORK_DIR}/docker.log" || true
 }
-expect "prepare_slot: a slot without /etc/image removes no image" "0" image_removals
-mkdir -p "${CONTAINER_ROOTFS_FS}/etc"
-echo "ghcr.io/cuos-dev/cuos-system:development@sha256:eeee" \
-  >"${CONTAINER_ROOTFS_FS}/etc/image"
-expect "prepare_slot: the old slot's image is removed" "1" image_removals
+expect "prepare_slot: waits for btrfs to give the space back" "1" \
+  syncs_of_prepare_slot
 
 dockerenv_state() {
   [[ -f "${CONTAINER_ROOTFS_FS}/.dockerenv" ]] && echo "there" || echo "gone"
@@ -307,5 +497,80 @@ MOCK_EXPORT_RC=0
 MOCK_TAR_RC=2
 expect_rc "export_rootfs: a failing tar" 107 rc_of export_rootfs
 MOCK_TAR_RC=0
+
+# The whole run, up to the point where the standby slot would go. Each case
+# starts from a standby slot installed from :v1, whose image is still there.
+export OS_ARCH="x86_64"
+export INSTALLIMAGE=""
+MOCK_REMOTE_DIGEST=""
+MOCK_REPO_DIGEST="sha256:ffff"
+
+with_standby() {
+  reset_images
+  MOCK_REF["${REPO}:v1"]="id-standby"
+  MOCK_REF["${REPO}@sha256:eeee"]="id-standby"
+  standby_installed_from "${REPO}:v1@sha256:eeee"
+  MOCK_REF["${IMAGE}"]="id-new"
+  MOCK_BYTES["id-new"]="$(( 1000 * MiB ))"
+  MOCK_AVAIL_KB="$(( 5000 * 1024 ))"
+}
+
+# $1 is perform_update or perform_pull. Prints the exit code and what is left of the slot.
+run_and_look() {
+  local rc
+
+  ( "$1" "A" "${IMAGE}" "" ) >/dev/null 2>&1
+  rc="$?"
+  echo "rc=${rc} slot=$(cat "${CONTAINER_ROOTFS_FS}/etc/image" 2>/dev/null || echo gone)"
+}
+
+with_standby
+MOCK_PULL_RC=1
+expect "perform_update: a failed pull leaves the standby slot alone" \
+  "rc=103 slot=${REPO}:v1@sha256:eeee" run_and_look perform_update
+MOCK_PULL_RC=0
+
+run_pinned() {
+  ( "$1" "A" "${IMAGE}" "sha256:ffff" ) >/dev/null 2>&1
+  echo "rc=$? slot=$(cat "${CONTAINER_ROOTFS_FS}/etc/image" 2>/dev/null || echo gone)"
+}
+
+with_standby
+MOCK_REPO_DIGEST="sha256:9999"
+expect "perform_update: a digest mismatch leaves the standby slot alone" \
+  "rc=104 slot=${REPO}:v1@sha256:eeee" run_pinned perform_update
+MOCK_REPO_DIGEST="sha256:ffff"
+
+with_standby
+MOCK_AVAIL_KB="$(( 1200 * 1024 ))"
+MOCK_BYTES["id-active"]="$(( 400 * MiB ))"
+expect "perform_update: too little room for the new image aborts before the slot goes" \
+  "rc=101 slot=${REPO}:v1@sha256:eeee" run_and_look perform_update
+expect "perform_update: and the slot was never synced away" "0" \
+  grep -c "^btrfs sync" "${WORK_DIR}/docker.log"
+
+with_standby
+expect "perform_pull: fetches, and the standby slot stays" \
+  "rc=0 slot=${REPO}:v1@sha256:eeee" run_and_look perform_pull
+expect "perform_pull: and so does the standby's image" "0" removals
+
+with_standby
+MOCK_AVAIL_KB="$(( 1200 * 1024 ))"
+expect "perform_pull: no room for a later update, nothing kept" \
+  "rc=101 slot=${REPO}:v1@sha256:eeee" run_and_look perform_pull
+
+with_standby
+MOCK_REMOTE_DIGEST="sha256:aaaa"
+expect "perform_pull: nothing new is not an error" \
+  "rc=102 slot=${REPO}:v1@sha256:eeee" run_and_look perform_pull
+MOCK_REMOTE_DIGEST=""
+
+without_docker_host() {
+  ( _CUOS_DOCKERD_PID="123"; run_and_look perform_pull )
+}
+
+with_standby
+expect "perform_pull: not into a daemon of the updater's own" \
+  "rc=100 slot=${REPO}:v1@sha256:eeee" without_docker_host
 
 summary

@@ -81,12 +81,13 @@ sequenceDiagram
   participant System as New OS Slot
 
   User->>cuosApi: update (config)
-  cuosApi->>cuosApi: Validate + merge config → /system_next.json
+  cuosApi->>cuosApi: Validate + merge config → temporary file
   cuosApi->>Updater: Start do-update.sh
   Updater->>Docker: Pull new OS image
-  Updater->>BTRFS: Create new @os subvolume (inactive)
+  Updater->>BTRFS: Replace the inactive @os subvolume
   Updater->>BootCfg: Switch boot loader to new slot
   Updater->>cuosApi: Return success (exit code)
+  cuosApi->>cuosApi: Write config → /system_next.json
   cuosApi->>System: Reboot
   System->>cuosApi: Startup & verification
   cuosApi->>User: State running or rollback on failure
@@ -123,8 +124,10 @@ Instead of physical A/B partitions CuOS uses two subvolume slots. Advantages:
 ## Configuration Flow
 
 1. Base `system.json` merged with update payload (patch / update)
-2. Result stored as `/system_next.json`
-3. On update: new slot consumes `/system_next.json` → becomes new `/system.json` after successful boot
+2. Result stored in a temporary file, which the updater reads
+3. On update: once the new slot is installed, the result is written to
+   `/system_next.json` — the new slot's config — and becomes its `/system.json`
+   after the reboot. A failed update writes nothing
 4. Rollback: swap files back
 
 In-place patch (`cuos patch*`) modifies `/system.json` directly and keeps previous version at `/system_next.json` for potential rollback.

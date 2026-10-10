@@ -12,10 +12,9 @@ image_is_installed() {
 
 # Asks the registry whether there is anything new, before anything is downloaded
 # or deleted. image_is_installed below the pull is the same question, but it can
-# only be asked once the image has been pulled - and the pull needs the room
-# that deleting the standby slot frees, so by then the slot this system would
-# roll back to is already gone. On a small ARM board that costs half an hour and
-# the rollback target for an update that turns out to be unnecessary.
+# only be asked once the image has been pulled - which on a small ARM board costs
+# half an hour for an update that turns out to be unnecessary, and the standby
+# slot's image, which is removed to make room for the pull.
 #
 # imagetools reports the digest of the manifest *list*, which is what docker
 # records in RepoDigests after a pull and therefore what /etc/image holds.
@@ -73,3 +72,56 @@ export_rootfs() {
   rm -f "${CONTAINER_ROOTFS_FS}/.dockerenv" || true
 }
 
+# $1 is "name:tag@digest", as /etc/image holds it. Prints "name@digest": a
+# reference with both a tag and a digest is not one the daemon looks up the same
+# way everywhere. The tag is cut from the last path component only, because a
+# registry's port is a colon as well.
+digest_ref() {
+  local ref="${1:-}"
+  local name="${ref%@*}"
+
+  [[ "${ref}" == *@* ]] || return 1
+  if [[ "${name##*/}" == *:* ]]; then
+    name="${name%:*}"
+  fi
+  echo "${name}@${ref##*@}"
+}
+
+# $1 is an image reference. Prints the image's id, fails if it is not there.
+image_id() {
+  docker image inspect --format '{{.Id}}' "$1" 2>/dev/null
+}
+
+# $1 is an image reference. Fails if the image is not there.
+image_size_kb() {
+  local size
+  size="$(docker image inspect --format '{{.Size}}' "$1" 2>/dev/null)" || return 1
+  [[ "${size}" =~ ^[0-9]+$ ]] || return 1
+  echo "$(( size / 1024 ))"
+}
+
+# An image fetched beforehand ("cuos pull") takes its room already, and the
+# estimate would count it a second time. Pinned, the digest says whether it is
+# there; unpinned, a tag that points at anything but the running image can only
+# have been moved by such a pull - the standby's image is gone by now.
+target_is_local() {
+  local id active
+
+  if [[ -n "${IMAGE_DIGEST}" ]]; then
+    image_id "$(digest_ref "${IMAGE}@${IMAGE_DIGEST}")" >/dev/null
+    return
+  fi
+
+  id="$(image_id "${IMAGE}")" || return 1
+  active="$(digest_ref "$(cat "${T_FILE_IMAGE:-"/etc/image"}" 2>/dev/null)")"
+  [[ "${id}" != "$(image_id "${active}")" ]]
+}
+
+# The image just pulled, when it cannot be installed after all. Never the
+# running one: image_is_installed has turned that case away before this.
+remove_pulled_image() {
+  local id
+
+  id="$(image_id "${IMAGE}")" || return 0
+  docker image rm "${id}" || true
+}
