@@ -112,13 +112,37 @@ config_migrate_if_needed
 expect "migrate_if_needed: a device without layers gets them" \
   '{"network":[{"dhcp":true}],"hostname":"box"} {"os_image":"x"}' \
   echo "$(local_layer) $(remote_layer)"
-echo '{"os_image": "y"}' >"${CONFIG_PATH}"
-config_migrate_if_needed
-expect "migrate_if_needed: once" '{"os_image":"x"}' remote_layer
+echo '{"os_image": "z"}' >"$(config_remote_path A)"
+config_migrate_if_needed 2>/dev/null
+expect "migrate_if_needed: once - a file it has seen is not taken again" \
+  '{"os_image":"z"}' remote_layer
+echo '{"os_image": "x"}' >"$(config_remote_path A)"
 
-expect_rc "rebuild: writes what differs" 0 config_rebuild
-expect "rebuild: remote * local" '{"os_image":"x","network":[{"dhcp":true}],"hostname":"box"}' effective
 expect_rc "rebuild: an unchanged result is not written" 1 config_rebuild
+config_local_patch '{"hostname": "mine"}' >/dev/null
+expect "rebuild: remote * local" '{"os_image":"x","network":[{"dhcp":true}],"hostname":"mine"}' effective
+expect_rc "rebuild: what this code wrote is not foreign" 1 config_is_foreign A "${CONFIG_PATH}"
+
+# The CuOS of an older release - after a downgrade - or a hand edit writes the
+# effective file, and the remote layer is out of date. It is taken over, not
+# built over: network and hostname stay local, with the values found.
+echo '{"os_image": "v3", "network": [{"dhcp": false}], "hostname": "mine", "keyboard_layout": "us"}' \
+  >"${CONFIG_PATH}"
+expect_rc "foreign: noticed" 0 config_is_foreign A "${CONFIG_PATH}"
+config_migrate_if_needed 2>/dev/null
+config_rebuild
+expect "foreign: what was written stays" \
+  '{"hostname":"mine","keyboard_layout":"us","network":[{"dhcp":false}],"os_image":"v3"}' \
+  jq -S -c . "${CONFIG_PATH}"
+expect "foreign: is the remote layer now" '{"os_image":"v3","keyboard_layout":"us"}' remote_layer
+expect "foreign: and the local one keeps its keys" \
+  '{"network":[{"dhcp":false}],"hostname":"mine"}' local_layer
+expect_rc "foreign: and is not foreign any more" 1 config_is_foreign A "${CONFIG_PATH}"
+
+rm -f "$(config_sum_path A)"
+echo '{"os_image": "w"}' >"${CONFIG_PATH}"
+expect_rc "foreign: without a checksum there is nothing to tell" 1 \
+  config_is_foreign A "${CONFIG_PATH}"
 
 # "cat >", not "mv": the effective configuration is a symlink.
 reset_device
@@ -180,5 +204,23 @@ expect "commit: the old slot's is untouched" \
   '{"os_image_version":"v1","update_registry_user":"old"}' remote_layer A
 expect "commit: the new slot's effective config" '{"os_image_version":"v2"}' \
   jq -c . "${WORK_DIR}/system_next.json"
+
+# The whole downgrade: v2 (layers) installs v1 into B and boots it; v1 updates
+# to v3 into A, writing only A's effective file; A boots v3.
+reset_device
+echo "B" >"${T_FILE_SLOT}"
+echo '{"os_image_version": "v2", "hostname": "box"}' >"$(config_remote_path B)"
+plan="$(config_plan_update "$(remote_layer B)" '{"os_image_version": "v1"}' true)"
+config_commit "${plan}" A "${LAYER_DIR}/system_A.json" >/dev/null
+echo '{"os_image_version": "v3", "hostname": "box"}' >"${LAYER_DIR}/system_A.json"
+echo "A" >"${T_FILE_SLOT}"
+rm -f "${CONFIG_PATH}"
+ln -s "${LAYER_DIR}/system_A.json" "${CONFIG_PATH}"
+config_migrate_if_needed 2>/dev/null
+config_rebuild
+expect "downgrade and back: the slot boots with what the old release wrote" \
+  '{"hostname":"box","os_image_version":"v3"}' jq -S -c . "${CONFIG_PATH}"
+rm -f "${CONFIG_PATH}"
+echo "A" >"${T_FILE_SLOT}"
 
 summary

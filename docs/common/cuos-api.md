@@ -205,11 +205,16 @@ value equal to the remote one is not kept.
 `["network", "hostname"]`. `cuos reset-local` drops them all.
 
 A device that ran a CuOS from before the layers is split on its next start:
-`network` and `hostname` become local, everything else remote.
+`network` and `hostname` become local, everything else remote. The same happens
+when `/system.json` was written by something that does not know the layers — a
+CuOS of an older release after a downgrade, or a hand edit: the next start or
+update takes the file over instead of rebuilding over it. Keys that were local
+stay local with the values found; everything else, including a hand-edited
+`keyboard_layout`, counts as remote and goes with the next `replace` that lacks
+it.
 
-**Do not edit `/system.json` by hand.** It is rebuilt from the layers, and an
-edit is lost at the next rebuild. Use `cuos patch`, or the console's expert
-editor, which keeps what it changed as local settings.
+To change a setting on the device, use `cuos patch` or the console's expert
+editor: both keep what they changed as local settings.
 
 ## Using the API in Your Application
 

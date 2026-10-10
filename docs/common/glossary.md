@@ -18,7 +18,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | Rollback | Revert to previous working OS subvolume if update fails | Triggered automatically or via `cuos rollback` |
 | System State | Runtime status JSON (e.g. `running`, `updating`) | Accessible via `cuos state` |
 | State File | `/data/state.json` persisted state metadata | Mutated by core scripts |
-| Config File | `/system.json` active configuration | Built from the remote and the local layer; not edited directly |
+| Config File | `/system.json` active configuration | Built from the remote and the local layer; a direct write is taken over as remote at the next start |
 | Next Config File | `/system_next.json` the other slot's configuration | Written when an update has installed that slot |
 | Remote Layer | `/data/system_<slot>.remote.json`, what came from outside | One per slot; `update` and provisioning |
 | Local Layer | `/data/system.local.json`, what was set on the device | Shared by both slots; wins until the remote layer changes the same key |

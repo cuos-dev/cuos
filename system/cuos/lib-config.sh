@@ -192,6 +192,44 @@ config_write() {
   return 0
 }
 
+# $1 slot. Where the checksum of the slot's effective configuration is kept, as
+# this code last wrote it.
+config_sum_path() {
+  echo "${LAYER_DIR}/system_${1}.sum"
+}
+
+# $1 file. cksum, not sha256sum: it is POSIX, so busybox and macOS have it too,
+# and this only has to notice a change, not withstand one made on purpose.
+config_sum() {
+  cksum <"$1" | awk '{ print $1, $2 }'
+}
+
+# $1 slot, $2 the path of its effective configuration. True if someone who does
+# not know the layers wrote it since this code did: the CuOS of an older
+# release - a downgrade, then an update from there - or a hand edit. Without a
+# checksum there is nothing to tell, and it is not taken as foreign.
+config_is_foreign() {
+  local sum_path
+
+  sum_path="$(config_sum_path "$1")"
+  [[ -f "${sum_path}" && -f "$2" ]] || return 1
+  [[ "$(config_sum "$2")" != "$(cat "${sum_path}")" ]]
+}
+
+# $1 slot, $2 path, $3 JSON. config_write for an effective configuration: it
+# remembers the checksum of what is there afterwards, written or not. Returns
+# config_write's codes.
+config_write_effective() {
+  local rc
+
+  config_write "$2" "$3"
+  rc="$?"
+  if [[ "${rc}" != "2" ]]; then
+    config_sum "$2" >"$(config_sum_path "$1")" 2>/dev/null || true
+  fi
+  return "${rc}"
+}
+
 # Runs "$@" holding the layer lock: API calls run in parallel, one process per
 # connection, and each of these is a read-modify-write of the local layer.
 with_layer_lock() {
@@ -205,15 +243,22 @@ with_layer_lock() {
 
 # File. A device that has a configuration but no layers - it ran a CuOS from
 # before them - gets them from what it has: MIGRATION_SEED becomes local,
-# everything else remote. Does nothing once the remote layer of this slot is
-# there. $1 is the effective configuration.
+# everything else remote. The same when the effective configuration was written
+# by someone who does not know the layers (config_is_foreign): its remote layer
+# is out of date then, and building from it would throw away what was written.
+# Keys already local stay local, with the values found. $1 is the effective
+# configuration of this slot.
 config_migrate_if_needed() {
   local effective_path="${1:-"${CONFIG_PATH}"}"
-  local remote_path layers local_layer
+  local slot remote_path layers local_layer
 
-  remote_path="$(config_remote_path "$(config_active_slot)")"
-  [[ -f "${remote_path}" ]] && return 0
+  slot="$(config_active_slot)"
+  remote_path="$(config_remote_path "${slot}")"
   [[ -f "${effective_path}" ]] || return 0
+  if [[ -f "${remote_path}" ]]; then
+    config_is_foreign "${slot}" "${effective_path}" || return 0
+    echo "Info: ${effective_path} was written without the layers; taking it over" >&2
+  fi
 
   local_layer="$(config_read "${LOCAL_LAYER}")"
   layers="$(config_migrate "$(jq -c . "${effective_path}")" "${local_layer}")" || return 2
@@ -222,6 +267,7 @@ config_migrate_if_needed() {
   [[ "$?" == "2" ]] && return 2
   config_write "${remote_path}" "$(jq -c .remote <<<"${layers}")"
   [[ "$?" == "2" ]] && return 2
+  config_sum "${effective_path}" >"$(config_sum_path "${slot}")" 2>/dev/null || true
   return 0
 }
 
@@ -231,8 +277,10 @@ config_migrate_if_needed() {
 config_rebuild() {
   local remote
 
-  remote="$(config_read "$(config_remote_path "$(config_active_slot)")")"
-  config_write "${CONFIG_PATH}" \
+  local slot
+  slot="$(config_active_slot)"
+  remote="$(config_read "$(config_remote_path "${slot}")")"
+  config_write_effective "${slot}" "${CONFIG_PATH}" \
     "$(config_effective "${remote}" "$(config_read "${LOCAL_LAYER}")")"
 }
 
@@ -306,5 +354,6 @@ _config_commit() {
   [[ "$?" == "2" ]] && return 2
   config_write "${LOCAL_LAYER}" "${new_local}"
   [[ "$?" == "2" ]] && return 2
-  config_write "${effective_path}" "$(config_effective "${remote}" "${new_local}")"
+  config_write_effective "${slot}" "${effective_path}" \
+    "$(config_effective "${remote}" "${new_local}")"
 }
