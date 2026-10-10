@@ -116,8 +116,8 @@ tar() {
 
 btrfs() {
   case "${2}" in
-    delete) rm -rf "${4}" ;;
-    create) mkdir -p "${3}" ;;
+    delete) echo "btrfs delete ${4}" >>"${WORK_DIR}/docker.log"; rm -rf "${4}" ;;
+    create) echo "btrfs create ${3}" >>"${WORK_DIR}/docker.log"; mkdir -p "${3}" ;;
     sync) echo "btrfs sync ${3}" >>"${WORK_DIR}/docker.log" ;;
   esac
 }
@@ -139,14 +139,8 @@ df() {
       echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1.3G 733.8M 522.3M 58% ${path}"
       ;;
     *-Pk*)
-      # Both checks read -Pk, so the answer follows the path. The boot defaults
-      # are the x86_64 build of 2026-09-10: 68.4 MiB of 252.7 MiB, one slot.
       echo "Filesystem     1024-blocks      Used Available Capacity Mounted on"
-      if [[ "${path}" = "${TARGET_BOOT}" ]]; then
-        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 ${MOCK_SIZE_KB-258812} ${MOCK_USED_KB-70041} 188771 27% ${path}"
-      else
-        echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1412360 751616 ${MOCK_AVAIL_KB-5242880} 53% ${path}"
-      fi
+      echo "/dev/disk/by-uuid/1a2b3c4d-0000-1111-2222-334455667788 1412360 751616 ${MOCK_AVAIL_KB-5242880} 53% ${path}"
       ;;
     *)
       # Without -P the device name gets a line of its own and the columns move.
@@ -246,19 +240,6 @@ expect "pull_image: a local build is not" "0" pulls_of
 export INSTALLIMAGE=""
 export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
 
-expect_rc "check_boot_reserve: one slot at 27%" 0 rc_of check_boot_reserve
-MOCK_SIZE_KB=100000
-MOCK_USED_KB=40000
-expect_rc "check_boot_reserve: 40% is still fine" 0 rc_of check_boot_reserve
-MOCK_USED_KB=41000
-expect_rc "check_boot_reserve: 41% leaves the second slot too little" 115 \
-  rc_of check_boot_reserve
-unset MOCK_SIZE_KB MOCK_USED_KB
-MOCK_DF_UNSUPPORTED=1
-expect_rc "check_boot_reserve: a df without -P is not guessed at" 100 \
-  rc_of check_boot_reserve
-MOCK_DF_UNSUPPORTED=""
-
 expect_rc "check_environment: everything mounted" 0 rc_of check_environment
 MOCK_UNMOUNTED="${TARGET_ROOT}"
 expect_rc "check_environment: no root filesystem" 100 rc_of check_environment
@@ -269,6 +250,18 @@ without_image() {
   ( IMAGE=""; check_environment )
 }
 expect_rc "check_environment: no image given" 100 rc_of without_image
+
+# The image factory fills directories and mounts nothing.
+in_the_factory() {
+  ( INSTALLIMAGE="true"; MOCK_UNMOUNTED="${TARGET_ROOT}"; "$@" )
+}
+expect_rc "check_environment: the factory's directories, unmounted" 0 \
+  rc_of in_the_factory check_environment
+without_boot_dir() {
+  ( TARGET_BOOT="${WORK_DIR}/absent"; check_environment )
+}
+expect_rc "check_environment: the factory without a boot directory" 100 \
+  rc_of in_the_factory without_boot_dir
 
 export SLOT="B"
 export CONTAINER_ROOTFS="@os/system-B"
@@ -299,6 +292,9 @@ expect "report_disk_usage: both partitions, both numbers" \
 "disc usage (root, before install): 733.8M of 1.3G used, 522.3M free
 disc usage (boot, before install): 733.8M of 1.3G used, 522.3M free" \
   report_disk_usage "before"
+
+expect "report_disk_usage: nothing in the factory, df would read its container" \
+  "" in_the_factory report_disk_usage "before"
 
 expect "digest_ref: the tag goes" "ghcr.io/cuos-dev/cuos-system@sha256:aaaa" \
   digest_ref "ghcr.io/cuos-dev/cuos-system:v1@sha256:aaaa"
@@ -469,6 +465,17 @@ syncs_of_prepare_slot() {
 }
 expect "prepare_slot: waits for btrfs to give the space back" "1" \
   syncs_of_prepare_slot
+
+slot_in_the_factory() {
+  : >"${WORK_DIR}/docker.log"
+  ( INSTALLIMAGE="true"
+    CONTAINER_ROOTFS_FS="${WORK_DIR}/tree/@os/system-B"
+    prepare_slot >/dev/null 2>&1
+    [[ -d "${CONTAINER_ROOTFS_FS}" ]] && echo "directory" )
+  cat "${WORK_DIR}/docker.log"
+}
+expect "prepare_slot: the factory's slot is a plain directory, no btrfs" \
+  "directory" slot_in_the_factory
 
 dockerenv_state() {
   [[ -f "${CONTAINER_ROOTFS_FS}/.dockerenv" ]] && echo "there" || echo "gone"

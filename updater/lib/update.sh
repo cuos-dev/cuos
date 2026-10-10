@@ -106,8 +106,6 @@ perform_update() {
 
   if [[ "${INSTALLIMAGE}" = "true" ]]; then
     copy_system_json
-
-    check_boot_reserve
   fi
 
   step "Slot ${SLOT} installed: ${IMAGE}"

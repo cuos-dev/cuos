@@ -9,8 +9,12 @@ disk_usage() {
     | awk 'NR == 2 { printf "%s of %s used, %s free\n", $3, $2, $4 }'
 }
 
+# The image factory's targets are directories, and df would report the
+# container they are in. It reports the filesystems once they are built.
 report_disk_usage() {
   local when="$1"
+
+  [[ "${INSTALLIMAGE}" != "true" ]] || return 0
 
   echo "disc usage (root, ${when} install): $(disk_usage "${TARGET_ROOT}")"
   # The boot partition is never grown and holds a kernel and an initrd for both
@@ -25,9 +29,9 @@ RESERVE_KB="$((300 * 1024))"
 # Sets FREE_KB rather than printing it: it raises, and a raise inside "$( )"
 # ends the subshell, not the update.
 #
-# df -Pk, like check_boot_reserve: on a device this runs inside the updater
-# image, which is Alpine without coreutils, so df is busybox's and knows no GNU
-# block sizes. -P keeps the columns on one line.
+# df -Pk: on a device this runs inside the updater image, which is Alpine
+# without coreutils, so df is busybox's and knows no GNU block sizes. -P keeps
+# the columns on one line.
 read_free_kb() {
   FREE_KB="$(df -Pk "${TARGET_ROOT}" | awk 'NR == 2 { print $4 }')"
   [[ "${FREE_KB}" =~ ^[0-9]+$ ]] \
@@ -99,31 +103,3 @@ check_space_after_pull() {
   remove_pulled_image
   exit "${rc}"
 }
-
-# The factory installs one slot, and the first update puts a second one beside
-# it on a boot partition that never grows: it is sized once, in
-# image-factory/create_image.sh, and no update can repartition the disk it
-# runs from. So the moment to find out that two slots do not fit is here, in
-# the factory, where the layout can still be changed - on a device it is a
-# kernel that cannot be installed any more.
-#
-# 40 and not 50 percent: the second slot's kernel and initrd are a future
-# build, and they will not be smaller than today's.
-#
-# df -Pk, not -B1: in the factory this is busybox's df, which has no GNU
-# block-size options. -P keeps the columns on one line.
-check_boot_reserve() {
-  local size used percent
-
-  read -r size used <<<"$(df -Pk "${TARGET_BOOT}" | awk 'NR == 2 { print $2, $3 }')"
-  [[ "${size}" =~ ^[0-9]+$ && "${used}" =~ ^[0-9]+$ && "${size}" -gt 0 ]] \
-    || raise 100 "Could not read the usage of ${TARGET_BOOT}: df -Pk gave \"${size} ${used}\""
-  percent="$(( used * 100 / size ))"
-
-  if (( percent > 40 )); then
-    raise 115 "${TARGET_BOOT} is ${percent}% full with one slot installed, so
-       the second slot will not fit. Give the boot partition more room in
-       image-factory/create_image.sh."
-  fi
-}
-

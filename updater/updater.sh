@@ -3,8 +3,7 @@
 
 # The updater image's default entrypoint, reached as /api/update as well. An
 # old system calls the updater without --entrypoint, so this is what an update
-# runs whichever path the image starts it by. /usr/local/updater/updater.sh is
-# what image-factory/create_image.sh calls; keep it.
+# runs whichever path the image starts it by.
 #
 # Reached through a symlink, so the directory is the link target's.
 SCRIPT_DIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"

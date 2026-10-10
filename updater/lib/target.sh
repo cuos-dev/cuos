@@ -28,9 +28,21 @@ target_umount() {
 # prepare_slot deletes "${TARGET_BOOT}/${SLOT}"_* and creates a subvolume under
 # TARGET_ROOT. Both are destructive at the wrong path if the caller has not
 # mounted what it says it has.
+#
+# The image factory mounts nothing: it fills two directories, and the
+# filesystems are made from them afterwards.
 check_environment() {
   [[ -n "${IMAGE}" ]] \
     || raise 100 "No image to install given"
+
+  if [[ "${INSTALLIMAGE}" = "true" ]]; then
+    [[ -d "${TARGET_ROOT}" ]] \
+      || raise 100 "TARGET_ROOT (${TARGET_ROOT}) is not a directory"
+    [[ -d "${TARGET_BOOT}" ]] \
+      || raise 100 "TARGET_BOOT (${TARGET_BOOT}) is not a directory"
+    return 0
+  fi
+
   mountpoint -q "${TARGET_ROOT}" \
     || raise 100 "TARGET_ROOT (${TARGET_ROOT}) is not a mounted filesystem"
   mountpoint -q "${TARGET_BOOT}" \

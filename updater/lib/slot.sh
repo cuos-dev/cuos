@@ -65,7 +65,16 @@ remove_standby_image() {
 #
 # btrfs gives the space of a deleted subvolume back in the background; the sync
 # waits for it, so the export below finds the room the space check counted on.
+#
+# In the image factory the slot is a plain directory: mkfs.btrfs makes it a
+# subvolume when the filesystem is built from the tree.
 prepare_slot() {
+  if [[ "${INSTALLIMAGE}" = "true" ]]; then
+    mkdir -p "${CONTAINER_ROOTFS_FS}" \
+      || raise 100 "Failed to create ${CONTAINER_ROOTFS_FS}"
+    return 0
+  fi
+
   if [[ -d "${CONTAINER_ROOTFS_FS}" ]]; then
     btrfs subvolume delete -R "${CONTAINER_ROOTFS_FS}" || true
     btrfs subvolume sync "${TARGET_ROOT}" || true
