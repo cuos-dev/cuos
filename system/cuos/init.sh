@@ -97,8 +97,8 @@ ensure_system_config() {
     umount "/mnt/installer"
 
     # Grab Cloud Init data from boot dir
-    umount "/mnt/boot"
     if [[ -f "/mnt/boot/user-data" ]]; then
+      config_found=1
       report_info "cuos:init:cloud-init" "Found Cloud Init user-data on boot, merging with system.json"
       if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/boot/user-data" "/mnt/boot/network-config" | \
         jq -s '.[0] + .[1]' \
@@ -112,6 +112,7 @@ ensure_system_config() {
       fi
       echo "${NEW_CONFIG}" >"${CONFIG_PATH}"
     fi
+    umount "/mnt/boot"
 
     # Grab Cloud Init data if available
     mkdir -p "/mnt/cidata"
