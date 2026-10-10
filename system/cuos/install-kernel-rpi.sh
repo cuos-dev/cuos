@@ -23,16 +23,6 @@ cp -r "${ROOT}/boot/firmware/." "${TARGET_BOOT}" \
   || raise 112 "Failed to copy kernel"
 
 
-if [[ "${INSTALLIMAGE:-}" = "true" ]]; then
-  if [[ -f "${CONFIG_PATH}" ]]; then
-    cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
-      || raise 120 "Failed to copy system.json from dir"
-  else
-    cp "${ROOT}/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
-      || raise 121 "Failed to copy system.json from container"
-  fi
-fi
-
 mv "${TARGET_BOOT}"/cmdline.txt "${TARGET_BOOT}"/cmdline-previous.txt 2>/dev/null || true
 
 cat <<EOF > "${TARGET_BOOT}/cmdline.txt"

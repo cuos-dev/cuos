@@ -23,6 +23,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
 LABEL dev.cuos.system=system
+# The boot chain image-factory writes for this image, the same type install.sh
+# activates below. The factory refuses an image without it.
+LABEL dev.cuos.boot=rpi
 
 ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
 

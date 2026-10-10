@@ -25,20 +25,12 @@ cp -r "${ROOT}/boot/." "${TARGET_BOOT}" \
   || raise 112 "Failed to copy kernel"
 
 
-if [[ "${INSTALLIMAGE:-}" = "true" ]]; then
-  if [[ -f "${CONFIG_PATH}" ]]; then
-    cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
-      || raise 120 "Failed to copy system.json from dir"
-  else
-    cp "${ROOT}/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
-      || raise 121 "Failed to copy system.json from container"
-  fi
-
-  UBOOT_FILE="${ROOT}/boot/u-boot.bin"
-  dd if="$UBOOT_FILE" of="${TARGET_DEVICE}" bs=1024 seek=8 conv=fsync
-
+# U-Boot itself is written by image-factory, into the image file. An older
+# factory hands in a block device and expects this script to do it.
+if [[ "${INSTALLIMAGE:-}" = "true" && -b "${TARGET_DEVICE:-}" ]]; then
+  raise 123 "This system image does not install U-Boot itself. Build it with an
+       image factory that reads the dev.cuos.boot label."
 fi
-
 
 # Resolve the slot placeholder in the u-boot environment. Only the text
 # config is templated: sed -i on Image/uInitrd/u-boot.bin would append a

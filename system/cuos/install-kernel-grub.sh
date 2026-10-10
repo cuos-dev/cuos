@@ -35,35 +35,14 @@ cp "${initrd}" "${TARGET_BOOT}/${filename_initrd}" \
   || raise 114 "Failed to copy initrd"
 
 
-if [[ "${INSTALLIMAGE:-}" = "true" ]]; then
-  if [[ -f "${CONFIG_PATH}" ]]; then
-    cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
-      || raise 120 "Failed to copy system.json from dir"
-  else
-    cp "${ROOT}/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
-      || raise 121 "Failed to copy system.json from container"
-  fi
-
-
-  # Install GRUB
-  mkdir -p "${TARGET_BOOT}/EFI/BOOT"
-  grub-install \
-    --target=x86_64-efi \
-    --efi-directory="${TARGET_BOOT}" \
-    --boot-directory="${TARGET_BOOT}" \
-    --removable \
-    --no-nvram \
-    --root-directory="${ROOT}" \
-    "${TARGET_DEVICE}" \
-    || raise 122 "Failed to install grub (UEFI)"
-  grub-install \
-    --target=i386-pc \
-    --boot-directory="${TARGET_BOOT}" \
-    --root-directory="${ROOT}" \
-    "${TARGET_DEVICE}" \
-    || raise 123 "Failed to install grub"
-
+# The boot loader itself is written by image-factory, into the image file. An
+# older factory hands in a block device and expects this script to do it.
+if [[ "${INSTALLIMAGE:-}" = "true" && -b "${TARGET_DEVICE:-}" ]]; then
+  raise 122 "This system image does not install GRUB itself. Build it with an
+       image factory that reads the dev.cuos.boot label."
 fi
+
+mkdir -p "${TARGET_BOOT}/grub" || raise 125 "Failed to configure grub"
 
 version="$(basename "${kernel}" | sed 's/vmlinuz-//')"
 
