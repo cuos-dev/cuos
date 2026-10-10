@@ -140,8 +140,8 @@ api_update_func() {
     if ! json_equal "${config_file}" "${CONFIG_PATH}"; then
       # save the current configuration for rollback, then apply the new one to
       # the CURRENT system.
-      if ! write_file_atomic "${NEXT_CONFIG_PATH}" <"${CONFIG_PATH}" \
-          || ! write_file_atomic "${CONFIG_PATH}" <"${config_file}"; then
+      if ! replace_file_content "${NEXT_CONFIG_PATH}" <"${CONFIG_PATH}" \
+          || ! replace_file_content "${CONFIG_PATH}" <"${config_file}"; then
         rm -f "${config_file}"
         report_err "cuos:update:failed" "The new configuration could not be written"
         return 62
@@ -207,7 +207,7 @@ api_command_patch_func() {
       return 60
     fi
     # save current config for rollback:
-    write_file_atomic "${NEXT_CONFIG_PATH}" <"${CONFIG_PATH}" || return 62
+    replace_file_content "${NEXT_CONFIG_PATH}" <"${CONFIG_PATH}" || return 62
 
     jq_replace \
       --argjson config "${config}" \

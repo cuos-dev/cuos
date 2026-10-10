@@ -112,7 +112,7 @@ fi
 
 # The last step that can still fail without consequence: from the init swap
 # below on, the next start is the new root.
-if ! write_file_atomic "/system_next.json" <"${CONFIG_PATH}"; then
+if ! replace_file_content "/system_next.json" <"${CONFIG_PATH}"; then
   state '.update_state' "update of slot ${SLOT} to ${LXC_IMAGE} failed: its configuration could not be written"
   report_err "cuos:update:failed" "The configuration of slot ${SLOT} could not be written. Not rebooting"
   raise 51 "Failed to write /system_next.json"
