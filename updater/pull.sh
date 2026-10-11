@@ -9,16 +9,10 @@
 # Reached through a symlink, so the directory is the link target's.
 SCRIPT_DIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
 
-# shellcheck source=lib/log.sh
-source "${SCRIPT_DIR}/lib/log.sh"
-# shellcheck source=lib/docker.sh
-source "${SCRIPT_DIR}/lib/docker.sh"
-# shellcheck source=lib/target.sh
-source "${SCRIPT_DIR}/lib/target.sh"
-# shellcheck source=lib/environment.sh
-source "${SCRIPT_DIR}/lib/environment.sh"
 # shellcheck source=lib/update.sh
 source "${SCRIPT_DIR}/lib/update.sh"
+# shellcheck source=lib/environment.sh
+source "${SCRIPT_DIR}/lib/environment.sh"
 
 main() {
   set -x

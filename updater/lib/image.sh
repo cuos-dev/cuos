@@ -39,19 +39,11 @@ repo_digest() {
 
 # $1 is the digest from the registry, empty for a locally built image: that one
 # has no RepoDigests, and its id identifies it just as well.
-image_digest() {
+recorded_digest() {
   echo "${1:-"$(docker inspect --format='{{.Id}}' "${IMAGE}")"}"
 }
 
-# The factory tags the image it has just built ':build' and hands it over
-# locally, so there is no registry to pull it from.
-is_local_build() {
-  [[ "${INSTALLIMAGE}" = "true" && "${IMAGE}" = *:build ]]
-}
-
 pull_image() {
-  if is_local_build; then return; fi
-
   docker image pull --platform "${TARGET_PLATFORM}" "${IMAGE}" \
     || raise 103 "Failed to fetch system image"
 }
@@ -61,8 +53,13 @@ export_rootfs() {
   container="$(docker create --platform "${TARGET_PLATFORM}" "${IMAGE}")" \
     || raise 106 "Failed to create container for export"
 
-  if ! docker export "${container}" \
-      | tar -C "${CONTAINER_ROOTFS_FS}" --numeric-owner --xattrs --xattrs-include='*' -xf -; then
+  # Both ends checked: a failing export with a succeeding tar would install a
+  # truncated rootfs.
+  local status
+  docker export "${container}" \
+    | tar -C "${CONTAINER_ROOTFS_FS}" --numeric-owner --xattrs --xattrs-include='*' -xf -
+  status="${PIPESTATUS[0]}${PIPESTATUS[1]}"
+  if [[ "${status}" != "00" ]]; then
     docker rm "${container}" >/dev/null 2>&1 || true
     raise 107 "Failed to export the container"
   fi
@@ -107,8 +104,8 @@ image_size_kb() {
 target_is_local() {
   local id active
 
-  if [[ -n "${IMAGE_DIGEST}" ]]; then
-    image_id "$(digest_ref "${IMAGE}@${IMAGE_DIGEST}")" >/dev/null
+  if [[ -n "${PINNED_DIGEST}" ]]; then
+    image_id "$(digest_ref "${IMAGE}@${PINNED_DIGEST}")" >/dev/null
     return
   fi
 

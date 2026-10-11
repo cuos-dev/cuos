@@ -15,9 +15,9 @@ FIRST_BOOT_FREE_MB="${FIRST_BOOT_FREE_MB:-512}"
 # reserve never give back - a fixed cost, measured on the x86_64 build of
 # 2026-09-10.
 #
-# 256 MiB: the partition table gap plus the boot partition, which both layouts
-# put in front of the root partition. Rounded up to 16 MiB, so the number stays
-# readable in the build log.
+# ROOT_PARTITION_START_MIB (lib/layout.sh) is what both layouts put in front of
+# the root partition. Rounded up to 16 MiB, so the number stays readable in the
+# build log.
 required_image_size_mb() {
   local kb="$1" mb
 
@@ -28,5 +28,5 @@ required_image_size_mb() {
   mb="$(( mb + 128 ))"                 # btrfs chunks and global reserve
   mb="$(( mb + FIRST_BOOT_FREE_MB ))"
 
-  echo "$(( 256 + (mb + 15) / 16 * 16 ))"
+  echo "$(( ROOT_PARTITION_START_MIB + (mb + 15) / 16 * 16 ))"
 }

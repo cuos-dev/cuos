@@ -162,9 +162,9 @@ rc_of() {
   ( "$@" ) 2>/dev/null
 }
 
-expect "target_slot: A runs, B is written" "B" target_slot "A"
-expect "target_slot: B runs, A is written" "A" target_slot "B"
-expect "target_slot: no slot yet" "A" target_slot ""
+expect "other_slot: A runs, B is written" "B" other_slot "A"
+expect "other_slot: B runs, A is written" "A" other_slot "B"
+expect "other_slot: no slot yet" "A" other_slot ""
 
 expect "target_platform: x86_64" "linux/amd64" target_platform "x86_64"
 expect "target_platform: aarch64" "linux/arm64" target_platform "aarch64"
@@ -178,6 +178,7 @@ expect "target_platform: unset asks the daemon" "linux/amd64" target_platform ""
 MOCK_SERVER_PLATFORM="linux/arm"
 expect "target_platform: the daemon's linux/arm is armv7" "linux/arm/v7" target_platform ""
 MOCK_SERVER_PLATFORM="linux/amd64"
+expect "target_platform: lxc runs on the host's" "linux/amd64" target_platform "lxc"
 expect_rc "target_platform: unknown architecture" 1 rc_of target_platform "sparc64"
 
 export CONFIG_PATH="${SCRIPT_DIR}/update.test.system.json"
@@ -213,20 +214,9 @@ expect_rc "remote_digest_is_installed: no answer falls through" 1 \
 
 MOCK_REPO_DIGEST="sha256:cccc"
 expect "repo_digest: from RepoDigests" "sha256:cccc" repo_digest
-expect "image_digest: from the registry" "sha256:cccc" image_digest "sha256:cccc"
+expect "recorded_digest: from the registry" "sha256:cccc" recorded_digest "sha256:cccc"
 MOCK_IMAGE_ID="sha256:dddd"
-expect "image_digest: a local build falls back to the id" "sha256:dddd" image_digest ""
-
-export INSTALLIMAGE="true"
-export IMAGE="cuos-system:build"
-expect_rc "is_local_build: the factory's own build" 0 rc_of is_local_build
-export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
-expect_rc "is_local_build: a pulled image" 1 rc_of is_local_build
-export INSTALLIMAGE=""
-export IMAGE="cuos-system:build"
-expect_rc "is_local_build: not the factory, so :build is pulled too" 1 \
-  rc_of is_local_build
-export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
+expect "recorded_digest: a local build falls back to the id" "sha256:dddd" recorded_digest ""
 
 pulls_of() {
   : >"${WORK_DIR}/docker.log"
@@ -234,34 +224,28 @@ pulls_of() {
   grep -c "^image pull$" "${WORK_DIR}/docker.log" || true
 }
 expect "pull_image: an image from a registry is pulled" "1" pulls_of
-export INSTALLIMAGE="true"
-export IMAGE="cuos-system:build"
-expect "pull_image: a local build is not" "0" pulls_of
-export INSTALLIMAGE=""
-export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
+pulls_of_build() {
+  ( IMAGE="cuos-system:build"; pulls_of )
+}
+expect "pull_image: so is a :build, which only the factory has locally" "1" \
+  pulls_of_build
 
-expect_rc "check_environment: everything mounted" 0 rc_of check_environment
+expect_rc "check_mounted_target: everything mounted" 0 rc_of check_mounted_target
 MOCK_UNMOUNTED="${TARGET_ROOT}"
-expect_rc "check_environment: no root filesystem" 100 rc_of check_environment
+expect_rc "check_mounted_target: no root filesystem" 100 rc_of check_mounted_target
 MOCK_UNMOUNTED="${TARGET_BOOT}"
-expect_rc "check_environment: no boot partition" 100 rc_of check_environment
+expect_rc "check_mounted_target: no boot partition" 100 rc_of check_mounted_target
 MOCK_UNMOUNTED=""
-without_image() {
-  ( IMAGE=""; check_environment )
-}
-expect_rc "check_environment: no image given" 100 rc_of without_image
 
-# The image factory fills directories and mounts nothing.
-in_the_factory() {
-  ( INSTALLIMAGE="true"; MOCK_UNMOUNTED="${TARGET_ROOT}"; "$@" )
+selected() {
+  ( export OS_ARCH="x86_64"
+    select_target "$@" >/dev/null 2>&1 \
+      && echo "${SLOT} ${IMAGE} ${PINNED_DIGEST:-unpinned} ${TARGET_PLATFORM} ${CONTAINER_ROOTFS}" )
 }
-expect_rc "check_environment: the factory's directories, unmounted" 0 \
-  rc_of in_the_factory check_environment
-without_boot_dir() {
-  ( TARGET_BOOT="${WORK_DIR}/absent"; check_environment )
-}
-expect_rc "check_environment: the factory without a boot directory" 100 \
-  rc_of in_the_factory without_boot_dir
+expect "select_target: the slot it is given, not the other one" \
+  "B ${IMAGE} sha256:ffff linux/amd64 @os/system-B" \
+  selected "B" "${IMAGE}" "sha256:ffff"
+expect_rc "select_target: no image given" 100 rc_of selected "B" ""
 
 export SLOT="B"
 export CONTAINER_ROOTFS="@os/system-B"
@@ -292,9 +276,6 @@ expect "report_disk_usage: both partitions, both numbers" \
 "disc usage (root, before install): 733.8M of 1.3G used, 522.3M free
 disc usage (boot, before install): 733.8M of 1.3G used, 522.3M free" \
   report_disk_usage "before"
-
-expect "report_disk_usage: nothing in the factory, df would read its container" \
-  "" in_the_factory report_disk_usage "before"
 
 expect "digest_ref: the tag goes" "ghcr.io/cuos-dev/cuos-system@sha256:aaaa" \
   digest_ref "ghcr.io/cuos-dev/cuos-system:v1@sha256:aaaa"
@@ -327,7 +308,7 @@ removals() {
   grep -c "^image rm" "${WORK_DIR}/docker.log" || true
 }
 
-export IMAGE_DIGEST=""
+export PINNED_DIGEST=""
 
 # Same tag: the tag has moved on to the running image, the standby's image is
 # left with its digest reference alone.
@@ -357,9 +338,9 @@ expect "remove_standby_image: never the running image" "0" removals
 reset_images
 MOCK_REF["${REPO}@sha256:ffff"]="id-target"
 standby_installed_from "${REPO}:v3@sha256:ffff"
-IMAGE_DIGEST="sha256:ffff"
+PINNED_DIGEST="sha256:ffff"
 remove_standby_image >/dev/null 2>&1
-IMAGE_DIGEST=""
+PINNED_DIGEST=""
 expect "remove_standby_image: never the image about to be installed" "0" removals
 
 reset_images
@@ -408,10 +389,10 @@ expect_rc "check_space_before_pull: running image unknown, 2 GB" 101 \
 reset_images
 MOCK_AVAIL_KB="$(( 500 * 1024 ))"
 MOCK_REF["${REPO}@sha256:ffff"]="id-target"
-IMAGE_DIGEST="sha256:ffff"
+PINNED_DIGEST="sha256:ffff"
 expect_rc "check_space_before_pull: a pinned image fetched before is not counted twice" 0 \
   rc_of check_space_before_pull
-IMAGE_DIGEST=""
+PINNED_DIGEST=""
 MOCK_REF["${IMAGE}"]="id-target"
 expect_rc "check_space_before_pull: so is a tag moved by an earlier pull" 0 \
   rc_of check_space_before_pull
@@ -445,37 +426,26 @@ mkdir -p "${CONTAINER_ROOTFS_FS}"
 touch "${TARGET_BOOT}/A_vmlinuz" "${TARGET_BOOT}/A_initrd.img" \
   "${TARGET_BOOT}/B_vmlinuz" "${TARGET_BOOT}/B_initrd.img"
 
-prepare_slot_boot_files() {
-  prepare_slot >/dev/null 2>&1
+clear_slot_boot_files() {
+  clear_slot >/dev/null 2>&1
   ls "${TARGET_BOOT}"
 }
-expect "prepare_slot: only the target slot's boot files go" \
+expect "clear_slot: only the target slot's boot files go" \
   $'A_initrd.img\nA_vmlinuz' \
-  prepare_slot_boot_files
+  clear_slot_boot_files
 
 slot_exists() {
   [[ -d "${CONTAINER_ROOTFS_FS}" ]] && echo "yes"
 }
-expect "prepare_slot: the slot subvolume is there afterwards" "yes" slot_exists
+expect "clear_slot: the slot subvolume is there afterwards" "yes" slot_exists
 
-syncs_of_prepare_slot() {
+syncs_of_clear_slot() {
   : >"${WORK_DIR}/docker.log"
-  prepare_slot >/dev/null 2>&1
+  clear_slot >/dev/null 2>&1
   grep -c "^btrfs sync ${TARGET_ROOT}$" "${WORK_DIR}/docker.log" || true
 }
-expect "prepare_slot: waits for btrfs to give the space back" "1" \
-  syncs_of_prepare_slot
-
-slot_in_the_factory() {
-  : >"${WORK_DIR}/docker.log"
-  ( INSTALLIMAGE="true"
-    CONTAINER_ROOTFS_FS="${WORK_DIR}/tree/@os/system-B"
-    prepare_slot >/dev/null 2>&1
-    [[ -d "${CONTAINER_ROOTFS_FS}" ]] && echo "directory" )
-  cat "${WORK_DIR}/docker.log"
-}
-expect "prepare_slot: the factory's slot is a plain directory, no btrfs" \
-  "directory" slot_in_the_factory
+expect "clear_slot: waits for btrfs to give the space back" "1" \
+  syncs_of_clear_slot
 
 dockerenv_state() {
   [[ -f "${CONTAINER_ROOTFS_FS}/.dockerenv" ]] && echo "there" || echo "gone"
@@ -508,7 +478,6 @@ MOCK_TAR_RC=0
 # The whole run, up to the point where the standby slot would go. Each case
 # starts from a standby slot installed from :v1, whose image is still there.
 export OS_ARCH="x86_64"
-export INSTALLIMAGE=""
 MOCK_REMOTE_DIGEST=""
 MOCK_REPO_DIGEST="sha256:ffff"
 
@@ -549,6 +518,13 @@ expect "perform_update: a digest mismatch leaves the standby slot alone" \
 MOCK_REPO_DIGEST="sha256:ffff"
 
 with_standby
+MOCK_REMOTE_DIGEST="sha256:aaaa"
+expect "perform_update: nothing new, and nothing is removed" \
+  "rc=102 slot=${REPO}:v1@sha256:eeee" run_and_look perform_update
+expect "perform_update: not even the standby's image" "0" removals
+MOCK_REMOTE_DIGEST=""
+
+with_standby
 MOCK_AVAIL_KB="$(( 1200 * 1024 ))"
 MOCK_BYTES["id-active"]="$(( 400 * MiB ))"
 expect "perform_update: too little room for the new image aborts before the slot goes" \
@@ -579,5 +555,36 @@ without_docker_host() {
 with_standby
 expect "perform_pull: not into a daemon of the updater's own" \
   "rc=100 slot=${REPO}:v1@sha256:eeee" without_docker_host
+
+# A whole run that succeeds, in the order the steps have to come: nothing goes
+# before the new image is there and checked, and the slot is cleared only then.
+# The steps are replaced, in a subshell, by ones that say that they ran.
+steps_of_update() {
+  local log="${WORK_DIR}/steps.log"
+  : >"${log}"
+  (
+    remove_standby_image() { echo "remove_standby_image" >>"${log}"; }
+    pull_image() { echo "pull_image" >>"${log}"; }
+    check_space_after_pull() { echo "check_space_after_pull" >>"${log}"; }
+    clear_slot() { echo "clear_slot" >>"${log}"; mkdir -p "${CONTAINER_ROOTFS_FS}"; }
+    export_rootfs() { echo "export_rootfs" >>"${log}"; }
+    run_first_run() { echo "first-run ${SLOT} ${IMAGE} ${RECORDED_DIGEST}" >>"${log}"; }
+    install_kernel() { echo "install-kernel ${SLOT} ${CONTAINER_ROOTFS} ${PRODUCT_NAME}" >>"${log}"; }
+    perform_update "A" "${IMAGE}" "sha256:ffff"
+  ) >/dev/null 2>&1
+  echo "rc=$?"
+  cat "${log}"
+}
+with_standby
+export CONFIG_PATH="${SCRIPT_DIR}/update.test.system.json"
+expect "perform_update: the steps of a whole run, in order" \
+"rc=0
+remove_standby_image
+pull_image
+check_space_after_pull
+clear_slot
+export_rootfs
+first-run B ${IMAGE} sha256:ffff
+install-kernel B @os/system-B My OS" steps_of_update
 
 summary

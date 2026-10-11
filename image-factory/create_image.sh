@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
+# A failing "docker export" must not be hidden behind the gzip it feeds.
+set -o pipefail
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # This factory installs the system with the updater's own steps and shares its
@@ -24,8 +27,10 @@ source "${CUOS_FACTORY_DIR}/lib/bootloader.sh"
 
 OUTPUT_DIR="${OUTPUT_DIR:-"/output"}"
 IMAGE_NAME="${IMAGE_NAME:-"image"}"
-# Not IMAGE: that is the updater's, the system image perform_update installs.
+# Not IMAGE: that is the updater's, the system image to install.
 IMAGE_FILE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
+# The one slot the factory installs; an update writes the other.
+FACTORY_SLOT="A"
 BUILD_DIR=""
 IMAGE_WRITTEN=""
 # The lxc build's container runs on the host's daemon and outlives this one.
@@ -64,11 +69,16 @@ check_output_dir() {
   [[ -f "${CONFIG_PATH}" ]] || raise "Config file not found: ${CONFIG_PATH}"
 }
 
+# Selects the system image the configuration names, as the updater's IMAGE and
+# PINNED_DIGEST.
+#
 # The fallback to os_image is for a platform that has no image of its own
 # because it does not need one - the host architecture. For a named board it
 # would quietly write a foreign architecture onto the card: an image that builds
 # cleanly and never boots.
-resolve_os_image() {
+select_system_image() {
+  local image digest
+
   case "${OS_ARCH}" in
     rpi-arm64|rpi-arm32|orangepi-zero3)
       image_url "${OS_ARCH}" >/dev/null || raise \
@@ -78,32 +88,22 @@ resolve_os_image() {
       ;;
   esac
 
-  OS_IMAGE="$(image_url "${OS_ARCH}" || image_url "os")" \
+  image="$(image_url "${OS_ARCH}" || image_url "os")" \
     || raise "No system image in the configuration"
-  OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" \
+  digest="$(jq -r --arg arch "${OS_ARCH}" \
     '.[$arch+"_image_digest"] // .os_image_digest // empty' "${CONFIG_PATH}")"
+
+  select_target "${FACTORY_SLOT}" "${image}" "${digest}"
 }
 
-# The label has to be read before anything is installed, so the image is pulled
-# here. perform_update pulls again, which then costs one question to the
-# registry.
-pull_system_image() {
-  # ':build' is a system image built here and handed over locally, the same tag
-  # updater/lib/image.sh knows as is_local_build. There is no registry for it.
-  if [[ "${OS_IMAGE}" = *:build ]]; then
-    return
+# ':build' is a system image built on this host and handed over through its
+# daemon (tool.sh BUILD=1). There is no registry to pull it from.
+fetch_system_image() {
+  if [[ "${IMAGE}" != *:build ]]; then
+    step "Fetching ${IMAGE}"
+    pull_image
   fi
-
-  local platform
-  platform="$(target_platform "${OS_ARCH}")" || exit 1
-
-  step "Fetching ${OS_IMAGE}"
-  docker image pull --platform "${platform}" "${OS_IMAGE}" \
-    || raise "Failed to fetch the system image ${OS_IMAGE}.
-
-       Is the host's daemon handed in, the way tool.sh does it?
-
-         -v /var/run/docker.sock:/run/cuos-docker.sock"
+  check_pinned_digest
 }
 
 # $1 is the size of the tree in KiB.
@@ -116,7 +116,7 @@ image_size_mb() {
   configured="$(jq -r '.image_size_mb // empty' "${CONFIG_PATH}")"
   if [[ -n "${configured}" ]]; then
     if (( configured < computed )); then
-      raise "image_size_mb is ${configured}, the system from ${OS_IMAGE} needs
+      raise "image_size_mb is ${configured}, the system from ${IMAGE} needs
        ${computed} MB. Raise it, or drop it and let the factory compute it."
     fi
     echo "${configured}"
@@ -126,29 +126,21 @@ image_size_mb() {
   echo "${computed}"
 }
 
+# A container's root filesystem, exported as it stands once first-run.sh has
+# set it up - LXC unpacks it, and there is no disk, partition or boot loader.
 build_lxc_image() {
-  local image_digest
-
   # The extension, not the first "img" in the path: an image whose name carries
   # those three letters would otherwise be renamed instead of its suffix.
   IMAGE_FILE="${IMAGE_FILE%.img}.tar.gz"
-
-  step "Fetching the system image ${OS_IMAGE}"
-  docker image pull "${OS_IMAGE}" || raise "Failed to fetch image"
-  image_digest="$(docker inspect --format='{{index .RepoDigests 0}}' \
-    "${OS_IMAGE}" 2>/dev/null | cut -d '@' -f 2)"
-  if [[ -n "${OS_DIGEST}" && "${OS_DIGEST}" != "${image_digest}" ]]; then
-    raise "Image digest mismatch: ${OS_DIGEST} != ${image_digest}"
-  fi
 
   step "Initialising the system"
   LXC_CONTAINER="cuos-lxc-$$"
   docker run -it -d \
     --pull=never \
     --name "${LXC_CONTAINER}" \
-    "${OS_IMAGE}" || raise "Failed to run container"
+    "${IMAGE}" || raise "Failed to run container"
   docker exec "${LXC_CONTAINER}" /usr/local/cuos/first-run.sh \
-    "A" "${OS_IMAGE}" "${image_digest}" \
+    "${SLOT}" "${IMAGE}" "$(recorded_digest "${PULLED_DIGEST}")" \
     || raise "Failed to run first-run script in container"
 
   docker cp "${CONFIG_PATH}" "${LXC_CONTAINER}:/system_init.json" \
@@ -162,61 +154,63 @@ build_lxc_image() {
     || raise "Failed to remove the container"
   LXC_CONTAINER=""
 
-  step "${IMAGE_FILE/\//} written"
+  step "${IMAGE_FILE#/} written"
 }
 
 # Sets BOOT_TYPE and LAYOUT from the image's dev.cuos.boot label. An image
 # without one writes its boot loader itself, onto a device this factory does
 # not have.
 #
-# TARGET is what tool.sh derives from --layout and the platform. The image knows
-# better, so it only serves as a check: a disagreement is a platform or a
-# layout given wrong, and the image would not boot.
+# TARGET is the layout tool.sh derives from --layout and the platform: "rpi"
+# for mbr, empty for gpt. The image knows better, so it only serves as a check:
+# a disagreement is a platform or a layout given wrong, and the image would not
+# boot. Run without tool.sh, it is unset and nothing is checked.
 resolve_boot_type() {
-  local platform expected
+  local requested
 
-  platform="$(target_platform "${OS_ARCH}")" || exit 1
-  BOOT_TYPE="$(boot_type_of "${OS_IMAGE}" "${platform}")" \
-    || raise "${OS_IMAGE} has no dev.cuos.boot label, so it cannot be told
-       which boot chain to write. The label is set by the system Dockerfiles
-       since this factory came out; build the image from those, or use the
-       image factory the system image was released with."
+  BOOT_TYPE="$(boot_type_of "${IMAGE}" "${TARGET_PLATFORM}")" \
+    || raise "${IMAGE} has no dev.cuos.boot label, so it cannot be told
+       which boot chain to write. The system Dockerfiles set it; build the
+       image from those, or use the image factory the system image was
+       released with."
 
   if [[ "${BOOT_TYPE}" == "lxc" ]]; then
-    raise "${OS_IMAGE} is a system image for LXC, which is exported, not written
+    raise "${IMAGE} is a system image for LXC, which is exported, not written
        to a disk. Build it with --platform lxc."
   fi
 
   LAYOUT="$(layout_of "${BOOT_TYPE}")"
   if [[ -n "${TARGET+set}" ]]; then
-    expected="$([[ "${LAYOUT}" == "mbr" ]] && echo "rpi" || echo "")"
-    [[ "${TARGET}" == "${expected}" ]] || raise "${OS_IMAGE} boots with
+    requested="$([[ "${TARGET}" == "rpi" ]] && echo "mbr" || echo "gpt")"
+    [[ "${requested}" == "${LAYOUT}" ]] || raise "${IMAGE} boots with
        ${BOOT_TYPE} from an ${LAYOUT} disk, but the layout asked for is
-       '${TARGET:-gpt}'. Check --platform and --layout."
+       ${requested}. Check --platform and --layout."
   fi
 
   step "Boot chain: ${BOOT_TYPE} (${LAYOUT})"
 }
 
-# The slot, the kernel and the boot files, into two directories:
-# BUILD_DIR/root holds the subvolumes of the root filesystem as directories,
-# BUILD_DIR/boot the boot partition.
+# The configuration the first boot reads from the boot partition.
+write_system_json() {
+  cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
+    || raise 120 "Failed to copy system.json onto the boot partition"
+}
+
+# The slot, the kernel and the boot files, into the two directories main has
+# set as TARGET_ROOT and TARGET_BOOT. The slot is a plain directory: mkfs.btrfs
+# makes the subvolumes when the filesystem is built from the tree.
 install_system() {
-  export TARGET_ROOT="${BUILD_DIR}/root/@os"
-  export TARGET_BOOT="${BUILD_DIR}/boot"
-  mkdir -p "${TARGET_ROOT}" "${TARGET_BOOT}" \
+  mkdir -p "${CONTAINER_ROOTFS_FS}" "${TARGET_BOOT}" \
     "${BUILD_DIR}/root/@data/docker" \
     "${BUILD_DIR}/root/@data/dhcp" \
     "${BUILD_DIR}/root/@data/log" \
-    "${BUILD_DIR}/root/@swap"
+    "${BUILD_DIR}/root/@swap" \
+    || raise "Failed to create the build tree"
 
-  export INSTALLIMAGE=true
-  # A file, not a device: the install-kernel-* scripts refuse a block device,
-  # which only an older factory hands them.
-  export TARGET_DEVICE="${IMAGE_FILE}"
-
-  step "Installing the system from ${OS_IMAGE}"
-  perform_update "B" "${OS_IMAGE}" "${OS_DIGEST}"
+  step "Installing the system from ${IMAGE}"
+  install_slot
+  write_system_json
+  step "Slot ${SLOT} installed: ${IMAGE}"
 }
 
 partition_image() {
@@ -239,7 +233,7 @@ write_boot_partition() {
 
   if [[ "${BOOT_TYPE}" == "grub" ]]; then
     step "Writing the GRUB boot files"
-    grub_boot_files "${TARGET_BOOT}" "$(fat_uuid "${volume_id}")"
+    grub_boot_files "${TARGET_BOOT}" "$(fat_uuid "${volume_id}")" "${BUILD_DIR}"
   fi
 
   check_boot_reserve "${TARGET_BOOT}" "$(( PART_SECTORS / 2 ))"
@@ -279,7 +273,8 @@ write_boot_loader() {
     grub)
       step "Writing GRUB into the MBR and the bios_grub partition"
       read_partition_geometry "${IMAGE_FILE}" "${BIOS_GRUB_PARTITION_NUM}"
-      install_grub_bios "${IMAGE_FILE}" "${PART_START}" "${PART_SECTORS}"
+      install_grub_bios "${IMAGE_FILE}" "${PART_START}" "${PART_SECTORS}" \
+        "${BUILD_DIR}"
       ;;
     uboot)
       step "Writing U-Boot in front of the first partition"
@@ -298,8 +293,15 @@ main() {
   use_handed_in_daemon
   check_output_dir
 
+  BUILD_DIR="$(mktemp -d "${BUILD_ROOT:-"/var/tmp"}/cuos-image.XXXXXX")" \
+    || raise "Failed to create a build directory"
+  # Read by the updater's steps and by install-kernel-*.sh in the new rootfs.
+  export TARGET_ROOT="${BUILD_DIR}/root/@os"
+  export TARGET_BOOT="${BUILD_DIR}/boot"
+
   export OS_ARCH="${OS_ARCH:-"$(arch)"}"
-  resolve_os_image
+  select_system_image
+  fetch_system_image
 
   if [[ "${OS_ARCH}" == "lxc" ]]; then
     build_lxc_image
@@ -307,18 +309,13 @@ main() {
     exit 0
   fi
 
-  pull_system_image
+  # Before anything is installed: the label says which layout to build.
   resolve_boot_type
-
-  BUILD_DIR="$(mktemp -d "${BUILD_ROOT:-"/var/tmp"}/cuos-image.XXXXXX")" \
-    || raise "Failed to create a build directory"
 
   set -x
   install_system
 
-  # Not partition_image "$(image_size_mb …)": image_size_mb raises when the
-  # configured size is too small, and a raise inside "$( )" ends the subshell
-  # only - truncate would then be given an empty size.
+  # Not inside "$( )" with partition_image: image_size_mb raises.
   local size_mb
   size_mb="$(image_size_mb "$(du -sk "${BUILD_DIR}/root" | awk '{ print $1 }')")" \
     || exit "$?"
@@ -329,7 +326,7 @@ main() {
   set +x
 
   IMAGE_WRITTEN=1
-  step "${IMAGE_FILE/\//} written"
+  step "${IMAGE_FILE#/} written"
   exit 0
 }
 

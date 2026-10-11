@@ -41,7 +41,7 @@ Setting `init_image` yourself replaces it:
 
 The system's name follows the same key: `product_name` defaults to `CuOS IaC`
 when `init_image` contains `cuos-iac`, and to `CuOS` otherwise
-(`updater/perform_update.sh:80`).
+(`product_name` in `updater/lib/config.sh`).
 
 ## Build your CuOS Init App
 

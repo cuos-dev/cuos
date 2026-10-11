@@ -19,7 +19,7 @@ source "${CUOS_FACTORY_DIR}/lib/loopdev.sh"
 
 OUTPUT_DIR="/output"
 IMAGE_NAME="${IMAGE_NAME:-"image"}"
-IMAGE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
+IMAGE_FILE="${OUTPUT_DIR}/${IMAGE_NAME}.img"
 
 export TARGET_BOOT="${TARGET_BOOT:-"/mnt/boot"}"
 export TARGET_ROOT="${TARGET_ROOT:-"/mnt/os"}"
@@ -37,7 +37,7 @@ main() {
 
   [[ -d "${OUTPUT_DIR}" ]] || raise "Output dir not mounted"
 
-  loopdev_attach "${IMAGE}"
+  loopdev_attach "${IMAGE_FILE}"
   loopdev_map_partitions "${LOOPDEV}"
   loopdev_find_partitions "${LOOPDEV}"
   export TARGET_BOOT_PARTITION TARGET_ROOT_PARTITION

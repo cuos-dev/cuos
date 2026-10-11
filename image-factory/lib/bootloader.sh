@@ -9,9 +9,10 @@ GRUB_LIB_DIR="${GRUB_LIB_DIR:-"/usr/lib/grub"}"
 # from it. Everything else it loads from /grub on that partition.
 GRUB_CORE_MODULES=(part_gpt part_msdos fat search normal configfile)
 
-# $1 is the system image. Prints the boot chain its dev.cuos.boot label names,
-# and fails for an image without one: such an image still installs its boot
-# loader itself, onto a device the factory no longer has.
+# $1 is the system image, $2 the platform. Prints the boot chain its
+# dev.cuos.boot label names, and fails for an image without one: such an image
+# installs its boot loader itself, onto a block device this factory does not
+# have.
 #
 # --platform first: a daemon that keeps several platforms of one image (the
 # containerd store) needs to be told which one is meant. One older than API 1.49
@@ -65,13 +66,14 @@ copy_grub_modules() {
     "${boot_dir}/grub/${target}/"
 }
 
-# $1 is the boot directory, $2 the FAT UUID of the boot partition. Everything
-# that lives on the boot partition: the modules for both targets, the UEFI
-# image on the removable-media path, which firmware finds without an NVRAM
-# entry, and core.img in BUILD_DIR for install_grub_bios.
+# $1 is the boot directory, $2 the FAT UUID of the boot partition, $3 a work
+# directory. Everything that lives on the boot partition: the modules for both
+# targets, and the UEFI image on the removable-media path, which firmware finds
+# without an NVRAM entry. core.img, which goes outside the partitions, is left
+# in the work directory for install_grub_bios.
 grub_boot_files() {
-  local boot_dir="$1" uuid="$2"
-  local config="${BUILD_DIR}/grub-early.cfg"
+  local boot_dir="$1" uuid="$2" work_dir="$3"
+  local config="${work_dir}/grub-early.cfg"
 
   grub_early_config "${uuid}" >"${config}"
 
@@ -86,7 +88,7 @@ grub_boot_files() {
   copy_grub_modules "${boot_dir}" i386-pc \
     || raise "Failed to copy the GRUB modules (BIOS)"
   grub-mkimage -O i386-pc -d "${GRUB_LIB_DIR}/i386-pc" \
-    -o "${BUILD_DIR}/core.img" -c "${config}" -p /grub \
+    -o "${work_dir}/core.img" -c "${config}" -p /grub \
     biosdisk "${GRUB_CORE_MODULES[@]}" \
     || raise "Failed to build the GRUB image (BIOS)"
 }
@@ -117,11 +119,11 @@ put_le() {
 # grub-bios-setup does for any disk that is not a floppy: some BIOSes pass a
 # wrong drive number.
 #
-# $1 is the image, $2 the first sector of the bios_grub partition and $3 its
-# size in sectors.
+# $1 is the image, $2 the first sector of the bios_grub partition, $3 its size
+# in sectors, $4 the work directory grub_boot_files left core.img in.
 install_grub_bios() {
-  local image="$1" start="$2" sectors="$3"
-  local core="${BUILD_DIR}/core.img" boot="${BUILD_DIR}/boot.img"
+  local image="$1" start="$2" sectors="$3" work_dir="$4"
+  local core="${work_dir}/core.img" boot="${work_dir}/boot.img"
   local core_sectors
 
   core_sectors="$(( ($(stat -c %s "${core}") + 511) / 512 ))"

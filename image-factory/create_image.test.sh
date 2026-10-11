@@ -52,7 +52,7 @@ expect "partition_plan: mbr puts it there too" "btrfs 256MiB" \
   root_starts_at "mbr"
 
 export CONFIG_PATH="${OUTPUT_DIR}/${IMAGE_NAME}.json"
-export OS_IMAGE="ghcr.io/cuos-dev/cuos-system:development"
+export IMAGE="ghcr.io/cuos-dev/cuos-system:development"
 
 # The tree of the v0.6.2 x86_64 system, as du counted it on 2026-10-10.
 TREE_KB=722000
@@ -73,7 +73,7 @@ expect_rc "image_size_mb: a smaller one is refused" 1 \
 
 boot_type() {
   # shellcheck disable=SC2034
-  ( OS_ARCH="${1}"; MOCK_BOOT_LABEL="${2}"
+  ( TARGET_PLATFORM="$(target_platform "${1}")"; MOCK_BOOT_LABEL="${2}"
     if [[ "${3-unset}" != "unset" ]]; then export TARGET="${3}"; else unset TARGET; fi
     resolve_boot_type >/dev/null 2>&1 && echo "${BOOT_TYPE} ${LAYOUT}" )
 }
@@ -100,13 +100,27 @@ expect_rc "resolve_boot_type: a gpt layout for an rpi image" 1 \
 pulls_of() {
   : >"${WORK_DIR}/docker.log"
   # shellcheck disable=SC2034
-  ( OS_IMAGE="${1}"; OS_ARCH="x86_64"; pull_system_image >/dev/null 2>&1 )
+  ( IMAGE="${1}"; TARGET_PLATFORM="linux/amd64"; fetch_system_image >/dev/null 2>&1 )
   grep -c "^pull " "${WORK_DIR}/docker.log" || true
 }
-expect "pull_system_image: an image from a registry is pulled" "1" \
+expect "fetch_system_image: an image from a registry is pulled" "1" \
   pulls_of "ghcr.io/cuos-dev/cuos-system:development"
-expect "pull_system_image: a locally built one is not" "0" \
+expect "fetch_system_image: a locally built one is not" "0" \
   pulls_of "cuos-system:build"
+
+selected() {
+  # shellcheck disable=SC2034
+  ( OS_ARCH="${1}"; TARGET_ROOT="/build/root/@os"
+    select_system_image >/dev/null 2>&1 \
+      && echo "${SLOT} ${IMAGE} ${PINNED_DIGEST:-unpinned} ${CONTAINER_ROOTFS_FS}" )
+}
+echo '{"update_registry": "ghcr.io/cuos-dev", "os_image": "cuos-system",
+  "os_image_version": "v1", "os_image_digest": "sha256:abc"}' >"${CONFIG_PATH}"
+expect "select_system_image: slot A, the image and its pin" \
+  "A ghcr.io/cuos-dev/cuos-system:v1 sha256:abc /build/root/@os/system-A" \
+  selected x86_64
+expect_rc "select_system_image: a board without an image of its own is refused" 1 \
+  rc_of selected orangepi-zero3
 
 echo '{}' >"${CONFIG_PATH}"
 expect_rc "check_output_dir: an output dir that is there" 0 rc_of check_output_dir

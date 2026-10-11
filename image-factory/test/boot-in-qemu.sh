@@ -3,8 +3,9 @@
 #
 # Boots an x86_64 disk image from image-factory in QEMU and looks at the system
 # from the inside, through the QEMU guest agent the system enables on KVM.
-# Writes inside.txt and two screenshots into the output directory, and fails
-# when the agent never answers. Needs /dev/kvm - see the Dockerfile beside it.
+# Writes inside.txt and two screenshots into the output directory. Fails when
+# the agent never answers, when a unit failed, or when cuos-init is not active.
+# Needs /dev/kvm - see the Dockerfile beside it.
 #
 # Usage: boot-in-qemu.sh <bios|uefi> <image> <disk size, e.g. 4G, or "same">
 #                        <output dir> [timeout in s]
@@ -15,11 +16,17 @@
 
 set -uo pipefail
 
+if (( $# < 4 )); then
+  echo "Usage: $0 <bios|uefi> <image> <disk size, e.g. 4G, or \"same\"> <output dir> [timeout in s]" >&2
+  exit 2
+fi
+
 FIRMWARE="$1"
 IMAGE="$2"
 DISK_SIZE="$3"
 OUT_DIR="$4"
 TIMEOUT="${5:-300}"
+QEMU_PID=""
 
 DISK="/tmp/disk.img"
 QGA_SOCKET="/tmp/qga.sock"
@@ -37,7 +44,7 @@ echo "== subvolumes"; btrfs subvolume list /
 echo "== image"; cat /etc/image /etc/active_slot
 echo "== swap"; swapon --show
 echo "== system.json"; ls -l /system.json /data/system_*.json 2>&1
-echo "== failed units"; systemctl --failed --no-legend
+echo "== failed units"; systemctl --failed --no-legend --plain
 echo "== cuos-init"; systemctl is-active cuos-init.service
 journalctl -u cuos-init -b --no-pager | grep -i -B4 -E "error|fail" | head -40
 '
@@ -100,8 +107,22 @@ guest_exec() {
   return 1
 }
 
+# $1 is inside.txt. The failed units, and cuos-init if it is not active.
+inside_problems() {
+  sed -n '/^== failed units$/,/^== cuos-init$/p' "$1" | grep -v '^=='
+  sed -n '/^== cuos-init$/{n;p}' "$1" | grep -vx active
+}
+
+stop_qemu() {
+  [[ -z "${QEMU_PID}" ]] && return
+  kill "${QEMU_PID}" 2>/dev/null
+  wait "${QEMU_PID}" 2>/dev/null
+}
+
 main() {
-  local firmware_args=() qemu_pid start up=""
+  local firmware_args=() start up="" problems
+
+  trap stop_qemu EXIT
 
   mkdir -p "${OUT_DIR}"
   cp --sparse=always "${IMAGE}" "${DISK}" || exit 1
@@ -126,7 +147,7 @@ main() {
     -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
     -monitor "unix:${MONITOR_SOCKET},server=on,wait=off" \
     -display none -vga std &
-  qemu_pid="$!"
+  QEMU_PID="$!"
 
   start="${SECONDS}"
   sleep 8
@@ -140,16 +161,19 @@ main() {
   done
   echo "guest agent: $([[ -n "${up}" ]] && echo answered || echo "no answer") after $(( SECONDS - start )) s"
 
-  if [[ -n "${up}" ]]; then
-    # The agent starts before cuos-init has finished the first boot.
-    sleep 45
-    guest_exec "${INSIDE_CHECKS}" >"${OUT_DIR}/inside.txt"
-  fi
+  [[ -n "${up}" ]] || { screenshot final; return 1; }
+
+  # The agent starts before cuos-init has finished the first boot.
+  sleep 45
+  guest_exec "${INSIDE_CHECKS}" >"${OUT_DIR}/inside.txt"
   screenshot final
 
-  kill "${qemu_pid}" 2>/dev/null
-  wait "${qemu_pid}" 2>/dev/null
-  [[ -n "${up}" ]]
+  problems="$(inside_problems "${OUT_DIR}/inside.txt")"
+  if [[ -n "${problems}" ]]; then
+    echo "inside: ${problems}"
+    return 1
+  fi
+  echo "inside: no failed unit, cuos-init active"
 }
 
 main "$@"

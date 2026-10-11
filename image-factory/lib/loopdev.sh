@@ -1,7 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Attaching an image file to a loop device and mapping its partitions.
-# Sourced, never run.
+# Attaching an image file to a loop device and mapping its partitions, for
+# shell.sh, which mounts a built image to look into it. Building one needs none
+# of this. Sourced, never run.
 
 # This container's /dev is a snapshot of the host's, taken when the container
 # started - 'docker run --privileged' enumerates the host's devices once and
@@ -10,8 +11,8 @@
 # exactly that: /dev/loop-control hands out a number, and the node for it never
 # appears. losetup then fails with ENOENT and calls the node "lost".
 #
-# It bites on the first build of a machine, where no loop device existed when
-# the container started, and stops biting on the second, where one did.
+# It bites the first time on a machine, where no loop device existed when the
+# container started, and stops biting the second time, where one did.
 # Creating the node ourselves is enough wherever we are allowed to.
 attach_loop_device() {
   local image="$1"
@@ -35,12 +36,10 @@ attach_loop_device() {
   losetup --find --show "${image}" 2>/dev/null
 }
 
-# Sets LOOPDEV. Not an echo into a command substitution: this function raises,
-# and a raise inside "$( )" ends the subshell only - the caller would carry on
-# with an empty device and mkfs whatever /dev/mapper/p2 happens to be.
+# Sets LOOPDEV rather than printing it, because it raises.
 #
 # Three attempts, and an explanation for every way this can fail - the messages
-# are the whole point: each names what to do on the build host.
+# are the whole point: each names what to do on the host.
 loopdev_attach() {
   local image="$1"
   local dev=""
@@ -56,12 +55,12 @@ loopdev_attach() {
     if [[ ! -e /dev/loop-control ]]; then
       raise "There is no /dev/loop-control, so no loop device can be asked for.
 
-       The loop module is not loaded on the build host, or it was not loaded
+       The loop module is not loaded on the host, or it was not loaded
        when this container started. On the host:
 
          sudo modprobe loop
 
-       then build again. Loading it inside the container does not help: this
+       then try again. Loading it inside the container does not help: this
        container's /dev was taken from the host at start and does not follow it."
     fi
 
@@ -71,14 +70,14 @@ loopdev_attach() {
        above says so - but this container has no node for it, and creating one
        was not permitted either.
 
-       On a normal host or VM this only happens on the very first build, before
-       any loop device exists. Load the module on the host and build again:
+       On a normal host or VM this only happens the very first time, before
+       any loop device exists. Load the module on the host and try again:
 
          sudo modprobe loop dm_mod
 
        Inside an LXC container it happens every time, because loop devices,
-       device-mapper and mounting all belong to the host kernel. Build on a host
-       or in a VM instead; if it has to be that container, it must be privileged
+       device-mapper and mounting all belong to the host kernel. Open the image on a
+       host or in a VM instead; if it has to be that container, it must be privileged
        and unconfined, with at least:
 
          lxc.apparmor.profile: unconfined
@@ -87,10 +86,7 @@ loopdev_attach() {
          lxc.mount.entry: /dev/loop-control dev/loop-control none bind,create=file
          lxc.mount.entry: /dev/loop0 dev/loop0 none bind,create=file
 
-       plus one bind entry per loop device wanted.
-
-       Building for '--platform lxc' needs none of this: it exports a container
-       rather than partitioning a disk."
+       plus one bind entry per loop device wanted."
   fi
 
   # Device-mapper is the next thing needed, and it is the same story: kpartx
@@ -105,7 +101,7 @@ loopdev_attach() {
 
          sudo modprobe dm_mod
 
-       then build again."
+       then try again."
   fi
 
   # shellcheck disable=SC2034

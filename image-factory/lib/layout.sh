@@ -5,14 +5,20 @@
 # into its partition, so nothing here needs a loop device or a mount. Sourced,
 # never run.
 
+# Where the root partition starts in both layouts - the partition table gap and
+# the boot partition are in front of it. lib/size.sh adds it to the root
+# filesystem's size.
+ROOT_PARTITION_START_MIB=256
+
 # The arguments parted is given, so that the layout can be read - and asserted -
-# without writing an image. The boot partition ends at 256MiB in both layouts,
-# which is what lib/size.sh adds in front of the root partition.
+# without writing an image.
 partition_plan() {
+  local root="${ROOT_PARTITION_START_MIB}MiB"
+
   if [[ "${1}" == "mbr" ]]; then
     echo "mklabel msdos" \
-      "mkpart primary fat32 1MiB 256MiB" \
-      "mkpart primary btrfs 256MiB 100%" \
+      "mkpart primary fat32 1MiB ${root}" \
+      "mkpart primary btrfs ${root} 100%" \
       "set 1 boot on"
     return
   fi
@@ -20,9 +26,9 @@ partition_plan() {
   echo "mklabel gpt" \
     "mkpart bios_boot 1MiB 3MiB" \
     "set 1 bios_grub on" \
-    "mkpart ESP fat32 3MiB 256MiB" \
+    "mkpart ESP fat32 3MiB ${root}" \
     "set 2 boot on" \
-    "mkpart primary btrfs 256MiB 100%"
+    "mkpart primary btrfs ${root} 100%"
 }
 
 # $1 is the layout. Sets BOOT_PARTITION_NUM and ROOT_PARTITION_NUM, and
@@ -48,7 +54,8 @@ partition_geometry() {
     '.partitiontable.partitions[$n - 1] | "\(.start) \(.size)"'
 }
 
-# Sets PART_START and PART_SECTORS, and raises: not inside "$( )".
+# $1 is the image, $2 the partition number. Sets PART_START and PART_SECTORS
+# rather than printing them, because it raises.
 read_partition_geometry() {
   local geometry
   geometry="$(partition_geometry "${1}" "${2}")" \
@@ -102,8 +109,9 @@ make_boot_filesystem() {
     || raise "Failed to create the boot filesystem"
 
   # mtools checks the geometry against that of a floppy and refuses an image
-  # that does not look like one.
-  for entry in "${dir}"/*; do
+  # that does not look like one. Every entry, dotfiles too.
+  for entry in "${dir}"/* "${dir}"/.[!.]*; do
+    [[ -e "${entry}" ]] || continue
     MTOOLS_SKIP_CHECK=1 mcopy -s -p -m -Q -i "${file}" "${entry}" ::/ \
       || raise "Failed to copy ${entry} onto the boot filesystem"
   done

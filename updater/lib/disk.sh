@@ -9,12 +9,8 @@ disk_usage() {
     | awk 'NR == 2 { printf "%s of %s used, %s free\n", $3, $2, $4 }'
 }
 
-# The image factory's targets are directories, and df would report the
-# container they are in. It reports the filesystems once they are built.
 report_disk_usage() {
   local when="$1"
-
-  [[ "${INSTALLIMAGE}" != "true" ]] || return 0
 
   echo "disc usage (root, ${when} install): $(disk_usage "${TARGET_ROOT}")"
   # The boot partition is never grown and holds a kernel and an initrd for both
@@ -26,8 +22,7 @@ report_disk_usage() {
 # write its logs and its state - with both slots in place.
 RESERVE_KB="$((300 * 1024))"
 
-# Sets FREE_KB rather than printing it: it raises, and a raise inside "$( )"
-# ends the subshell, not the update.
+# Sets FREE_KB rather than printing it, because it raises.
 #
 # df -Pk: on a device this runs inside the updater image, which is Alpine
 # without coreutils, so df is busybox's and knows no GNU block sizes. -P keeps

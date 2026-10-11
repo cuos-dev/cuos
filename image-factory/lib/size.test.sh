@@ -6,6 +6,8 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/../../system/cuos/lib-test.sh"
 
+# shellcheck source=layout.sh
+source "${SCRIPT_DIR}/layout.sh"
 # shellcheck source=size.sh
 source "${SCRIPT_DIR}/size.sh"
 
@@ -22,7 +24,7 @@ expect "required_image_size_mb: the measured tree" "1680" \
 room_for_the_first_boot() {
   local size root_mb
   size="$(required_image_size_mb 722000)"
-  root_mb="$(( size - 256 ))"
+  root_mb="$(( size - ROOT_PARTITION_START_MIB ))"
   (( root_mb - 706 * 110 / 100 - 128 >= FIRST_BOOT_FREE_MB )) && echo "fits"
 }
 expect "required_image_size_mb: the first boot's room is on top" "fits" \

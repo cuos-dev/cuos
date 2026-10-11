@@ -34,7 +34,8 @@ target_platform() {
     orangepi-zero3)
       platform="linux/arm64"
       ;;
-    "")
+    # A container runs on its host's architecture, which the daemon knows.
+    lxc|"")
       ;;
     *)
       echo "Unknown architecture: ${arch}" >&2
