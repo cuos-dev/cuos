@@ -27,8 +27,17 @@ partition**, which is the FAT partition labelled `boot`:
 - Update sources
 - The initial application container
 
-If the file is missing or is not valid JSON, the system reports the problem and
-reboots rather than starting half-configured.
+The installer writes the `system.json` of the installation media onto that
+partition once the image is on the disk. It replaces the configuration the
+image was built with, rather than merging into it. That is what lets one
+installer be turned into installers for other systems
+(`tool.sh installer --base`): nothing of the original system's configuration
+reaches them. The media can be removed before the first boot.
+
+If the file is not valid JSON, the system reports the problem and reboots
+rather than starting half-configured. The same happens if the boot partition
+cannot be read and no cloud-init drive configures the system. Without any
+`system.json`, the system starts on its defaults.
 
 See the [system.json reference](./system-json-reference.md) for the keys, and
 [system.json](./system-json.md) for how a configuration is put together.

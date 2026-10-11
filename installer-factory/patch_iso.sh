@@ -55,11 +55,24 @@ fi
 
 #xorriso -indev /output/CuOS-IaC-cuos-test.iso -ls /
 
+# The marker create_iso.sh sets from the configuration. The base's would
+# otherwise decide, whatever the new configuration says. "-find ... rm"
+# rather than "-rm": a base without the marker is no error.
+auto_overwrite=()
+if jq -e '.installer_auto_overwrite_disk == true' "${CONFIG_PATH}" >/dev/null; then
+  touch /tmp/installer_auto_overwrite_disk.txt
+  auto_overwrite=(-map /tmp/installer_auto_overwrite_disk.txt /installer_auto_overwrite_disk.txt)
+fi
+
 step "Replacing the configuration in the ISO"
+# xorriso refuses an -outdev that holds data: the ISO of an earlier run.
+rm -f "${INSTALLER}"
 xorriso \
   -indev "${BASE_INSTALLER}" \
   -outdev "${INSTALLER}" \
   -update "${CONFIG_PATH}" "/system.json" \
+  -find / -name installer_auto_overwrite_disk.txt -exec rm -- \
+  "${auto_overwrite[@]}" \
   -boot_image any replay \
   -compliance no_emul_toc \
   -padding included

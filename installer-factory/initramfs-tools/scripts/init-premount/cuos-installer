@@ -134,6 +134,39 @@ extract_image() {
   return 0
 }
 
+# The image was built with a configuration of its own - with "tool.sh installer
+# --base" that of another system. The ISO's replaces it, so the installed system
+# has this one and nothing of the other, with or without the ISO attached.
+write_config() {
+  target="$1"
+  config="$mount_point/system.json"
+  boot_mount="/mnt/target-boot"
+
+  [ -f "$config" ] || return 0
+
+  # dd wrote a new partition table, which the kernel has not read yet.
+  blockdev --rereadpt "/dev/$target" || return 1
+  wait_for_udev 10
+
+  boot_part=""
+  for part in $(lsblk -ln -o NAME "/dev/$target" | tail -n +2); do
+    if [ "$(blkid -o value -s LABEL "/dev/$part" 2>/dev/null)" = "boot" ]; then
+      boot_part="/dev/$part"
+      break
+    fi
+  done
+  [ -n "$boot_part" ] || return 1
+
+  mkdir -p "$boot_mount"
+  mount -t vfat "$boot_part" "$boot_mount" || return 1
+  if ! cp "$config" "$boot_mount/system.json"; then
+    umount "$boot_mount"
+    return 1
+  fi
+  sync
+  umount "$boot_mount"
+}
+
 main() {
 
   iso_dev="$(find_dev)"
@@ -217,8 +250,12 @@ INNEREOF
   if ! extract_image "$image_path" "$target"; then
     raise "Failed writing image to disk"
   fi
-
   sync
+
+  if ! write_config "$target"; then
+    raise "Failed writing the configuration onto /dev/$target. The disk holds the image with the configuration it was built with."
+  fi
+
   dialog --backtitle "Installer" --title "Image sucessfully written to disk" --infobox "\nThe system will reboot now.\n\nEnsure to boot from the selected disk." 10 70
   sleep 2
   #sh
