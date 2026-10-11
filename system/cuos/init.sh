@@ -54,9 +54,12 @@ ensure_system_config() {
   fi
 
   # A device that has run before: its layers - from before them, made from
-  # what it has - and the effective configuration rebuilt from them. That is
-  # also how the local layer, shared by both slots, reaches this one after an
-  # update or a rollback; rebuilt only if anything differs.
+  # what it has -, and the effective configuration rebuilt from them. Every
+  # write of the layers writes the effective file too, so the rebuild normally
+  # finds nothing to do. It is there for an update whose commit wrote the new
+  # slot's layers but not its /system_next.json: the boot chain points at the
+  # slot already, and it must not come up with the configuration of the
+  # system it held before.
   if [[ -f "${CONFIG_PATH}" ]]; then
     if ! config_migrate_if_needed "${CONFIG_PATH}"; then
       report_alert "cuos:init:config_layers" "Could not split /system.json into its layers"
@@ -163,7 +166,7 @@ config_first_layers() {
 
   local_layer="$(config_normalise "$2" "${remote}")" || local_layer="{}"
   config_write "$(config_remote_path "$(config_active_slot)")" "${remote}"
-  config_write "${LOCAL_LAYER}" "${local_layer}"
+  config_write "$(config_local_path "$(config_active_slot)")" "${local_layer}"
   config_rebuild
   if [[ "$?" == "2" ]]; then
     report_alert "cuos:init:config_layers" "Could not write /system.json from its layers"

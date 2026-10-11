@@ -39,7 +39,7 @@ api_command_state() {
   slot="$(cat "${file_slot}")"
   # The keys this device sets itself, over what came from outside.
   local overrides
-  overrides="$(config_overrides "$(config_read "${LOCAL_LAYER}")")" || overrides="[]"
+  overrides="$(config_overrides "$(config_read "$(config_local_path "$(config_active_slot)")")")" || overrides="[]"
   jq \
     --arg slot "${slot}" \
     --arg version "${version}" \
@@ -150,7 +150,7 @@ api_update_func() {
 
   if ! echo "${plan}" >"${config_file}.plan" \
       || ! config_effective "$(jq -c .remote <<<"${plan}")" \
-        "$(config_withdraw "$(config_read "${LOCAL_LAYER}")" \
+        "$(config_withdraw "$(config_read "$(config_local_path "$(config_active_slot)")")" \
           "$(jq -c .changed <<<"${plan}")" "$(jq -c .remote <<<"${plan}")")" \
         >"${config_file}"; then
     rm -f "${config_file}" "${config_file}.plan"
@@ -311,7 +311,7 @@ api_command_patch_hostname() {
 ##                      came from outside, effective what is in use.
 api_command_config() {
   jq -n \
-    --argjson local "$(config_read "${LOCAL_LAYER}")" \
+    --argjson local "$(config_read "$(config_local_path "$(config_active_slot)")")" \
     --argjson remote "$(config_read "$(config_remote_path "$(config_active_slot)")")" \
     --argjson effective "$(config_read "${CONFIG_PATH}")" \
     '{local: $local, remote: $remote, effective: $effective}'

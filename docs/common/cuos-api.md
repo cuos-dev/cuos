@@ -192,7 +192,7 @@ layers, which `cuos config` shows:
 | Layer | Holds | Written by |
 |---|---|---|
 | remote | what came from outside: the provisioning `system.json` (boot partition, installer, a container's `/system_init.json`) and every `update` | `update`, first start. One per slot, because it carries the image references; a rollback boots with the old slot's |
-| local | what was set on the device | `patch`, `patch-network`, `patch-hostname`, the console's dialogs, cloud-init. Shared by both slots |
+| local | what was set on the device | `patch`, `patch-network`, `patch-hostname`, the console's dialogs, cloud-init. One per slot as well: an update hands the running slot's on to the new slot, and a rollback finds the old slot's as it was left |
 
 `/system.json` is `remote * local` (jq's deep merge): **a local setting wins
 until the remote layer changes the same key** — a new value or its removal.
@@ -207,8 +207,9 @@ value equal to the remote one is not kept.
 A device that ran a CuOS from before the layers is split on its next start:
 `network` and `hostname` become local, everything else remote. The same happens
 when `/system.json` was written by something that does not know the layers — a
-CuOS of an older release after a downgrade, or a hand edit: the next start or
-update takes the file over instead of rebuilding over it. Keys that were local
+CuOS of an older release after a downgrade, or a hand edit: the next start,
+update or patch takes the file over instead of rebuilding over it. A file that
+was only reformatted is not taken over. Keys that were local
 stay local with the values found; everything else, including a hand-edited
 `keyboard_layout`, counts as remote and goes with the next `replace` that lacks
 it.

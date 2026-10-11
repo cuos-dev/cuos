@@ -122,8 +122,9 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
   # The new slot is installed, and the boot chain points at it. Its
   # configuration is the one this update was given, and the reboot waits for it:
   # a slot that came up with the configuration of whatever image it held before
-  # would be worse than none. config_commit writes the slot's remote layer, the
-  # shared local one, and /system_next.json - through the symlink, not with mv.
+  # would be worse than none. config_commit writes the slot's two layers and
+  # /system_next.json - through the symlink, not with mv. This slot's layers
+  # stay as they are, for a rollback.
   config_commit "$(cat "${PLAN_PATH}")" "${SLOT_NEXT}" "/system_next.json"
   if [[ "$?" == "2" ]]; then
     state '.update_state' "update of slot ${SLOT_NEXT} to ${OS_IMAGE} failed: its configuration could not be written"

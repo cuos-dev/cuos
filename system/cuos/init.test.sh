@@ -191,7 +191,7 @@ rm -rf "${NTP_TMP}"
 LAYERS_TMP="$(mktemp -d)"
 (
   export LAYER_DIR="${LAYERS_TMP}"
-  export LOCAL_LAYER="${LAYERS_TMP}/system.local.json"
+  LOCAL_LAYER="${LAYERS_TMP}/system_A.local.json"
   export LAYER_LOCK="${LAYERS_TMP}/lock"
   export T_FILE_SLOT="${LAYERS_TMP}/active_slot"
   export CONFIG_PATH="${LAYERS_TMP}/system_A.json"

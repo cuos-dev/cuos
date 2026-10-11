@@ -18,10 +18,10 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | Rollback | Revert to previous working OS subvolume if update fails | Triggered automatically or via `cuos rollback` |
 | System State | Runtime status JSON (e.g. `running`, `updating`) | Accessible via `cuos state` |
 | State File | `/data/state.json` persisted state metadata | Mutated by core scripts |
-| Config File | `/system.json` active configuration | Built from the remote and the local layer; a direct write is taken over as remote at the next start |
+| Config File | `/system.json` active configuration | Built from the remote and the local layer; a direct write is taken over as remote at the next start, update or patch |
 | Next Config File | `/system_next.json` the other slot's configuration | Written when an update has installed that slot |
 | Remote Layer | `/data/system_<slot>.remote.json`, what came from outside | One per slot; `update` and provisioning |
-| Local Layer | `/data/system.local.json`, what was set on the device | Shared by both slots; wins until the remote layer changes the same key |
+| Local Layer | `/data/system_<slot>.local.json`, what was set on the device | One per slot, handed on by an update; wins until the remote layer changes the same key |
 | Active Slot File | `/etc/active_slot` indicating active slot name | Used by update & rollback logic |
 | Trigger File | `/data/run-update` forces app container refresh | Created by API patch/update logic |
 | API Socket | `/var/run/cuos.sock` UNIX domain socket for commands | JSON line based protocol |
@@ -52,7 +52,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | `/system.json` | Active configuration, remote layer * local layer |
 | `/system_next.json` | The other slot's configuration (rollback) |
 | `/data/system_<slot>.remote.json` | Remote layer of a slot |
-| `/data/system.local.json` | Local layer, both slots |
+| `/data/system_<slot>.local.json` | Local layer of a slot |
 | `/data/` | Persistent root (logs, docker, state) |
 | `/data/log/` | Journald persistent logs (via symlink) |
 | `/etc/image` | Current active system image reference string |

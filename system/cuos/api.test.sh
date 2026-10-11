@@ -55,7 +55,7 @@ trap "rm -rf '${WORK_DIR}'" EXIT
 
 export T_RUN_DIR="${WORK_DIR}/run"
 export LAYER_DIR="${WORK_DIR}/data"
-export LOCAL_LAYER="${LAYER_DIR}/system.local.json"
+LOCAL_LAYER="${LAYER_DIR}/system_B.local.json"
 export LAYER_LOCK="${WORK_DIR}/lock"
 mkdir -p "${T_RUN_DIR}" "${LAYER_DIR}"
 CONFIG_PATH="${LAYER_DIR}/system_B.json"

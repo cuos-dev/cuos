@@ -59,7 +59,7 @@ flowchart LR
 | 6. Pull OS image | Updater pulls new OS image (`docker pull`), checks its digest, then checks the space again with the new image's real size | Network/registry error, digest mismatch, too little space → abort; the inactive slot and its config are untouched |
 | 7. Subvolume prep | Only now: delete the inactive slot, wait for btrfs to free it, create it anew | BTRFS error → abort |
 | 8. Boot switch | GRUB / cmdline switched to new subvolume | Write error → abort |
-| 9. Config | The new slot's remote layer, the local layer and `/system_next.json` are written | Write failure → no reboot, reported |
+| 9. Config | The new slot's remote layer, its local layer (the running slot's, without the withdrawn keys) and `/system_next.json` are written. The running slot's layers stay as they are | Write failure → no reboot, reported; the new slot's next boot rebuilds its config from the layers |
 | 10. Reboot | System restarts | Boot failure → potential rollback |
 | 11. Verification | App init / state sets `running` | Timeout / app fail → rollback |
 | 12. Finalize | New config becomes active | On rollback old remains |
@@ -93,14 +93,16 @@ Failure: app doesn't start or timeout > 3600s → rollback.
 
 Flow for `cuos patch` / `cuos patch-network` / `cuos patch-hostname`:
 
-1. The change goes into the local layer, shared by both slots — see
+1. The change goes into the running slot's local layer — see
    [Configuration layers](./cuos-api.md#configuration-layers)
 2. `/system.json` is rebuilt from the layers; if nothing changed, nothing is
    written and nothing re-initialised
 3. Re-init specific components (`init.sh --reinit ...`)
 
-No reboot required; OS slot unchanged. A rollback keeps local settings: each
-slot has its own remote layer, the local one applies to both.
+No reboot required; OS slot unchanged. The next update takes the local
+settings along to the new slot. A rollback returns to the old slot's own
+layers, as they were when it was left: settings made on the new slot do not
+come along.
 
 ---
 

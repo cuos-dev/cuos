@@ -129,11 +129,10 @@ per slot) and local (set on the device, shared) — see
 
 1. An update payload is merged into the remote layer, or replaces it
 2. Result stored in a temporary file, which the updater reads
-3. On update: once the new slot is installed, its remote layer and
+3. On update: once the new slot is installed, its two layers and
    `/system_next.json` — the new slot's config — are written, and the latter
    becomes its `/system.json` after the reboot. A failed update writes nothing
-4. Rollback: the old slot boots with its own remote layer and the shared local
-   one
+4. Rollback: the old slot boots with its own layers, untouched by the update
 
 In-place patch (`cuos patch*`) writes the local layer and rebuilds
 `/system.json`.

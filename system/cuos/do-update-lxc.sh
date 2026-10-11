@@ -115,8 +115,8 @@ fi
 
 # The last step that can still fail without consequence: from the init swap
 # below on, the next start is the new root. config_commit writes the slot's
-# remote layer, the shared local one, and /system_next.json - through the
-# symlink, which the new root links as well.
+# two layers and /system_next.json - through the symlink, which the new root
+# links as well. This root's layers stay as they are, for a rollback.
 config_commit "$(cat "${PLAN_PATH}")" "${SLOT}" "/system_next.json"
 if [[ "$?" == "2" ]]; then
   state '.update_state' "update of slot ${SLOT} to ${LXC_IMAGE} failed: its configuration could not be written"

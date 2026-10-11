@@ -14,7 +14,7 @@ WORK_DIR="$(mktemp -d)"
 trap "rm -rf '${WORK_DIR}'" EXIT
 
 export LAYER_DIR="${WORK_DIR}/data"
-export LOCAL_LAYER="${LAYER_DIR}/system.local.json"
+LOCAL_LAYER="${LAYER_DIR}/system_A.local.json"
 export LAYER_LOCK="${WORK_DIR}/lock"
 export T_FILE_SLOT="${WORK_DIR}/active_slot"
 export CONFIG_PATH="${WORK_DIR}/system.json"
@@ -80,14 +80,16 @@ expect "migrate: an existing local layer keeps its keys, with the current values
 # --- plan ---
 
 expect "plan: update merges by default" \
-  '{"remote":{"a":1,"b":2,"os_image_version":"v2"},"changed":[["os_image_version"]]}' \
+  '{"remote":{"a":1,"b":2,"os_image_version":"v2"},"changed":[["os_image_version"]],"base":{"a":1,"b":2,"os_image_version":"v1"},"config":{"os_image_version":"v2"},"replace":false}' \
   config_plan_update '{"a": 1, "b": 2, "os_image_version": "v1"}' '{"os_image_version": "v2"}'
 expect "plan: replace takes the config as the remote layer" \
-  '{"remote":{"a":1},"changed":[["b"]]}' \
+  '{"remote":{"a":1},"changed":[["b"]],"base":{"a":1,"b":2},"config":{"a":1},"replace":true}' \
   config_plan_update '{"a": 1, "b": 2}' '{"a": 1}' true
 
-expect "overrides: as dotted paths" '["network","a.b"]' \
+expect "overrides: as dotted paths" '["a.b","network"]' \
   config_overrides '{"network": [1], "a": {"b": 1}}'
+expect "overrides: a dotted key and a path to the same name, listed once" '["a.b"]' \
+  config_overrides '{"a.b": 1, "a": {"b": 2}}'
 expect "overrides: none" '[]' config_overrides '{}'
 
 # --- files ---
@@ -222,5 +224,106 @@ expect "downgrade and back: the slot boots with what the old release wrote" \
   '{"hostname":"box","os_image_version":"v3"}' jq -S -c . "${CONFIG_PATH}"
 rm -f "${CONFIG_PATH}"
 echo "A" >"${T_FILE_SLOT}"
+
+# The rollback case (review R2-2): slot A's network was fixed at the console;
+# an update to B brings a new network and withdraws the local one - in B's
+# layer. B fails, the system rolls back to A, and A still has the fix.
+reset_device
+echo '{"os_image_version": "v1", "network": [{"dhcp": true}]}' >"$(config_remote_path A)"
+config_local_patch '{"network": [{"dhcp": false, "ip-address": "10.0.0.5"}]}' >/dev/null
+plan="$(config_plan_update "$(remote_layer A)" '{"os_image_version": "v2", "network": [{"dhcp": true, "gateway": "10.0.0.1"}]}' true)"
+config_commit "${plan}" B "${WORK_DIR}/system_next.json"
+expect "commit: the new slot gets the running slot's local layer, withdrawn" '{}' \
+  jq -c . "$(config_local_path B)"
+expect "commit: the running slot's local layer stays, for a rollback" \
+  '{"network":[{"dhcp":false,"ip-address":"10.0.0.5"}]}' local_layer
+expect_rc "commit: and a rebuild after the rollback finds A as it was" 1 config_rebuild
+
+# A config-only update lands on A while an update's plan waits for its commit:
+# the plan is made again from the remote layer the config-only update left.
+reset_device
+echo '{"os_image_version": "v1", "a": 1}' >"$(config_remote_path A)"
+plan="$(config_plan_update "$(remote_layer A)" '{"os_image_version": "v2"}')"
+echo '{"os_image_version": "v1", "a": 1, "b": 2}' >"$(config_remote_path A)"
+config_commit "${plan}" B "${WORK_DIR}/system_next.json"
+expect "commit: a stale plan is made again from the current remote layer" \
+  '{"os_image_version":"v2","a":1,"b":2}' remote_layer B
+
+# A corrupt layer - a power loss, a full disk - must not become an empty
+# configuration (review R2-1).
+reset_device
+echo '{"os_image": "x", "hostname": "box"}' >"$(config_remote_path A)"
+config_rebuild
+echo '{"os_image": "x", "hostn' >"$(config_remote_path A)"
+expect_rc "corrupt layer: config_read fails" 1 config_read "$(config_remote_path A)"
+expect_rc "corrupt layer: the rebuild fails" 2 config_rebuild
+expect "corrupt layer: and leaves the configuration alone" '{"os_image":"x","hostname":"box"}' effective
+expect_rc "corrupt layer: a local patch fails too" 2 config_local_patch '{"hostname": "mine"}'
+expect "corrupt layer: and leaves it alone as well" '{"os_image":"x","hostname":"box"}' effective
+echo '[1]' >"$(config_remote_path A)"
+expect_rc "corrupt layer: an array is no layer" 1 config_read "$(config_remote_path A)"
+expect_rc "config_write: empty input is refused" 2 config_write "${WORK_DIR}/w.json" ""
+expect_rc "config_write: so is anything but an object" 2 config_write "${WORK_DIR}/w.json" '"x"'
+expect_rc "config_write: and nothing was written" 1 test -e "${WORK_DIR}/w.json"
+
+inode() {
+  ls -i "$1" | awk '{ print $1 }'
+}
+reset_device
+echo '{"os_image": "x"}' >"$(config_remote_path A)"
+config_rebuild
+before_effective="$(inode "${CONFIG_PATH}")"
+before_local="$(inode "$(config_remote_path A)")"
+config_write "$(config_remote_path A)" '{"os_image": "y"}'
+config_rebuild
+expect "config_write: a layer is replaced by a rename" "yes" \
+  bash -c '[[ "$1" != "$2" ]] && echo yes' _ "${before_local}" "$(inode "$(config_remote_path A)")"
+expect "config_write: the effective file in place - a bind mount keeps its inode" \
+  "${before_effective}" inode "${CONFIG_PATH}"
+
+# An object turned into a value in the expert editor (review R2-3).
+reset_device
+echo '{"a": {"b": 1}, "c": 1}' >"$(config_remote_path A)"
+config_rebuild
+expect_rc "local_edit: an object that became a value" 0 \
+  config_local_edit '{"a": {"b": 1}, "c": 1}' '{"a": 5, "c": 1}'
+expect "local_edit: is a local value" '{"a":5}' local_layer
+expect_rc "local_edit: and back to an object" 0 \
+  config_local_edit '{"a": 5, "c": 1}' '{"a": {"x": 2}, "c": 1}'
+# Objects merge with the remote layer's, down to their leaves: b shows through.
+expect "local_edit: the object replaces the value" '{"a":{"b":1,"x":2},"c":1}' effective
+
+# A hand edit, then a patch: the patch must not rebuild it away (review R2-4).
+reset_device
+echo '{"os_image": "x", "hostname": "box"}' >"$(config_remote_path A)"
+config_rebuild
+echo '{"os_image": "x", "hostname": "box", "keyboard_layout": "fr"}' >"${CONFIG_PATH}"
+config_local_patch '{"hostname": "mine"}' 2>/dev/null
+expect "local_patch: a hand edit made before it is taken over first" \
+  '{"hostname":"mine","keyboard_layout":"fr","os_image":"x"}' jq -S -c . "${CONFIG_PATH}"
+
+# Reformatted, not changed: not taken over (review R2-7).
+reset_device
+echo '{"os_image": "x", "network": [1], "hostname": "box"}' >"$(config_remote_path A)"
+config_rebuild
+jq -S . "${CONFIG_PATH}" >"${WORK_DIR}/reformatted" && cat "${WORK_DIR}/reformatted" >"${CONFIG_PATH}"
+config_migrate_if_needed 2>/dev/null
+expect "foreign: a mere reformat moves nothing into the local layer" '{}' \
+  bash -c 'jq -c . "$1" 2>/dev/null || echo "{}"' _ "${LOCAL_LAYER}"
+expect_rc "foreign: and is not foreign afterwards" 1 config_is_foreign A "${CONFIG_PATH}"
+
+# A lock that cannot be taken is a failure, not "unchanged" (review R2-5).
+expect_rc "lock: cannot be opened" 2 \
+  env LAYER_LOCK="${WORK_DIR}/no/such/dir/lock" bash -c \
+  'source "$1/utils.sh"; config_local_patch "{\"hostname\": \"x\"}"' _ "${SCRIPT_DIR}"
+
+# Only what the seed emptied is pruned (review R2-6).
+expect "migrate: an empty object elsewhere stays" \
+  '{"remote":{"os_image":"x","extra":{}},"local":{"network":[1]}}' \
+  config_migrate '{"os_image": "x", "extra": {}, "network": [1]}' '{}'
+expect "normalise: an empty object over a value is a setting" '{"foo":{}}' \
+  config_normalise '{"foo": {}}' '{"foo": 1}'
+expect "withdraw: the emptied parent goes" '{}' \
+  config_withdraw '{"a": {"b": 1}}' '[["a","b"]]' '{"a": {"b": 2}}'
 
 summary
