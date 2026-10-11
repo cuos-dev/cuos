@@ -10,12 +10,24 @@ trap "rm -rf '${WORK_DIR}'" EXIT
 # mocks: the daemon answers once someone has started it, so the fake dockerd
 # reports readiness through a file - it runs in the background and cannot set a
 # variable of ours.
+#
+# With sleep mocked away the wait loop is over at once, and docker_stop could
+# kill the fake daemon before it has logged its start. So the first question
+# to a daemon started here waits until it has.
 docker() {
+  local i
+  if [[ -n "${_CUOS_DOCKERD_PID-}" ]]; then
+    for (( i = 0; i < 500; i++ )); do
+      [[ -f "${WORK_DIR}/started.${_CUOS_DOCKERD_PID}" ]] && break
+      command sleep 0.01
+    done
+  fi
   [[ -n "${MOCK_DAEMON_ANSWERS-}" || -f "${WORK_DIR}/ready" ]]
 }
 
 dockerd() {
   echo "dockerd $*" >>"${WORK_DIR}/dockerd.log"
+  : >"${WORK_DIR}/started.${BASHPID}"
   [[ -n "${MOCK_DOCKERD_FAILS-}" ]] || : >"${WORK_DIR}/ready"
   # 'command', because sleep is mocked away below: a daemon that dies at once
   # takes the "the process is gone" path and never reaches the timeout.
