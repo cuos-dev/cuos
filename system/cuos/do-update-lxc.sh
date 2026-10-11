@@ -19,6 +19,8 @@ fi
 # Same arguments as do-update.sh: "update" or "pull", the configuration to
 # update to, and its plan. /system_next.json is the other slot's, and is
 # written only once that slot holds the new image.
+# CONFIG_PATH is that file from here on, so the running root's own
+# configuration is named apart.
 ACTION="${1:-}"
 export CONFIG_PATH="${2:-}"
 PLAN_PATH="${3:-}"
@@ -117,7 +119,8 @@ fi
 # below on, the next start is the new root. config_commit writes the slot's
 # two layers and /system_next.json - through the symlink, which the new root
 # links as well. This root's layers stay as they are, for a rollback.
-config_commit "$(cat "${PLAN_PATH}")" "${SLOT}" "/system_next.json"
+CONFIG_PATH="/system.json" \
+  config_commit "$(cat "${PLAN_PATH}")" "${SLOT}" "/system_next.json"
 if [[ "$?" == "2" ]]; then
   state '.update_state' "update of slot ${SLOT} to ${LXC_IMAGE} failed: its configuration could not be written"
   report_err "cuos:update:failed" "The configuration of slot ${SLOT} could not be written. Not rebooting"

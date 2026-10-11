@@ -150,7 +150,7 @@ jq_replace() {
 state() {
   local key="$1"
   local value="${2:-}"
-  local state_file="/data/state.json"
+  local state_file="${T_FILE_STATE:-"/data/state.json"}"
   local new_state
 
   if [[ ! -f "${state_file}" ]] || \

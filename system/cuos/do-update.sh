@@ -19,6 +19,12 @@ source "${SCRIPT_DIR}/utils.sh"
 # is a file of its own and not /system_next.json: that one is the standby
 # slot's configuration, and it is only replaced - with its remote layer - once
 # the slot holds the image this configuration names. A pull leaves both alone.
+#
+# CONFIG_PATH is that file from here on - image_url and the docker login read
+# it -, so the running slot's own configuration is named apart.
+ACTIVE_CONFIG_PATH="${T_ACTIVE_CONFIG_PATH:-"/system.json"}"
+NEXT_CONFIG_PATH="${T_NEXT_CONFIG_PATH:-"/system_next.json"}"
+FILE_IMAGE="${T_FILE_IMAGE:-"/etc/image"}"
 ACTION="${1:-}"
 export CONFIG_PATH="${2:-}"
 PLAN_PATH="${3:-}"
@@ -32,13 +38,13 @@ esac
 [[ "${ACTION}" == "pull" || -f "${PLAN_PATH}" ]] \
   || raise 1 "No configuration plan: ${PLAN_PATH}"
 
-SLOT="$(cat "/etc/active_slot")"
+SLOT="$(config_active_slot)"
 
 UPDATE_IMAGE="$(image_url "updater")" || \
   raise 31 "Updater image not defined"
 UPDATE_IMAGE_DIGEST="$(jq -r '.updater_image_digest // empty' "${CONFIG_PATH}")"
 
-OS_ARCH="$(cat "/etc/cuos-arch" 2>/dev/null || arch)"
+OS_ARCH="$(cat "${T_FILE_ARCH:-"/etc/cuos-arch"}" 2>/dev/null || arch)"
 
 OS_IMAGE="$(image_url "${OS_ARCH}" || image_url "os")" || \
   raise 32 "OS image not defined"
@@ -46,7 +52,7 @@ OS_DIGEST="$(jq -r --arg arch "${OS_ARCH}" '.[$arch+"_image_digest"] // .os_imag
 
 IMAGE_VERSION_STRING="${OS_IMAGE}@${OS_DIGEST}"
 
-if [[ "${IMAGE_VERSION_STRING}" == "$(cat /etc/image)" ]]; then
+if [[ "${IMAGE_VERSION_STRING}" == "$(cat "${FILE_IMAGE}")" ]]; then
   report_info "cuos:update:not_needed" "The system is up-to-date"
   raise_info 22 "No new image version available. Exiting (pre)"
 fi
@@ -55,7 +61,7 @@ if [[ "${ACTION}" == "update" ]]; then
   state jq '.last_update_check = (now | todate)'
 fi
 
-"${SCRIPT_DIR}/utils-docker-login.sh" || raise 33 "Docker login failed"
+"${T_DOCKER_LOGIN:-"${SCRIPT_DIR}/utils-docker-login.sh"}" || raise 33 "Docker login failed"
 
 docker image pull "${UPDATE_IMAGE}" || raise 34 "Faild to fetch image"
 NEW_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${UPDATE_IMAGE}" 2>/dev/null | cut -d '@' -f 2)
@@ -75,7 +81,7 @@ if [[ "${ACTION}" == "pull" ]]; then
   ENTRYPOINT=(--entrypoint /api/pull)
 fi
 
-touch "/root/.docker/config.json"
+touch "${T_DOCKER_CONFIG:-"/root/.docker/config.json"}"
 # The host's docker socket goes in under a name of its own, because
 # /var/run/docker.sock inside the updater has to stay free: an updater that
 # brings no daemon along starts a dockerd there, and a bind mount over that
@@ -125,14 +131,15 @@ if [[ "${DOCKER_EXIT_CODE}" = "0" ]]; then
   # would be worse than none. config_commit writes the slot's two layers and
   # /system_next.json - through the symlink, not with mv. This slot's layers
   # stay as they are, for a rollback.
-  config_commit "$(cat "${PLAN_PATH}")" "${SLOT_NEXT}" "/system_next.json"
+  CONFIG_PATH="${ACTIVE_CONFIG_PATH}" \
+    config_commit "$(cat "${PLAN_PATH}")" "${SLOT_NEXT}" "${NEXT_CONFIG_PATH}"
   if [[ "$?" == "2" ]]; then
     state '.update_state' "update of slot ${SLOT_NEXT} to ${OS_IMAGE} failed: its configuration could not be written"
     report_err "cuos:update:failed" "Update installed, but the configuration of slot ${SLOT_NEXT} could not be written. Not rebooting"
     raise 36 "Failed to write /system_next.json; slot ${SLOT_NEXT} is installed and will boot next"
   fi
 
-  touch "/data/run-update"
+  touch "${T_DATA_DIR:-"/data"}/run-update"
   state '.state' 'updating'
   state jq '.last_update_date = (now | todate)'
   state '.update_state' 'updated slot '"${SLOT_NEXT}"' to '"${OS_IMAGE}"
