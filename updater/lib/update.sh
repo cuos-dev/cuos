@@ -141,7 +141,7 @@ perform_pull() {
     raise_info 102 "No OS update available"
   fi
 
-  check_space_before_pull
+  check_space_before_pull pull
 
   step "Fetching ${IMAGE}"
   pull_image
@@ -155,7 +155,7 @@ perform_pull() {
     raise_info 102 "No OS update available"
   fi
 
-  check_space_after_pull
+  check_space_after_pull pull
 
   step "Fetched ${IMAGE}: an update installs it without downloading it again"
 }

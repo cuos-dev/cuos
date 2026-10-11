@@ -40,7 +40,9 @@ standby_slot_kb() {
 # reference within its repository goes, and the image with them.
 #
 # Never the image the active slot runs or the one the update is about to
-# install. No "docker image prune": the daemon is the app's as well.
+# install - pinned, or what the registry gave for the tag: after a rollback the
+# standby slot holds the newer system, and an update back to it would download
+# it again. No "docker image prune": the daemon is the app's as well.
 remove_standby_image() {
   local standby active ref id
 
@@ -48,7 +50,8 @@ remove_standby_image() {
   ref="$(digest_ref "${standby}")" || return 0
   active="$(cat "${T_FILE_IMAGE:-"/etc/image"}" 2>/dev/null)"
 
-  if [[ "${standby##*@}" == "${active##*@}" || "${standby##*@}" == "${IMAGE_DIGEST}" ]]; then
+  if [[ "${standby##*@}" == "${active##*@}" || "${standby##*@}" == "${IMAGE_DIGEST}" \
+      || "${standby##*@}" == "${REMOTE_DIGEST:-}" ]]; then
     return 0
   fi
 
