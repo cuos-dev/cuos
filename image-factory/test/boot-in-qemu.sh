@@ -10,9 +10,11 @@
 # Usage: boot-in-qemu.sh <bios|uefi> <image> <disk size, e.g. 4G, or "same">
 #                        <output dir> [timeout in s]
 #
-# The image is copied first, because the first boot grows its partition.
-# "same" keeps the disk at the size of the image: the case the image's own free
-# space is for.
+# The guest writes into a qcow2 overlay, not into the image: the first boot
+# grows its partition, and the image stays as built. Only what the guest
+# changes is written - a copy of the image would be gigabytes of I/O for
+# nothing. "same" keeps the disk at the size of the image: the case the
+# image's own free space is for.
 
 set -uo pipefail
 
@@ -28,7 +30,7 @@ OUT_DIR="$4"
 TIMEOUT="${5:-300}"
 QEMU_PID=""
 
-DISK="/tmp/disk.img"
+DISK="/tmp/disk.qcow2"
 QGA_SOCKET="/tmp/qga.sock"
 MONITOR_SOCKET="/tmp/monitor.sock"
 OVMF_DIR="/usr/share/OVMF"
@@ -125,10 +127,10 @@ main() {
   trap stop_qemu EXIT
 
   mkdir -p "${OUT_DIR}"
-  cp --sparse=always "${IMAGE}" "${DISK}" || exit 1
-  if [[ "${DISK_SIZE}" != "same" ]]; then
-    qemu-img resize -f raw "${DISK}" "${DISK_SIZE}" >/dev/null || exit 1
-  fi
+  [[ "${DISK_SIZE}" != "same" ]] || DISK_SIZE=""
+  # shellcheck disable=SC2086
+  qemu-img create -q -f qcow2 -b "$(readlink -f "${IMAGE}")" -F raw "${DISK}" \
+    ${DISK_SIZE} || exit 1
 
   if [[ "${FIRMWARE}" == "uefi" ]]; then
     cp "${OVMF_DIR}/OVMF_VARS_4M.fd" /tmp/vars.fd
@@ -140,7 +142,7 @@ main() {
 
   qemu-system-x86_64 -enable-kvm -machine q35 -m 2048 -smp 2 \
     "${firmware_args[@]}" \
-    -drive "file=${DISK},format=raw,if=virtio" \
+    -drive "file=${DISK},format=qcow2,if=virtio" \
     -nic user,model=virtio-net-pci \
     -device virtio-serial \
     -chardev "socket,path=${QGA_SOCKET},server=on,wait=off,id=qga0" \
