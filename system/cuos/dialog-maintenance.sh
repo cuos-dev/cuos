@@ -426,7 +426,11 @@ expert() {
   else
     # What the editor changed becomes a setting of this device.
     config_local_edit "$(jq -c . /tmp/edit-system-start.json)" "$(jq -c . /tmp/edit-system.json)"
-    api_stream "Applying system.json" cuos patch
+    if [[ "$?" == "2" ]]; then
+      term msg "system.json could not be written"
+    else
+      api_stream "Applying system.json" cuos patch
+    fi
   fi
   rm -f /tmp/edit-system.json /tmp/edit-system-start.json
 }

@@ -57,7 +57,7 @@ repository.
 What the updater relies on is a pair of scripts at fixed paths inside your
 image: **`/usr/local/cuos/install-kernel.sh`** to install the kernel and write
 the boot configuration, and **`install-kernel-rollback.sh`** to undo it
-(`updater/perform_update.sh:298`, `system/cuos/do-rollback.sh:48`). Here they are
+(`install_kernel` in `updater/lib/slot.sh`, `system/cuos/do-rollback.sh:48`). Here they are
 per boot chain — `install-kernel-grub.sh`, `-rpi.sh`, `-uboot.sh` — and
 `install.sh <type>` renames the matching pair at image build time
 (`system/cuos/install.sh:16`). Your image has to arrive at the same two names,

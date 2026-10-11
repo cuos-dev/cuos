@@ -69,19 +69,22 @@ ensure_system_config() {
   fi
 
   # The first start. What comes with the system - the boot partition's
-  # system.json, the installer's, a container's /system_init.json - is the
-  # remote layer: it comes from the same system.json a repository holds, and
-  # only as remote can the repository take a key of it back. cloud-init is
-  # per instance (hostname, network, ssh keys) and the local layer.
+  # system.json, which the installer writes, or a container's
+  # /system_init.json - is the remote layer: it comes from the same
+  # system.json a repository holds, and only as remote can the repository take
+  # a key of it back. cloud-init is per instance (hostname, network, ssh keys)
+  # and the local layer.
   local remote="{}"
   local local_layer="{}"
   if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
     wait_for_lxc_system_init
     remote="$(jq -c . "/system_init.json")"
   else
+    local boot_mounted="" config_found=""
     mkdir -p "/mnt/boot"
-    mount -o ro -t vfat LABEL=boot "/mnt/boot"
+    mount -o ro -t vfat LABEL=boot "/mnt/boot" && boot_mounted=1
     if [[ -f "/mnt/boot/system.json" ]]; then
+      config_found=1
       report_info "cuos:init:system-json" "Found system.json for system configuration"
       if ! remote="$(jq -c . "/mnt/boot/system.json" 2>/dev/null)"; then
         report_alert "cuos:init:invalid_system_json" "Provided system.json file is invalid. System will reboot in 30sec"
@@ -93,27 +96,9 @@ ensure_system_config() {
       remote="$(jq -c . "${SCRIPT_DIR}/system-default.json")"
     fi
 
-    # Grab system.json from installer image
-    mkdir -p "/mnt/installer"
-    mount -o ro LABEL=CUOS "/mnt/installer/"
-    if [[ -f "/mnt/installer/system.json" ]]; then
-      report_info "cuos:init:system-json-installer" "Found system.json on Installer, merging with system.json from system"
-      if ! NEW_CONFIG="$(jq -c --argjson remote "${remote}" '$remote + .' \
-        "/mnt/installer/system.json")"; then
-
-        report_alert "cuos:init:invalid_installer_system_json" "Provided system.json on Installer is invalid. System will reboot in 30sec"
-        "${SCRIPT_DIR}/dialog-failed.sh" "Provided system.json file on Installer is invalid"
-        sync
-        /sbin/reboot
-
-      fi
-      remote="${NEW_CONFIG}"
-    fi
-    umount "/mnt/installer"
-
     # Grab Cloud Init data from boot dir
-    umount "/mnt/boot"
     if [[ -f "/mnt/boot/user-data" ]]; then
+      config_found=1
       report_info "cuos:init:cloud-init" "Found Cloud Init user-data on boot, merging with system.json"
       if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/boot/user-data" "/mnt/boot/network-config" | \
         jq -c --argjson local "${local_layer}" '$local + .')"; then
@@ -126,11 +111,13 @@ ensure_system_config() {
       fi
       local_layer="${NEW_CONFIG}"
     fi
+    umount "/mnt/boot"
 
     # Grab Cloud Init data if available
     mkdir -p "/mnt/cidata"
     mount -o ro LABEL=cidata "/mnt/cidata/"
     if [[ -f "/mnt/cidata/user-data" ]]; then
+      config_found=1
       report_info "cuos:init:cloud-init" "Found Cloud Init user-data, merging with system.json"
       if ! NEW_CONFIG="$("${SCRIPT_DIR}/cloud-init-to-system-json.sh" "/mnt/cidata/user-data" "/mnt/cidata/network-config" | \
         jq -c --argjson local "${local_layer}" '$local + .')"; then
@@ -144,6 +131,16 @@ ensure_system_config() {
       local_layer="${NEW_CONFIG}"
     fi
     umount "/mnt/cidata"
+
+    # Without its boot partition the system would come up on the defaults, as
+    # a device nobody configured - and say nothing. A cloud-init drive may
+    # stand in for it.
+    if [[ -z "${boot_mounted}" && -z "${config_found}" ]]; then
+      report_alert "cuos:init:boot_partition_unreadable" "Boot partition could not be mounted and no other configuration was found. System will reboot in 30sec"
+      "${SCRIPT_DIR}/dialog-failed.sh" "Boot partition could not be mounted, no configuration found"
+      sync
+      /sbin/reboot
+    fi
   fi
 
   config_first_layers "${remote}" "${local_layer}"

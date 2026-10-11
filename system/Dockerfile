@@ -5,6 +5,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
 LABEL dev.cuos.system=system
+# The boot chain image-factory writes for this image, the same type install.sh
+# activates below. The factory refuses an image without it.
+LABEL dev.cuos.boot=grub
 
 ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
 
@@ -94,6 +97,10 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   && printf "/data/dhcp/ r,\n/data/dhcp/dhclient* lrw,\n" >>/etc/apparmor.d/local/usr.sbin.dhclient \
   && systemctl mask ssh.socket \
   && systemctl mask sshd-keygen.service \
+  ## Booted with BIOS, gpt-auto automounts the ESP on /efi, and init.sh then \
+  ## cannot mount it to read system.json. Everything is mounted by label. \
+  && mkdir -p /etc/systemd/system-generators \
+  && ln -s /dev/null /etc/systemd/system-generators/systemd-gpt-auto-generator \
   && printf "Port 4222\nPermitRootLogin yes\n" >/etc/ssh/sshd_config.d/cuos.conf \
   && rm -f /etc/ssh/ssh_host_* \
   && update-alternatives --install /usr/bin/vim vim /usr/bin/vim.tiny 100 \

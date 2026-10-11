@@ -24,12 +24,14 @@ image_is_installed() {
 #
 # Advisory only. An empty answer - no buildx, an unreachable or a
 # non-conforming registry - falls through to the pull and changes nothing.
+#
+# The answer is kept in REMOTE_DIGEST: it tells an unpinned update which image
+# the tag stands for now, before anything is pulled.
 remote_digest_is_installed() {
-  local remote_digest
-  remote_digest="$(docker buildx imagetools inspect \
+  REMOTE_DIGEST="$(docker buildx imagetools inspect \
     --format '{{.Manifest.Digest}}' "${IMAGE}" 2>/dev/null)"
 
-  [[ -n "${remote_digest}" ]] && image_is_installed "${remote_digest}"
+  [[ -n "${REMOTE_DIGEST}" ]] && image_is_installed "${REMOTE_DIGEST}"
 }
 
 repo_digest() {
@@ -39,21 +41,13 @@ repo_digest() {
 
 # $1 is the digest from the registry, empty for a locally built image: that one
 # has no RepoDigests, and its id identifies it just as well.
-image_digest() {
+recorded_digest() {
   echo "${1:-"$(docker inspect --format='{{.Id}}' "${IMAGE}")"}"
 }
 
-# The factory tags the image it has just built ':build' and hands it over
-# locally, so there is no registry to pull it from.
-is_local_build() {
-  [[ "${INSTALLIMAGE}" = "true" && "${IMAGE}" = *:build ]]
-}
-
 pull_image() {
-  if is_local_build; then return; fi
-
   docker image pull --platform "${TARGET_PLATFORM}" "${IMAGE}" \
-    || raise 103 "Faild to fetch system image"
+    || raise 103 "Failed to fetch system image"
 }
 
 export_rootfs() {
@@ -61,8 +55,13 @@ export_rootfs() {
   container="$(docker create --platform "${TARGET_PLATFORM}" "${IMAGE}")" \
     || raise 106 "Failed to create container for export"
 
-  if ! docker export "${container}" \
-      | tar -C "${CONTAINER_ROOTFS_FS}" --numeric-owner --xattrs --xattrs-include='*' -xf -; then
+  # Both ends checked: a failing export with a succeeding tar would install a
+  # truncated rootfs.
+  local status
+  docker export "${container}" \
+    | tar -C "${CONTAINER_ROOTFS_FS}" --numeric-owner --xattrs --xattrs-include='*' -xf -
+  status="${PIPESTATUS[0]}${PIPESTATUS[1]}"
+  if [[ "${status}" != "00" ]]; then
     docker rm "${container}" >/dev/null 2>&1 || true
     raise 107 "Failed to export the container"
   fi
@@ -102,26 +101,30 @@ image_size_kb() {
 
 # An image fetched beforehand ("cuos pull") takes its room already, and the
 # estimate would count it a second time. Pinned, the digest says whether it is
-# there; unpinned, a tag that points at anything but the running image can only
-# have been moved by such a pull - the standby's image is gone by now.
+# there; unpinned, the digest the registry gave for the tag. Not the local tag:
+# it may still point at what an earlier pull found, while the registry has
+# moved on, and the pull would download all of it unchecked. Without an answer
+# from the registry nothing is taken to be here.
 target_is_local() {
-  local id active
+  local digest="${PINNED_DIGEST:-"${REMOTE_DIGEST:-}"}"
 
-  if [[ -n "${IMAGE_DIGEST}" ]]; then
-    image_id "$(digest_ref "${IMAGE}@${IMAGE_DIGEST}")" >/dev/null
-    return
-  fi
-
-  id="$(image_id "${IMAGE}")" || return 1
-  active="$(digest_ref "$(cat "${T_FILE_IMAGE:-"/etc/image"}" 2>/dev/null)")"
-  [[ "${id}" != "$(image_id "${active}")" ]]
+  [[ -n "${digest}" ]] || return 1
+  image_id "$(digest_ref "${IMAGE}@${digest}")" >/dev/null
 }
 
 # The image just pulled, when it cannot be installed after all. Never the
 # running one: image_is_installed has turned that case away before this.
+#
+# Compared by id as well: /etc/image may name the running image under another
+# registry name (update_registry_proxy changed), and its digest then looks like
+# a different image.
 remove_pulled_image() {
-  local id
+  local id active
 
   id="$(image_id "${IMAGE}")" || return 0
+  active="$(digest_ref "$(cat "${T_FILE_IMAGE:-"/etc/image"}" 2>/dev/null)")"
+  if [[ -n "${active}" && "${id}" == "$(image_id "${active}")" ]]; then
+    return 0
+  fi
   docker image rm "${id}" || true
 }

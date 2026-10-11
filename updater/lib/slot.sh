@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # The slot an update is written into. Sourced, never run.
 
-# $1 is the slot in use; the update goes to the other one.
-target_slot() {
+# $1 is the slot in use. Prints the other one, which an update writes; with no
+# slot in use yet, A.
+other_slot() {
   if [[ "${1:-}" = "A" ]]; then
     echo "B"
   else
@@ -40,7 +41,9 @@ standby_slot_kb() {
 # reference within its repository goes, and the image with them.
 #
 # Never the image the active slot runs or the one the update is about to
-# install. No "docker image prune": the daemon is the app's as well.
+# install - pinned, or what the registry gave for the tag: after a rollback the
+# standby slot holds the newer system, and an update back to it would download
+# it again. No "docker image prune": the daemon is the app's as well.
 remove_standby_image() {
   local standby active ref id
 
@@ -48,7 +51,8 @@ remove_standby_image() {
   ref="$(digest_ref "${standby}")" || return 0
   active="$(cat "${T_FILE_IMAGE:-"/etc/image"}" 2>/dev/null)"
 
-  if [[ "${standby##*@}" == "${active##*@}" || "${standby##*@}" == "${IMAGE_DIGEST}" ]]; then
+  if [[ "${standby##*@}" == "${active##*@}" || "${standby##*@}" == "${PINNED_DIGEST}" \
+      || "${standby##*@}" == "${REMOTE_DIGEST:-}" ]]; then
     return 0
   fi
 
@@ -65,7 +69,7 @@ remove_standby_image() {
 #
 # btrfs gives the space of a deleted subvolume back in the background; the sync
 # waits for it, so the export below finds the room the space check counted on.
-prepare_slot() {
+clear_slot() {
   if [[ -d "${CONTAINER_ROOTFS_FS}" ]]; then
     btrfs subvolume delete -R "${CONTAINER_ROOTFS_FS}" || true
     btrfs subvolume sync "${TARGET_ROOT}" || true
@@ -96,22 +100,12 @@ EOF
 
 run_first_run() {
   ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/first-run.sh" \
-    "${SLOT}" "${IMAGE}" "${DIGEST}" \
+    "${SLOT}" "${IMAGE}" "${RECORDED_DIGEST}" \
     || raise 109 "Failed to run first-run script in container"
 }
 
 install_kernel() {
   ROOT="${CONTAINER_ROOTFS_FS}" "${CONTAINER_ROOTFS_FS}/usr/local/cuos/install-kernel.sh" "${SLOT}" \
     || exit "$?"
-}
-
-copy_system_json() {
-  if [[ -f "${CONFIG_PATH}" ]]; then
-    cp "${CONFIG_PATH}" "${TARGET_BOOT}/system.json" \
-      || raise 120 "Failed to copy system.json from dir"
-  else
-    cp "${CONTAINER_ROOTFS_FS}/usr/local/cuos/system-default.json" "${TARGET_BOOT}/system.json" \
-      || raise 121 "Failed to copy system.json from container"
-  fi
 }
 

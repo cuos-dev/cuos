@@ -96,6 +96,40 @@ jq_config() {
   jq -r "$@" "${CONFIG_PATH}"
 }
 
+# Usage: replace_file_content file <content
+# Overwrites the file in place. Not a rename: /system.json is bind-mounted into
+# containers, and a mount holds the inode - after a rename they would go on
+# seeing the old file. A symlink is followed, so the file in /data is written.
+#
+# "cat >" empties the file before it writes, and on a full disk it stays empty.
+# So the content goes into file.new first - that is where a lack of space
+# shows, with the file still untouched - and only then over the file, once df
+# says the space is there: btrfs writes new blocks even in place. Should that
+# write fail all the same, file.new is left behind with the content.
+replace_file_content() {
+  local dest new size avail
+  dest="$(readlink -f -- "$1")" || return 1
+  new="${dest}.new"
+
+  if ! cat >"${new}" || ! sync -- "${new}"; then
+    rm -f -- "${new}"
+    return 1
+  fi
+
+  size="$(stat -c %s -- "${new}")" || return 1
+  avail="$(df --output=avail -B1 -- "$(dirname -- "${dest}")" | tail -n 1)" || return 1
+  if (( avail < size + 1048576 )); then
+    rm -f -- "${new}"
+    return 1
+  fi
+
+  if ! cat -- "${new}" >"${dest}" || ! sync -- "${dest}" \
+      || ! cmp -s -- "${new}" "${dest}"; then
+    return 1
+  fi
+  rm -f -- "${new}"
+}
+
 jq_replace() {
   # Usage: jq_replace jq_expression file
   # like jq, but with inplace edit function
@@ -108,7 +142,7 @@ jq_replace() {
 
     local new_config
     new_config="$(jq "${args[@]}" "${file}")" || exit "$?"
-    echo "${new_config}" >"${file}"
+    echo "${new_config}" | replace_file_content "${file}"
 
   ) 200>"/tmp/jq_replace.lock"
 }

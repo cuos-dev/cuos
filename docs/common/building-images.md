@@ -41,8 +41,8 @@ Which platforms exist and how well each is supported is in
 can build:
 
 - **Cross-architecture builds work.** The OS image is pulled with `--platform`,
-  then `docker export`ed and unpacked into the BTRFS subvolume
-  (`updater/perform_update.sh`). Nothing from the target rootfs is executed, so
+  then `docker export`ed and unpacked into the slot
+  (`export_rootfs` in `updater/lib/image.sh`). Nothing from the target rootfs is executed, so
   the build host's architecture does not matter. The LXC target is the
   exception: it runs `first-run.sh` inside the container
   (`image-factory/create_image.sh`), which needs binfmt/QEMU emulation for a

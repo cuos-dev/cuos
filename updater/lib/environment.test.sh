@@ -9,8 +9,6 @@ trap "rm -rf '${WORK_DIR}'" EXIT
 
 export TARGET_ROOT="${WORK_DIR}/os"
 export TARGET_BOOT="${WORK_DIR}/boot"
-export INSTALLIMAGE="true"
-export INSTALLGRUB="false"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/../../system/cuos/lib-test.sh"
@@ -29,6 +27,7 @@ docker_ensure() { echo "docker_ensure $1" >>"${LOG}"; }
 docker_cleanup() { echo "docker_cleanup ${1:-<own>}" >>"${LOG}"; }
 docker_stop() { echo "docker_stop" >>"${LOG}"; }
 docker() { :; }
+update-ca-certificates() { :; }
 
 steps_of() {
   : >"${LOG}"
@@ -72,11 +71,5 @@ expect_rc "with_environment: a raise in the task ends the run" 107 \
 expect "with_environment: and the trap still unmounts" \
   "mount docker_ensure ${TARGET_ROOT}/docker docker_cleanup <own> umount " \
   steps_of task_that_raises
-
-no_target_device() {
-  # shellcheck disable=SC2034
-  ( INSTALLGRUB="true"; TARGET_DEVICE="${WORK_DIR}/absent"; with_environment task_that_works )
-}
-expect_rc "with_environment: no target device" 90 rc_of no_target_device
 
 summary
