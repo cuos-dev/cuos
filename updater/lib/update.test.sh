@@ -309,6 +309,7 @@ removals() {
 }
 
 export PINNED_DIGEST=""
+export REMOTE_DIGEST=""
 
 # Same tag: the tag has moved on to the running image, the standby's image is
 # left with its digest reference alone.
@@ -343,6 +344,16 @@ remove_standby_image >/dev/null 2>&1
 PINNED_DIGEST=""
 expect "remove_standby_image: never the image about to be installed" "0" removals
 
+# After a rollback the standby slot holds the newer system, and an unpinned
+# update to it finds its digest at the registry.
+reset_images
+MOCK_REF["${REPO}@sha256:ffff"]="id-target"
+standby_installed_from "${REPO}:development@sha256:ffff"
+REMOTE_DIGEST="sha256:ffff"
+remove_standby_image >/dev/null 2>&1
+REMOTE_DIGEST=""
+expect "remove_standby_image: never what the registry has for the tag" "0" removals
+
 reset_images
 MOCK_REF["${REPO}@sha256:eeee"]="id-active"
 standby_installed_from "${REPO}:mirror@sha256:eeee"
@@ -360,6 +371,8 @@ remove_standby_image >/dev/null 2>&1
 expect "remove_standby_image: an image the daemon does not have" "0" removals
 
 # Space. 300 MiB have to be left: free + standby slot - what the update needs.
+# The standby slot counts only once it is gone, after the pull: the download
+# itself has to fit beside it.
 reset_images
 MOCK_AVAIL_KB="$(( 2300 * 1024 ))"
 expect_rc "check_space_before_pull: 2300 MiB free, no standby, 2 x 1000 needed" 0 \
@@ -372,6 +385,23 @@ MOCK_SLOT_KB="$(( 900 * 1024 ))"
 MOCK_AVAIL_KB="$(( 1400 * 1024 ))"
 expect_rc "check_space_before_pull: the standby slot it frees counts" 0 \
   rc_of check_space_before_pull
+# The reviewer's case: the end state leaves 400 MiB, but the download fills the
+# disk to nothing while the slot is still there.
+MOCK_SLOT_KB="$(( 1200 * 1024 ))"
+MOCK_AVAIL_KB="$(( 800 * 1024 ))"
+MOCK_BYTES["id-active"]="$(( 800 * MiB ))"
+expect_rc "check_space_before_pull: not before the slot is gone - the download has to fit beside it" 101 \
+  rc_of check_space_before_pull
+MOCK_AVAIL_KB="$(( 1100 * 1024 ))"
+expect_rc "check_space_before_pull: 1100 MiB free, 800 to download beside the slot" 0 \
+  rc_of check_space_before_pull
+MOCK_BYTES["id-active"]="$(( 1000 * MiB ))"
+MOCK_AVAIL_KB="$(( 1299 * 1024 ))"
+expect_rc "check_space_before_pull: a pull never counts the slot" 101 \
+  rc_of check_space_before_pull pull
+MOCK_AVAIL_KB="$(( 1300 * 1024 ))"
+expect_rc "check_space_before_pull: a pull needs room for the download only" 0 \
+  rc_of check_space_before_pull pull
 MOCK_SLOT_KB=0
 MOCK_DF_UNSUPPORTED=1
 expect_rc "check_space_before_pull: a df without -P is not guessed at" 100 \
@@ -394,10 +424,14 @@ expect_rc "check_space_before_pull: a pinned image fetched before is not counted
   rc_of check_space_before_pull
 PINNED_DIGEST=""
 MOCK_REF["${IMAGE}"]="id-target"
-expect_rc "check_space_before_pull: so is a tag moved by an earlier pull" 0 \
+REMOTE_DIGEST="sha256:ffff"
+expect_rc "check_space_before_pull: nor is a tag fetched before, if the registry still has it" 0 \
   rc_of check_space_before_pull
-MOCK_REF["${IMAGE}"]="id-active"
-expect_rc "check_space_before_pull: a tag still on the running image is not" 101 \
+REMOTE_DIGEST="sha256:9999"
+expect_rc "check_space_before_pull: a tag fetched before, the registry has moved on" 101 \
+  rc_of check_space_before_pull
+REMOTE_DIGEST=""
+expect_rc "check_space_before_pull: no answer from the registry, nothing taken as here" 101 \
   rc_of check_space_before_pull
 
 # After the pull: the image is in docker's storage, the slot is what is left.
@@ -418,6 +452,28 @@ refs_after_failed_check() {
 }
 expect "check_space_after_pull: and only that one" \
   "${REPO}@sha256:aaaa id-active" refs_after_failed_check
+MOCK_AVAIL_KB="$(( 1300 * 1024 ))"
+expect_rc "check_space_after_pull: a pull leaves the reserve and can be installed" 0 \
+  rc_of check_space_after_pull pull
+MOCK_AVAIL_KB="$(( 299 * 1024 ))"
+mkdir -p "${CONTAINER_ROOTFS_FS}"
+MOCK_SLOT_KB="$(( 2000 * 1024 ))"
+expect_rc "check_space_after_pull: a pull that ate into the reserve, the slot not counted" 101 \
+  rc_of check_space_after_pull pull
+expect_rc "check_space_after_pull: an update deletes the slot before it unpacks" 0 \
+  rc_of check_space_after_pull
+MOCK_SLOT_KB=0
+rm -rf "${CONTAINER_ROOTFS_FS}"
+
+# The running image under another registry name - update_registry_proxy
+# changed. Its digest is new to /etc/image, its id is not.
+reset_images
+MOCK_REF["${IMAGE}"]="id-active"
+MOCK_AVAIL_KB="$(( 1000 * 1024 ))"
+rc_of check_space_after_pull >/dev/null
+expect "check_space_after_pull: never removes the running image under another name" "0" removals
+
+reset_images
 unset "MOCK_REF[${IMAGE}]"
 expect_rc "check_space_after_pull: no size to read" 100 rc_of check_space_after_pull
 unset MOCK_AVAIL_KB
@@ -517,6 +573,17 @@ expect "perform_update: a digest mismatch leaves the standby slot alone" \
   "rc=104 slot=${REPO}:v1@sha256:eeee" run_pinned perform_update
 MOCK_REPO_DIGEST="sha256:ffff"
 
+pulls() {
+  grep -c "^image pull$" "${WORK_DIR}/docker.log" || true
+}
+
+# The runs are subshells, so what they removed is read from the log.
+new_image_removed() {
+  grep -c "^image rm id-new$" "${WORK_DIR}/docker.log" || true
+}
+
+# The new image turns out larger than the estimate: the check after the pull
+# catches it.
 with_standby
 MOCK_REMOTE_DIGEST="sha256:aaaa"
 expect "perform_update: nothing new, and nothing is removed" \
@@ -529,8 +596,19 @@ MOCK_AVAIL_KB="$(( 1200 * 1024 ))"
 MOCK_BYTES["id-active"]="$(( 400 * MiB ))"
 expect "perform_update: too little room for the new image aborts before the slot goes" \
   "rc=101 slot=${REPO}:v1@sha256:eeee" run_and_look perform_update
+expect "perform_update: after the pull" "1" pulls
 expect "perform_update: and the slot was never synced away" "0" \
   grep -c "^btrfs sync" "${WORK_DIR}/docker.log"
+
+# The estimate says no: nothing is downloaded.
+with_standby
+MOCK_AVAIL_KB="$(( 800 * 1024 ))"
+MOCK_SLOT_KB="$(( 1200 * 1024 ))"
+MOCK_BYTES["id-active"]="$(( 800 * MiB ))"
+expect "perform_update: a download that would fill the disk is not started" \
+  "rc=101 slot=${REPO}:v1@sha256:eeee" run_and_look perform_update
+expect "perform_update: nothing pulled" "0" pulls
+MOCK_SLOT_KB=0
 
 with_standby
 expect "perform_pull: fetches, and the standby slot stays" \
@@ -539,8 +617,17 @@ expect "perform_pull: and so does the standby's image" "0" removals
 
 with_standby
 MOCK_AVAIL_KB="$(( 1200 * 1024 ))"
+expect "perform_pull: no room for the download, nothing fetched" \
+  "rc=101 slot=${REPO}:v1@sha256:eeee" run_and_look perform_pull
+expect "perform_pull: nothing pulled" "0" pulls
+
+with_standby
+MOCK_AVAIL_KB="$(( 1200 * 1024 ))"
+MOCK_BYTES["id-active"]="$(( 400 * MiB ))"
 expect "perform_pull: no room for a later update, nothing kept" \
   "rc=101 slot=${REPO}:v1@sha256:eeee" run_and_look perform_pull
+expect "perform_pull: pulled" "1" pulls
+expect "perform_pull: and removed again" "1" new_image_removed
 
 with_standby
 MOCK_REMOTE_DIGEST="sha256:aaaa"
