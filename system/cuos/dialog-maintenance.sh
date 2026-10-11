@@ -380,6 +380,18 @@ diagnostics_netcheck() {
       -R
 }
 
+# In less like the logs: the report is longer than a dialog box, and less shows
+# each check as it finishes.
+diagnostics_netcheck() {
+  (
+    echo -e "\033[1;36m[ Update Connection Check - Press 'Q' to quit the view ]\033[0m";
+    "${SCRIPT_DIR}/netcheck.sh" 2>&1
+  ) | \
+    LESSSECURE=1 less \
+      --header=1,0 \
+      -R
+}
+
 check_password() {
   local hash
   hash="$1"
