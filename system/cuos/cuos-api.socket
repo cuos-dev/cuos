@@ -2,7 +2,7 @@
 Description=CuOS: API socket
 
 [Socket]
-ListenStream=/var/run/cuos.sock
+ListenStream=/run/cuos.sock
 SocketMode=0666
 Accept=yes
 TimeoutSec=0
