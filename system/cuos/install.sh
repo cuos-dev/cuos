@@ -20,3 +20,9 @@ fi
 
 systemctl enable cuos-init.service cuos-api.socket cuos-app-init.service \
   || exit 1
+
+# The image is replaced as a whole, never upgraded by apt, and holds no ext4 on
+# LVM for e2scrub to check.
+systemctl mask apt-daily.timer apt-daily-upgrade.timer dpkg-db-backup.timer \
+  e2scrub_all.timer || exit 1
+
