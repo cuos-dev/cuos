@@ -1,0 +1,13 @@
+[Unit]
+Description=CuOS: Scrub the btrfs file system monthly
+
+[Timer]
+OnCalendar=monthly
+# Systems sharing a hypervisor's storage must not all read their disks at once.
+# Fixed per machine (from the machine id), so each keeps its own day.
+RandomizedDelaySec=4w
+FixedRandomDelay=yes
+Persistent=true
+
+[Install]
+WantedBy=timers.target
