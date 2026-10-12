@@ -10,8 +10,6 @@ ln -sf "${SCRIPT_DIR}/cuos-init.service" /etc/systemd/system/ || exit 1
 ln -sf "${SCRIPT_DIR}/cuos-api@.service" /etc/systemd/system/ || exit 1
 ln -sf "${SCRIPT_DIR}/cuos-api.socket" /etc/systemd/system/ || exit 1
 ln -sf "${SCRIPT_DIR}/cuos-app-init.service" /etc/systemd/system/ || exit 1
-ln -sf "${SCRIPT_DIR}/cuos-btrfs-scrub.service" /etc/systemd/system/ || exit 1
-ln -sf "${SCRIPT_DIR}/cuos-btrfs-scrub.timer" /etc/systemd/system/ || exit 1
 
 ln -sf "${SCRIPT_DIR}"/api.sh /usr/bin/cuos || exit 1
 
@@ -28,7 +26,3 @@ systemctl enable cuos-init.service cuos-api.socket cuos-app-init.service \
 systemctl mask apt-daily.timer apt-daily-upgrade.timer dpkg-db-backup.timer \
   e2scrub_all.timer || exit 1
 
-# An LXC container has no file system of its own to scrub.
-if [[ "${TYPE}" != "lxc" ]]; then
-  systemctl enable cuos-btrfs-scrub.timer || exit 1
-fi

@@ -1,9 +1,0 @@
-[Unit]
-Description=CuOS: Scrub the btrfs file system
-
-[Service]
-Type=oneshot
-# Covers both slots and /data: they are subvolumes of one file system.
-ExecStart=/usr/bin/btrfs scrub start -B -c 3 /
-Nice=19
-IOSchedulingClass=idle
