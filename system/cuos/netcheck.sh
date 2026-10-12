@@ -747,8 +747,10 @@ check_credentials() {
   case "$(classify_login "${rc}" "${out}")" in
     ok) record credentials ok "accepted" ;;
     rejected) record credentials error "rejected" "${rec}" ;;
-    denied) record credentials error "accepted, but access denied" \
-      "The access data for the update registry is accepted, but does not give access to the updates (licence or permissions). Please check it, or contact your support." ;;
+    # ghcr.io answers wrong access data with "denied" too, not only access
+    # data without the rights (tried 2026-10-11), so this cannot say which.
+    denied) record credentials error "access denied" \
+      "The update registry refuses this access data: it is wrong, or it does not give access to the updates (licence or permissions). Please check it, or contact your support." ;;
     *)
       detail "$(grep -m 1 -i 'error' <<<"${out}" | cut -c 1-200)"
       record credentials error "the docker daemon could not log in" \
