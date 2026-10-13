@@ -5,9 +5,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
 LABEL dev.cuos.system=system
-# The boot chain image-factory writes for this image, the same type install.sh
-# activates below. The factory refuses an image without it.
-LABEL dev.cuos.boot=grub
+# The boot chain, named once: image-factory reads the label to write the boot
+# loader, install.sh picks the install-kernel script by it. The factory refuses
+# an image without the label.
+ARG CUOS_BOOT=grub
+LABEL dev.cuos.boot=${CUOS_BOOT}
 
 ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
 
@@ -117,4 +119,4 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
 
 # Install CuOS scripts (systemd required)
 COPY cuos/ /usr/local/cuos/
-RUN /usr/local/cuos/install.sh grub
+RUN /usr/local/cuos/install.sh "${CUOS_BOOT}"
