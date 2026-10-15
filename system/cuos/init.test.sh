@@ -65,10 +65,9 @@ expect "write_etc_hosts: fqdn and short name" "$(printf '127.0.1.1\tedge02.examp
 VIRT_TYPE_SAVED="${VIRT_TYPE}"
 VIRT_TYPE=lxc
 echo "10.0.0.1 from-pve" >"${T_FILE_ETC_HOSTS}"
-expect "write_etc_hosts: lxc keeps a filled file" "10.0.0.1 from-pve" hosts_line edge02 10.0.0.1
+expect "write_etc_hosts: lxc leaves the file alone" "10.0.0.1 from-pve" hosts_line edge02 10.0.0.1
 : >"${T_FILE_ETC_HOSTS}"
-expect "write_etc_hosts: lxc fills an empty file" "$(printf '127.0.1.1\tedge02')" \
-  hosts_line edge02 127.0.1.1
+expect "write_etc_hosts: lxc leaves an empty file alone" "" hosts_line edge02 127.0.1.1
 VIRT_TYPE="${VIRT_TYPE_SAVED}"
 rm -f "${T_FILE_ETC_HOSTS}"
 unset T_FILE_ETC_HOSTS

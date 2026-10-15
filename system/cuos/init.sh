@@ -223,12 +223,11 @@ set_hostname() {
 }
 
 # The rootfs comes out of "docker export", which leaves /etc/hosts as the empty
-# placeholder docker mounts its own over - so nothing resolves localhost. Docker
-# and Proxmox write the file of a container themselves; there it is only filled
-# in when nobody did.
+# placeholder docker mounts its own over - so nothing resolves localhost. In a
+# container, docker or Proxmox writes the file.
 write_etc_hosts() {
   local fqdn="$1" file="${T_FILE_ETC_HOSTS:-"/etc/hosts"}" names
-  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]] && [[ -s "${file}" ]]; then
+  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]]; then
     return
   fi
   names="${fqdn}"
