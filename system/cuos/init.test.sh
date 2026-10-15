@@ -53,6 +53,26 @@ rm -f "${T_FILE_PID1_ENVIRON}"
 expect "container_env: no environ" "" container_env CUOS_IMAGE
 unset T_FILE_PID1_ENVIRON
 
+T_FILE_ETC_HOSTS="$(mktemp)"
+export T_FILE_ETC_HOSTS
+hosts_line() {
+  write_etc_hosts "$1" && grep "^$2" "${T_FILE_ETC_HOSTS}"
+}
+expect "write_etc_hosts: localhost" "$(printf '127.0.0.1\tlocalhost')" hosts_line edge02 127.0.0.1
+expect "write_etc_hosts: own name" "$(printf '127.0.1.1\tedge02')" hosts_line edge02 127.0.1.1
+expect "write_etc_hosts: fqdn and short name" "$(printf '127.0.1.1\tedge02.example.com edge02')" \
+  hosts_line edge02.example.com 127.0.1.1
+VIRT_TYPE_SAVED="${VIRT_TYPE}"
+VIRT_TYPE=lxc
+echo "10.0.0.1 from-pve" >"${T_FILE_ETC_HOSTS}"
+expect "write_etc_hosts: lxc keeps a filled file" "10.0.0.1 from-pve" hosts_line edge02 10.0.0.1
+: >"${T_FILE_ETC_HOSTS}"
+expect "write_etc_hosts: lxc fills an empty file" "$(printf '127.0.1.1\tedge02')" \
+  hosts_line edge02 127.0.1.1
+VIRT_TYPE="${VIRT_TYPE_SAVED}"
+rm -f "${T_FILE_ETC_HOSTS}"
+unset T_FILE_ETC_HOSTS
+
 export CONFIG_PATH="${SCRIPT_DIR}/init.test.system.json"
 export T_FILE_DOCKER_DAEMON="/dev/stdout"
 

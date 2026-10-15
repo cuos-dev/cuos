@@ -216,9 +216,30 @@ set_hostname() {
   elif [[ -n "${OLD_HOSTNAME}" ]]; then
       config_local_patch "$(jq -nc --arg hn "${OLD_HOSTNAME}" '{hostname: $hn}')"
   fi
+  write_etc_hosts "$(hostname)"
   if [[ -n "${REINIT:-}" && "${OLD_HOSTNAME}" != "${SYSTEM_HOSTNAME}" ]]; then
     systemctl restart networking
   fi
+}
+
+# The rootfs comes out of "docker export", which leaves /etc/hosts as the empty
+# placeholder docker mounts its own over - so nothing resolves localhost. Docker
+# and Proxmox write the file of a container themselves; there it is only filled
+# in when nobody did.
+write_etc_hosts() {
+  local fqdn="$1" file="${T_FILE_ETC_HOSTS:-"/etc/hosts"}" names
+  if [[ "${VIRT_TYPE}" == "lxc" || "${VIRT_TYPE}" == "docker" ]] && [[ -s "${file}" ]]; then
+    return
+  fi
+  names="${fqdn}"
+  [[ "${fqdn%%.*}" == "${fqdn}" ]] || names+=" ${fqdn%%.*}"
+  cat >"${file}" <<EOF_HOSTS
+127.0.0.1	localhost
+127.0.1.1	${names}
+::1	localhost ip6-localhost ip6-loopback
+ff02::1	ip6-allnodes
+ff02::2	ip6-allrouters
+EOF_HOSTS
 }
 
 # Helper to convert dotted netmask to prefix length (e.g. 255.255.255.0 -> 24)
