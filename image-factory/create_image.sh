@@ -137,6 +137,7 @@ build_lxc_image() {
   LXC_CONTAINER="cuos-lxc-$$"
   docker run -it -d \
     --pull=never \
+    --platform "${TARGET_PLATFORM}" \
     --name "${LXC_CONTAINER}" \
     "${IMAGE}" || raise "Failed to run container"
   docker exec "${LXC_CONTAINER}" /usr/local/cuos/first-run.sh \

@@ -34,8 +34,13 @@ target_platform() {
     orangepi-zero3)
       platform="linux/arm64"
       ;;
-    # A container runs on its host's architecture, which the daemon knows.
-    lxc|"")
+    # Fixed rather than the daemon's: the image is built for Proxmox, which is
+    # amd64, and a build on an arm64 Mac would otherwise ask for an arm64
+    # image that does not exist.
+    lxc)
+      platform="linux/amd64"
+      ;;
+    "")
       ;;
     *)
       echo "Unknown architecture: ${arch}" >&2

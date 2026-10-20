@@ -44,9 +44,9 @@ can build:
   then `docker export`ed and unpacked into the slot
   (`export_rootfs` in `updater/lib/image.sh`). Nothing from the target rootfs is executed, so
   the build host's architecture does not matter. The LXC target is the
-  exception: it runs `first-run.sh` inside the container
-  (`image-factory/create_image.sh`), which needs binfmt/QEMU emulation for a
-  foreign architecture.
+  exception: it is always `linux/amd64`, and it runs `first-run.sh` inside the
+  container (`image-factory/create_image.sh`), which needs binfmt/QEMU
+  emulation on any other host — an arm64 Mac included.
 - **The OS image is chosen per platform.** A configuration can carry
   `os_image` plus a `<platform>_image` key per platform — `rpi-arm64_image`,
   `lxc_image`, and so on — each with its own `_version` and `_digest`. The

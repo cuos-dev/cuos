@@ -177,8 +177,8 @@ expect "target_platform: orangepi-zero3" "linux/arm64" target_platform "orangepi
 expect "target_platform: unset asks the daemon" "linux/amd64" target_platform ""
 MOCK_SERVER_PLATFORM="linux/arm"
 expect "target_platform: the daemon's linux/arm is armv7" "linux/arm/v7" target_platform ""
+expect "target_platform: lxc is amd64 whatever the daemon runs" "linux/amd64" target_platform "lxc"
 MOCK_SERVER_PLATFORM="linux/amd64"
-expect "target_platform: lxc runs on the host's" "linux/amd64" target_platform "lxc"
 expect_rc "target_platform: unknown architecture" 1 rc_of target_platform "sparc64"
 
 export CONFIG_PATH="${SCRIPT_DIR}/update.test.system.json"
