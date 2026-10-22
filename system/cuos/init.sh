@@ -799,7 +799,8 @@ configure_ssh_server() {
   fi
 }
 
-# The resolvers of the containers inside a docker container, as a JSON list;
+# The resolvers of the containers inside, when CuOS runs as a docker container
+# for testing (cuos-release docker-create), as a JSON list;
 # empty, and docker decides, everywhere else. Docker gives the container its
 # embedded resolver, 127.0.0.11, which only answers inside the container's own
 # network namespace; the docker inside drops it and falls back to 8.8.8.8, which
@@ -851,8 +852,16 @@ forward_embedded_dns() {
 
 configure_docker() {
   local file_docker_daemon="${T_FILE_DOCKER_DAEMON:-"/etc/docker/daemon.json"}"
+  # When CuOS runs as a docker container for testing (cuos-release
+  # docker-create), the networks of the docker outside - on a CuOS host,
+  # from 10.235.240.0/20 - are where this system is; the docker inside takes
+  # the /20 before it. A default and not a value in the configuration, which an
+  # IaC repository's system.json replaces.
+  local default_net_space="10.235.240.0/20"
+  [[ "${VIRT_TYPE}" == "docker" ]] && default_net_space="10.235.224.0/20"
   local docker_net_space
-  docker_net_space="$(jq -r '.docker_net_space // "10.235.240.0/20"' "${CONFIG_PATH}")"
+  docker_net_space="$(jq -r --arg default "${default_net_space}" \
+    '.docker_net_space // $default' "${CONFIG_PATH}")"
   local docker_net_space_size
   docker_net_space_size="$(jq -r '.docker_net_space_size // 26' "${CONFIG_PATH}")"
   # /20 with /26 networks: 60 networks a 62 hosts

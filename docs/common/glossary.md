@@ -40,7 +40,7 @@ Canonical terminology used across the CuOS project. Use these precise forms in d
 | `lxc_image` | LXC optimized OS build | `...-lxc` |
 | `updater_image` | Update mechanism image | `ghcr.io/cuos-dev/cuos-updater` |
 | `init_image` | CuOS Init App image | `ghcr.io/org/app` |
-| `docker_net_space` | Pool for dynamic networks | `10.235.240.0/20` |
+| `docker_net_space` | Pool for dynamic networks | `10.235.240.0/20`; `10.235.224.0/20` when CuOS itself runs as a Docker container for testing ([`docker-create`](https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/running-in-docker.md)) |
 | `custom_ca_certs` | Additional trust anchors (PEM) | Inline string or array |
 | `network` | Array of interface configs | DHCP or static modes |
 

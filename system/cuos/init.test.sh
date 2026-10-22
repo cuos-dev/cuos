@@ -132,16 +132,24 @@ CONFIG_PATH="$(mktemp)"
 VIRT_TYPE_SAVED="${VIRT_TYPE}"
 
 echo "nameserver 127.0.0.11" >"${T_FILE_RESOLV_CONF}"
-echo '{"docker_net_space": "10.236.0.0/20"}' >"${CONFIG_PATH}"
+echo '{"docker_net_space": "10.235.224.0/20"}' >"${CONFIG_PATH}"
 expect "configure_docker: no dns outside a docker container" '[null,null]' dns_of
 
 VIRT_TYPE=docker
 expect "configure_docker: docker0 forwarded to the embedded resolver" \
-  '[["10.236.0.1"],"10.236.0.1/26"]' dns_of
+  '[["10.235.224.1"],"10.235.224.1/26"]' dns_of
 expect "configure_docker: ... for udp and tcp, on the ports docker picked" \
-  "iptables -t nat -I PREROUTING -d 10.236.0.1 -p udp --dport 53 -j DNAT --to-destination 127.0.0.11:49749
-iptables -t nat -I PREROUTING -d 10.236.0.1 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.11:35059" \
+  "iptables -t nat -I PREROUTING -d 10.235.224.1 -p udp --dport 53 -j DNAT --to-destination 127.0.0.11:49749
+iptables -t nat -I PREROUTING -d 10.235.224.1 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.11:35059" \
   cat "${IPTABLES_LOG}"
+
+echo '{}' >"${CONFIG_PATH}"
+expect "configure_docker: in a docker container the /20 before the default" \
+  '[["10.235.224.1"],"10.235.224.1/26"]' dns_of
+VIRT_TYPE=lxc
+expect "configure_docker: elsewhere the default" \
+  '"10.235.240.0/20"' eval 'T_FILE_DOCKER_DAEMON=/dev/stdout configure_docker | jq -c ".\"default-address-pools\"[0].base"'
+VIRT_TYPE=docker
 
 echo '{"network": [{"dns-server": ["10.0.0.53", "10.0.0.54"]}, {"dns-server": "10.0.0.54 10.0.0.55"}]}' >"${CONFIG_PATH}"
 expect "configure_docker: the dns-servers of the configuration, each once" \

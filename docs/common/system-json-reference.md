@@ -18,7 +18,7 @@ Schema for configuring CuOS system parameters including networking, update sourc
 |**update\_registry\_password**|`string`|Password for accessing the update registry<br/>||
 |**hostname**|`string`|Fully Qualified Domain Name (FQDN) of the system<br/>||
 |[**network**](#network)|`object[]`|List of network interface configurations<br/>||
-|**docker\_net\_space**|`string`|CIDR notation for Docker container network space (e.g., '10.235.240.0/20')<br/>Default: `"10.235.240.0/20"`<br/>Pattern: `^\d{1,3}(\.\d{1,3}){3}/\d{1,2}$`<br/>||
+|**docker\_net\_space**|`string`|CIDR notation for Docker container network space (e.g., '10.235.240.0/20'). When CuOS itself runs as a Docker container for testing (cuos-release 'tool.sh docker-create', https://github.com/cuos-dev/cuos-release/blob/HEAD/docs/running-in-docker.md), the default is 10.235.224.0/20, apart from the networks of a CuOS host<br/>Default: `"10.235.240.0/20"`<br/>Pattern: `^\d{1,3}(\.\d{1,3}){3}/\d{1,2}$`<br/>||
 |**docker\_net\_space\_size**|`number`|Subnet size for Docker container networks (CIDR suffix)<br/>Default: `26`<br/>Minimum: `0`<br/>Maximum: `32`<br/>||
 |**custom\_ca\_certs**||Custom CA certificates to be trusted by the system<br/>||
 |**swap\_size**|`number`|Swap size in GB (will only be extended if enough disk space is available)<br/>Default: `8`<br/>Minimum: `0`<br/>||
@@ -110,4 +110,4 @@ SSH public keys accepted for root login, written to /root/.ssh/authorized_keys o
 the schema CuOS validates `system.json` against at boot. Edit the schema, then run
 `npm run docs:system-json`.*
 
-<!-- schema-sha256: 33e40663b4c86ab8bce830c281948a7dab33e9aba07f69c75bbfc2b9900d7dee -->
+<!-- schema-sha256: 105ca915ecdf3a27102420cb608b66b66149bd7429c3ec28989bc8d9bc18d722 -->
