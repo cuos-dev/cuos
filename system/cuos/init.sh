@@ -799,6 +799,56 @@ configure_ssh_server() {
   fi
 }
 
+# The resolvers of the containers inside a docker container, as a JSON list;
+# empty, and docker decides, everywhere else. Docker gives the container its
+# embedded resolver, 127.0.0.11, which only answers inside the container's own
+# network namespace; the docker inside drops it and falls back to 8.8.8.8, which
+# networks that block public DNS never answer. The dns-servers of the
+# configuration come first. Without any, the address of docker0 is forwarded to
+# the embedded resolver, so that the containers inside resolve what the
+# container itself resolves - the other services of the compose project too.
+docker_dns() {
+  local bridge_address="$1"
+  local resolv_conf="${T_FILE_RESOLV_CONF:-"/etc/resolv.conf"}"
+  if [[ "${VIRT_TYPE}" != "docker" ]]; then
+    echo '[]'
+    return
+  fi
+  local servers
+  servers="$(jq -c '[(.network // [])[]["dns-server"] // empty
+    | if type == "array" then .[] else splits("[ ,]+") end
+    | select(. != "")]
+    | reduce .[] as $s ([]; if any(.[]; . == $s) then . else . + [$s] end)' "${CONFIG_PATH}")"
+  if [[ "${servers}" != "[]" ]]; then
+    echo "${servers}"
+  elif grep -qE '^nameserver[[:space:]]+127\.0\.0\.11([[:space:]]|$)' "${resolv_conf}" 2>/dev/null \
+      && forward_embedded_dns "${bridge_address}"; then
+    jq -nc --arg a "${bridge_address}" '[$a]'
+  else
+    echo '[]'
+  fi
+}
+
+# Docker's embedded resolver listens on 127.0.0.11, on ports it picks per start,
+# and only connections made inside the namespace are redirected there (nat
+# DOCKER_OUTPUT). Queries coming in from the docker inside are redirected the
+# same way; route_localnet lets them reach a loopback address at all.
+forward_embedded_dns() {
+  local address="$1" rules proto
+  local -A port=()
+  rules="$(iptables -t nat -S DOCKER_OUTPUT 2>/dev/null)" || return 1
+  for proto in udp tcp; do
+    port[${proto}]="$(echo "${rules}" \
+      | sed -n "s/.*-p ${proto} .*--to-destination 127\\.0\\.0\\.11:\\([0-9]*\\).*/\\1/p" | head -n 1)"
+    [[ -n "${port[${proto}]}" ]] || return 1
+  done
+  sysctl -qw net.ipv4.conf.all.route_localnet=1 || return 1
+  for proto in udp tcp; do
+    set -- -d "${address}" -p "${proto}" --dport 53 -j DNAT --to-destination "127.0.0.11:${port[${proto}]}"
+    iptables -t nat -C PREROUTING "$@" 2>/dev/null || iptables -t nat -I PREROUTING "$@" || return 1
+  done
+}
+
 configure_docker() {
   local file_docker_daemon="${T_FILE_DOCKER_DAEMON:-"/etc/docker/daemon.json"}"
   local docker_net_space
@@ -807,10 +857,20 @@ configure_docker() {
   docker_net_space_size="$(jq -r '.docker_net_space_size // 26' "${CONFIG_PATH}")"
   # /20 with /26 networks: 60 networks a 62 hosts
 
+  # docker0 gets the first network of the space; "bip" makes sure of it where
+  # its address is the resolver of the containers.
+  local base="${docker_net_space%/*}"
+  local bridge_address="${base%.*}.$(( ${base##*.} + 1 ))"
+  local dns
+  dns="$(docker_dns "${bridge_address}")"
+
   # 1 network a 254 hosts
   jq -n \
     --arg docker_net_space "${docker_net_space}" \
     --arg docker_net_space_size "${docker_net_space_size}" \
+    --arg bip "${bridge_address}/${docker_net_space_size}" \
+    --arg bridge_address "${bridge_address}" \
+    --argjson dns "${dns}" \
     '{
       "log-driver": "journald",
       "log-opts": {
@@ -837,7 +897,9 @@ configure_docker() {
         }
       },
       "seccomp-profile": "/etc/docker/seccomp-default.json"
-  }' >"${file_docker_daemon}"
+  }
+  + (if ($dns | length) > 0 then {dns: $dns} else {} end)
+  + (if $dns == [$bridge_address] then {bip: $bip} else {} end)' >"${file_docker_daemon}"
 }
 
 # Import custom CA certificates from system.json (if present)

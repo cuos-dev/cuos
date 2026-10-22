@@ -105,6 +105,57 @@ expect "configure_docker" \
 }' \
   configure_docker
 
+# The resolvers of the docker inside a docker container.
+dns_of() {
+  T_FILE_DOCKER_DAEMON="/dev/stdout" configure_docker | jq -c '[.dns, .bip]'
+}
+# Called from configure_docker, which shellcheck does not follow.
+# shellcheck disable=SC2317,SC2329
+iptables() {
+  case "$*" in
+    "-t nat -S DOCKER_OUTPUT")
+      echo "-A DOCKER_OUTPUT -d 127.0.0.11/32 -p tcp -m tcp --dport 53 -j DNAT --to-destination 127.0.0.11:35059"
+      echo "-A DOCKER_OUTPUT -d 127.0.0.11/32 -p udp -m udp --dport 53 -j DNAT --to-destination 127.0.0.11:49749" ;;
+    "-t nat -C "*) return 1 ;;
+    *) echo "iptables $*" >>"${IPTABLES_LOG}" ;;
+  esac
+}
+# shellcheck disable=SC2317,SC2329
+sysctl() {
+  :
+}
+IPTABLES_LOG="$(mktemp)"
+export T_FILE_RESOLV_CONF
+T_FILE_RESOLV_CONF="$(mktemp)"
+CONFIG_PATH_SAVED="${CONFIG_PATH}"
+CONFIG_PATH="$(mktemp)"
+VIRT_TYPE_SAVED="${VIRT_TYPE}"
+
+echo "nameserver 127.0.0.11" >"${T_FILE_RESOLV_CONF}"
+echo '{"docker_net_space": "10.236.0.0/20"}' >"${CONFIG_PATH}"
+expect "configure_docker: no dns outside a docker container" '[null,null]' dns_of
+
+VIRT_TYPE=docker
+expect "configure_docker: docker0 forwarded to the embedded resolver" \
+  '[["10.236.0.1"],"10.236.0.1/26"]' dns_of
+expect "configure_docker: ... for udp and tcp, on the ports docker picked" \
+  "iptables -t nat -I PREROUTING -d 10.236.0.1 -p udp --dport 53 -j DNAT --to-destination 127.0.0.11:49749
+iptables -t nat -I PREROUTING -d 10.236.0.1 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.11:35059" \
+  cat "${IPTABLES_LOG}"
+
+echo '{"network": [{"dns-server": ["10.0.0.53", "10.0.0.54"]}, {"dns-server": "10.0.0.54 10.0.0.55"}]}' >"${CONFIG_PATH}"
+expect "configure_docker: the dns-servers of the configuration, each once" \
+  '[["10.0.0.53","10.0.0.54","10.0.0.55"],null]' dns_of
+
+echo "nameserver 10.0.2.3" >"${T_FILE_RESOLV_CONF}"
+echo '{}' >"${CONFIG_PATH}"
+expect "configure_docker: a resolver of its own is docker's to use" '[null,null]' dns_of
+
+VIRT_TYPE="${VIRT_TYPE_SAVED}"
+rm -f "${CONFIG_PATH}" "${T_FILE_RESOLV_CONF}" "${IPTABLES_LOG}"
+CONFIG_PATH="${CONFIG_PATH_SAVED}"
+unset T_FILE_RESOLV_CONF -f iptables sysctl
+
 dpkg-reconfigure() {
   :
 }
