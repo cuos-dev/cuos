@@ -5,6 +5,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
 LABEL dev.cuos.system=updater
+# CuOS's own files; the packages in the image carry their own licences.
+LABEL org.opencontainers.image.licenses=Apache-2.0
 
 # One entrypoint per action, under /api/ like the CuOS Init App's hooks. The
 # host starts an update without --entrypoint - the updater of an older release,
@@ -33,8 +35,9 @@ RUN apk add --no-cache jq btrfs-progs util-linux bash tar
 ## Allow systemd to run inside Docker
 #VOLUME [ "/sys/fs/cgroup" ]
 
-COPY updater.sh pull.sh shell.sh /usr/local/updater/
-COPY lib/ /usr/local/updater/lib/
+COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
+COPY updater/updater.sh updater/pull.sh updater/shell.sh /usr/local/updater/
+COPY updater/lib/ /usr/local/updater/lib/
 
 RUN mkdir /api \
   && ln -s /usr/local/updater/updater.sh /api/update \

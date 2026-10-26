@@ -7,14 +7,17 @@ raise() {
 	exit 1
 }
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 IMAGE="${IMAGE:-ghcr.io/cuos-dev/cuos-system}"
-BUILD_CONTEXT="${BUILD_CONTEXT:-.}"
+# The repository root: the image takes LICENSE.txt and NOTICE from there.
+BUILD_CONTEXT="${BUILD_CONTEXT:-"${SCRIPT_DIR}/.."}"
 
 if [[ -z "${TYPE:-}" ]]; then
-	DOCKERFILE="Dockerfile"
+	DOCKERFILE="${SCRIPT_DIR}/Dockerfile"
 else
 	IMAGE="${IMAGE}-${TYPE}"
-	DOCKERFILE="Dockerfile.${TYPE}"
+	DOCKERFILE="${SCRIPT_DIR}/Dockerfile.${TYPE}"
 fi
 
 if docker buildx version >/dev/null 2>&1; then

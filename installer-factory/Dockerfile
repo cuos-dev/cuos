@@ -4,6 +4,9 @@ FROM debian:13.7-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
+# CuOS's own files; the packages in the image carry their own licences.
+LABEL org.opencontainers.image.licenses=Apache-2.0
+
 ENTRYPOINT ["/create_iso.sh"]
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -31,9 +34,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     xorriso \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY prepare_iso.sh /
-COPY initramfs-tools/ /etc/initramfs-tools/
+COPY installer-factory/prepare_iso.sh /
+COPY installer-factory/initramfs-tools/ /etc/initramfs-tools/
 
 RUN /prepare_iso.sh
 
-COPY create_iso.sh patch_iso.sh /
+COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
+COPY installer-factory/create_iso.sh installer-factory/patch_iso.sh /

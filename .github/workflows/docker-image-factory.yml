@@ -9,6 +9,8 @@ on:
     tags:
       - '*'
     paths:
+      - LICENSE.txt
+      - NOTICE
       - image-factory/**
       - updater/*.sh
       - .github/workflows/docker-image-factory.yml
@@ -50,6 +52,7 @@ jobs:
             TAG=${TAG//\//-}
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image - cuos-image-factory
         uses: docker/build-push-action@v7
@@ -62,7 +65,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.run_id }}
+            org.opencontainers.image.created=${{ steps.vars.outputs.created }}
             org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
           platforms: linux/amd64,linux/arm64
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-image-factory:buildcache

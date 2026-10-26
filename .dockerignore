@@ -1,1 +1,7 @@
 output/
+.git/
+node_modules/
+system/.*.un~
+system/.*.swp
+system/*.test.*
+system/lib-test.sh

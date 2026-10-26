@@ -15,6 +15,9 @@ FROM docker:29.8.2-alpine3.24
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
 
+# CuOS's own files; the packages in the image carry their own licences.
+LABEL org.opencontainers.image.licenses=Apache-2.0
+
 ENTRYPOINT ["/create_image.sh"]
 
 # tar: GNU tar, needed to restore xattrs when unpacking the exported rootfs.
@@ -34,6 +37,7 @@ RUN apk add --no-cache grub
 COPY --from=grub-x86_64 /usr/lib/grub/i386-pc/ /usr/lib/grub/i386-pc/
 COPY --from=grub-x86_64 /usr/lib/grub/x86_64-efi/ /usr/lib/grub/x86_64-efi/
 
+COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
 COPY image-factory/create_image.sh /create_image.sh
 COPY updater/lib/ /usr/local/updater/lib/
 COPY image-factory/shell.sh /shell.sh

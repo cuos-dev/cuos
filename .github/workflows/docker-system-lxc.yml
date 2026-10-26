@@ -9,6 +9,8 @@ on:
     tags:
       - '*'
     paths:
+      - LICENSE.txt
+      - NOTICE
       - system/**
       - .github/workflows/docker-system-lxc.yml
   workflow_dispatch:
@@ -49,11 +51,12 @@ jobs:
             TAG=${TAG//\//-}
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image - cuos-system-lxc
         uses: docker/build-push-action@v7
         with:
-          context: ./system
+          context: ./
           file: ./system/Dockerfile.lxc
           push: true
           tags: |
@@ -61,7 +64,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.run_id }}
+            org.opencontainers.image.created=${{ steps.vars.outputs.created }}
             org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-lxc:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-lxc:buildcache,mode=max
