@@ -33,9 +33,9 @@ LABEL dev.cuos.boot=${CUOS_BOOT}
 
 ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
 
-COPY system/seccomp-default.json /etc/docker/
-COPY system/raspberrypi-archive.gpg /etc/apt/keyrings/
-COPY system/raspbian-archive.gpg /etc/apt/keyrings/
+COPY seccomp-default.json /etc/docker/
+COPY raspberrypi-archive.gpg /etc/apt/keyrings/
+COPY raspbian-archive.gpg /etc/apt/keyrings/
 
 RUN echo "rpi-arm32" >"/etc/cuos-arch" \
   && mkdir -p /boot/firmware && \
@@ -182,6 +182,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 
 # Install CuOS scripts (systemd required)
-COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
-COPY system/cuos/ /usr/local/cuos/
+# repo: the repository root, a named build context (--build-context repo=..)
+COPY --from=repo LICENSE.txt NOTICE /usr/share/licenses/cuos/
+COPY cuos/ /usr/local/cuos/
 RUN /usr/local/cuos/install.sh "${CUOS_BOOT}"

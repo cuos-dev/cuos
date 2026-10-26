@@ -56,8 +56,9 @@ jobs:
       - name: Build and push Docker image - cuos-updater
         uses: docker/build-push-action@v7
         with:
-          context: ./
-          file: ./updater/Dockerfile
+          context: ./updater
+          build-contexts: |
+            repo=.
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/cuos-updater:${{ steps.vars.outputs.tag }}

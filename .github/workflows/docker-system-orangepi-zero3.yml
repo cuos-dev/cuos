@@ -56,8 +56,10 @@ jobs:
       - name: Build and push Docker image - cuos-system-orangepi-zero3
         uses: docker/build-push-action@v7
         with:
-          context: ./
+          context: ./system
           file: ./system/Dockerfile.orangepi-zero3
+          build-contexts: |
+            repo=.
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/cuos-system-orangepi-zero3:${{ steps.vars.outputs.tag }}

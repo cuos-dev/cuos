@@ -34,10 +34,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     xorriso \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY installer-factory/prepare_iso.sh /
-COPY installer-factory/initramfs-tools/ /etc/initramfs-tools/
+COPY prepare_iso.sh /
+COPY initramfs-tools/ /etc/initramfs-tools/
 
 RUN /prepare_iso.sh
 
-COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
-COPY installer-factory/create_iso.sh installer-factory/patch_iso.sh /
+# repo: the repository root, a named build context (--build-context repo=..)
+COPY --from=repo LICENSE.txt NOTICE /usr/share/licenses/cuos/
+COPY create_iso.sh patch_iso.sh /

@@ -35,9 +35,10 @@ RUN apk add --no-cache jq btrfs-progs util-linux bash tar
 ## Allow systemd to run inside Docker
 #VOLUME [ "/sys/fs/cgroup" ]
 
-COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
-COPY updater/updater.sh updater/pull.sh updater/shell.sh /usr/local/updater/
-COPY updater/lib/ /usr/local/updater/lib/
+# repo: the repository root, a named build context (--build-context repo=..)
+COPY --from=repo LICENSE.txt NOTICE /usr/share/licenses/cuos/
+COPY updater.sh pull.sh shell.sh /usr/local/updater/
+COPY lib/ /usr/local/updater/lib/
 
 RUN mkdir /api \
   && ln -s /usr/local/updater/updater.sh /api/update \

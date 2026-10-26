@@ -56,8 +56,10 @@ jobs:
       - name: Build and push Docker image - cuos-installer-factory
         uses: docker/build-push-action@v7
         with:
-          context: ./
+          context: ./installer-factory
           file: ./installer-factory/Dockerfile
+          build-contexts: |
+            repo=.
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/cuos-installer-factory:${{ steps.vars.outputs.tag }}

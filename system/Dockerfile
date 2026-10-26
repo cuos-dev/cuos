@@ -15,7 +15,7 @@ LABEL dev.cuos.boot=${CUOS_BOOT}
 
 ENTRYPOINT ["sh", "-c", "rm -f /.dockerenv; trap 'echo Received SIGTERM; exit 0' TERM; sleep infinity & wait"]
 
-COPY system/seccomp-default.json /etc/docker/
+COPY seccomp-default.json /etc/docker/
 
 # Pre-install initramfs-tools
 RUN echo "Cache buster: v1" \
@@ -120,6 +120,7 @@ RUN sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/s
   && rm /etc/network/interfaces
 
 # Install CuOS scripts (systemd required)
-COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
-COPY system/cuos/ /usr/local/cuos/
+# repo: the repository root, a named build context (--build-context repo=..)
+COPY --from=repo LICENSE.txt NOTICE /usr/share/licenses/cuos/
+COPY cuos/ /usr/local/cuos/
 RUN /usr/local/cuos/install.sh "${CUOS_BOOT}"
