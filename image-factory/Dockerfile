@@ -37,11 +37,13 @@ RUN apk add --no-cache grub
 COPY --from=grub-x86_64 /usr/lib/grub/i386-pc/ /usr/lib/grub/i386-pc/
 COPY --from=grub-x86_64 /usr/lib/grub/x86_64-efi/ /usr/lib/grub/x86_64-efi/
 
-COPY LICENSE.txt NOTICE /usr/share/licenses/cuos/
-COPY image-factory/create_image.sh /create_image.sh
-COPY updater/lib/ /usr/local/updater/lib/
-COPY image-factory/shell.sh /shell.sh
-COPY image-factory/lib/ /usr/local/image-factory/lib/
+# repo and updater are named build contexts: the repository root and updater/
+# (--build-context repo=.. --build-context updater=../updater)
+COPY --from=repo LICENSE.txt NOTICE /usr/share/licenses/cuos/
+COPY create_image.sh /create_image.sh
+COPY --from=updater lib/ /usr/local/updater/lib/
+COPY shell.sh /shell.sh
+COPY lib/ /usr/local/image-factory/lib/
 # The path cuos-release/tool.sh pins as its entrypoint for 'tool.sh shell'. It
 # can go once no pinned tool.sh asks for it any more.
 RUN ln -s /shell.sh /mount_image.sh
