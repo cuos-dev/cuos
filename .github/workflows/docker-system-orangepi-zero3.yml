@@ -25,6 +25,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          # git describe needs the tags and the history back to them
+          fetch-depth: 0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -52,6 +55,7 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          echo "version=$(git describe --tags --always)" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image - cuos-system-orangepi-zero3
         uses: docker/build-push-action@v7
@@ -67,7 +71,7 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ steps.vars.outputs.created }}
-            org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
           platforms: linux/arm64
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-orangepi-zero3:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/cuos-system-orangepi-zero3:buildcache,mode=max
