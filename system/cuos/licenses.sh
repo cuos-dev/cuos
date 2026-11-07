@@ -14,19 +14,17 @@ LICENSES_MAX_BYTES="${LICENSES_MAX_BYTES:-4194304}"
 # Prefix for every file of the system source; the tests point it at fixtures.
 LICENSES_ROOT="${T_LICENSES_ROOT:-}"
 
-# The name of the system source. Same fallback as product_name in
-# updater/lib/config.sh, which system/cuos cannot source (decision 0015), with
-# "System" added: the bare "CuOS IaC" reads like the IaC component, not like the
-# system around it. A product_name of its own is shown as it is.
+# Same fallback as product_name in updater/lib/config.sh, which system/cuos
+# cannot source (decision 0015).
 licenses_product_name() {
   local name=""
   if [[ -f "${CONFIG_PATH}" ]]; then
     name="$(jq -r '.product_name // empty' "${CONFIG_PATH}" 2>/dev/null)"
     if [[ -z "${name}" ]] && jq -r '.init_image // ""' "${CONFIG_PATH}" 2>/dev/null | grep -q 'cuos-iac'; then
-      name="CuOS IaC System"
+      name="CuOS IaC"
     fi
   fi
-  echo "${name:-CuOS System}"
+  echo "${name:-CuOS}"
 }
 
 # The tag of the running system image, from /etc/image (image:tag@digest).
@@ -229,7 +227,8 @@ licenses_source() {
   local inspect
   case "${id}" in
     system)
-      jq -nc --arg name "$(licenses_product_name)" \
+      # "System": a bare "CuOS IaC" reads like the IaC component.
+      jq -nc --arg name "$(licenses_product_name) System" \
         '{id: "system", name: $name, kind: "system"}'
       ;;
     updater)

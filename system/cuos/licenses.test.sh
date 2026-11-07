@@ -116,8 +116,8 @@ product_name_of() {
 }
 echo '{"init_image": "ghcr.io/cuos-dev/cuos-iac"}' >"${TMP}/iac.json"
 expect "product name: from the config" "My OS" licenses_product_name
-expect "product name: cuos-iac" "CuOS IaC System" product_name_of "${TMP}/iac.json"
-expect "product name: no config" "CuOS System" product_name_of "${TMP}/none.json"
+expect "product name: cuos-iac" "CuOS IaC" product_name_of "${TMP}/iac.json"
+expect "product name: no config" "CuOS" product_name_of "${TMP}/none.json"
 expect "cuos version: the tag of /etc/image" "v0.7.0" licenses_cuos_version
 
 components="$(licenses_dpkg_components)"
@@ -151,12 +151,12 @@ sources_without_docker() {
   ( docker() { return 1; }; licenses_sources )
 }
 expect "sources: system with the product name, the updater, labelled containers only" \
-  '[{"id":"system","name":"My OS","kind":"system"},{"id":"updater","name":"Updater","kind":"image","image":"ghcr.io/cuos-dev/cuos-updater:v1","index":"/licenses/index.json"},{"id":"container:app","name":"Acme App","kind":"container","image":"acme/app:1","index":"/licenses/index.json"}]' \
+  '[{"id":"system","name":"My OS System","kind":"system"},{"id":"updater","name":"Updater","kind":"image","image":"ghcr.io/cuos-dev/cuos-updater:v1","index":"/licenses/index.json"},{"id":"container:app","name":"Acme App","kind":"container","image":"acme/app:1","index":"/licenses/index.json"}]' \
   sources_with_updater
-expect "sources: no updater configured, no docker" '[{"id":"system","name":"My OS","kind":"system"}]' \
+expect "sources: no updater configured, no docker" '[{"id":"system","name":"My OS System","kind":"system"}]' \
   sources_without_docker
 
-expect "index: the system's carries its source" '{"id":"system","name":"My OS","kind":"system"}' \
+expect "index: the system's carries its source" '{"id":"system","name":"My OS System","kind":"system"}' \
   jq -c .source <<<"$(licenses_index system)"
 expect "index: from a container, sanitized" \
   '{"format":1,"source":{"id":"container:app","name":"Acme App","kind":"container","image":"acme/app:1"},"components":[{"name":"express","version":"5.0.0","license":"MIT","files":["/doc/LICENSE"]},{"name":"big","version":"","license":"MIT","files":["/doc/BIG"]},{"name":"evil[2JZ1","version":"3","license":"NOASSERTION","files":["/doc/LICENSE"]}]}' \
