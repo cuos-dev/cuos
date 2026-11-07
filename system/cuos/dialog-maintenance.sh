@@ -55,12 +55,13 @@ maintenance_menu() {
     choice="$(fmenu \
       "System Maintenance" \
       "\nSelect an option:\n " \
-      20 55 7 \
+      20 55 8 \
       "host" "Change Hostname: $(hostname -s)" \
       "net" "Configure Network${ipaddress:+": ${ipaddress}"}" \
       - " " \
       "act" "System Actions" \
       "diag" "Diagnostics" \
+      "lic" "Licenses" \
       - " " \
       "exit" "\Z5Exit Menu\Z0")" || break
     #"pass" "Change Admin Password"
@@ -71,6 +72,7 @@ maintenance_menu() {
         "${SCRIPT_DIR}/dialog-edit-network.sh" network ;;
       act)  system_actions_menu ;;
       diag) diagnostics_menu ;;
+      lic)  licenses_menu ;;
       exit|"") break ;;
     esac
   done
@@ -390,6 +392,99 @@ diagnostics_netcheck() {
     LESSSECURE=1 less \
       --header=1,0 \
       -R
+}
+
+# A product adds to this menu in custom-dialog.sh, with three optional
+# functions:
+#   custom_licenses_intro      prints text shown before the introduction
+#   custom_licenses_entries    prints tag and label, one per line, for entries
+#                              of its own; tags start with "custom:"
+#   custom_licenses_entry TAG  runs when one of those is chosen
+# Components of its own need no function: a directory in /usr/share/licenses/
+# (docs/common/licenses.md).
+licenses_menu() {
+  local sources
+  sources="$(cuos licenses)"
+  local items=() extra=()
+  mapfile -t items < <(jq -r '.[]? | .id, .name' <<<"${sources}" 2>/dev/null)
+  if [[ "$(type -t custom_licenses_entries)" == "function" ]]; then
+    mapfile -t extra < <(custom_licenses_entries)
+  fi
+  if (( ${#items[@]} + ${#extra[@]} == 0 )); then
+    msg "No licence information available." "Licenses"
+    return 1
+  fi
+  local intro="Software on this system and its licences.\nSelect a source:"
+  if [[ "$(type -t custom_licenses_intro)" == "function" ]]; then
+    intro="$(custom_licenses_intro)\n\n${intro}"
+  fi
+  while true; do
+    local choice
+    choice="$(fmenu "Licenses" "${intro}" 20 72 8 \
+      "${items[@]+"${items[@]}"}" \
+      "${extra[@]+"${extra[@]}"}" \
+      - " " \
+      "back" "\Z5Back\Z0")" || return 1
+    case "${choice}" in
+      back|"") return 0 ;;
+      -) ;;
+      custom:*)
+        if [[ "$(type -t custom_licenses_entry)" == "function" ]]; then
+          custom_licenses_entry "${choice}"
+        fi
+        ;;
+      *) licenses_components_menu "${choice}" \
+        "$(jq -r --arg id "${choice}" '.[] | select(.id == $id) | .name' <<<"${sources}")" ;;
+    esac
+  done
+}
+
+# One line per component: name, version, licence, cut to the width of the menu.
+licenses_menu_items() {
+  local i=0 name version license
+  while IFS=$'\t' read -r name version license; do
+    (( ${#license} > 30 )) && license="${license:0:27}..."
+    printf '%s\n%-22.22s %-16.16s %s\n' "${i}" "${name}" "${version}" "${license}"
+    i=$((i + 1))
+  done < <(jq -r '.components[] | [.name, .version, .license] | @tsv')
+}
+
+licenses_components_menu() {
+  local id="$1" title="$2"
+  local index
+  index="$(cuos licenses "${id}")"
+  if ! jq -e '.components | length > 0' >/dev/null 2>&1 <<<"${index}"; then
+    msg "No licences available from ${title}." "Licenses"
+    return 1
+  fi
+  local items=()
+  mapfile -t items < <(licenses_menu_items <<<"${index}")
+  while true; do
+    local choice
+    choice="$(fmenu "Licenses: ${title}" "Component, version and licence. Select one for the full text:" 24 78 16 \
+      "${items[@]}" \
+      - " " \
+      "back" "\Z5Back\Z0")" || return 1
+    case "${choice}" in
+      back|"") return 0 ;;
+      -) ;;
+      *) term_all licenses_view "${id}" \
+        "$(jq -r --argjson i "${choice}" '.components[$i].name' <<<"${index}")" ;;
+    esac
+  done
+}
+
+# Without -R: the text is shown as it is, an escape sequence cannot reach the
+# terminal.
+licenses_view() {
+  (
+    echo "[ License - Press 'Q' to quit the view ]"
+    cuos licenses "$1" "$2" | jq -r '
+      if .text then "\(.name) \(.version)\nLicense: \(.license)\n\n\(.text)"
+      else .message end'
+  ) | \
+    LESSSECURE=1 less \
+      --header=1,0
 }
 
 check_password() {

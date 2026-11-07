@@ -34,7 +34,13 @@ cuos selftest
 
 # Check the connection to the update registry
 cuos netcheck
+
+# Licences of the system and of the images that offer theirs
+cuos licenses [SOURCE [COMPONENT]]
 ```
+
+What `cuos licenses` answers, and how an image offers its licences:
+[Licences on the device](licenses.md).
 
 ### System Management
 

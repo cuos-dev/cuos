@@ -185,6 +185,7 @@ boot, stays here: [What a CuOS image contains](common/building-images.md),
 
 - [system.json reference](common/system-json-reference.md) — every key
 - [CuOS API](common/cuos-api.md) — what a container can ask the system
+- [Licences on the device](common/licenses.md) — what the console and `cuos licenses` show, and how an image offers its own
 - [BTRFS usage](common/btrfs-usage.md) — the A/B subvolumes
 - [Platform support](common/platform-support.md) — targets and boot chains
 - [Glossary](common/glossary.md) — the terms used here

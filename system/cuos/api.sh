@@ -8,6 +8,8 @@ trap '' PIPE
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/utils.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/licenses.sh"
 
 export CONFIG_PATH="/system.json"
 export NEXT_CONFIG_PATH="/system_next.json"
@@ -465,6 +467,35 @@ api_command_selftest() {
 ##                      the "Result:" line.
 api_command_netcheck() {
   "${SCRIPT_DIR}/netcheck.sh"
+}
+
+## licenses           - Licences of the system and of every image that offers
+##                      its own (label dev.cuos.licenses). No source: the
+##                      sources. A source: its components with version and
+##                      licence. A component too: that one with its text.
+##                      cuos licenses [SOURCE [COMPONENT]], or over the socket
+##                      {"command": "licenses", "source": .., "component": ..}
+api_command_licenses() {
+  [[ "${1:-}" == "-" ]] && shift
+  local input source component
+  input="$(cat)"
+  source="${1:-"$(jq -r '.source // empty' <<<"${input}" 2>/dev/null)"}"
+  component="${2:-"$(jq -r '.component // empty' <<<"${input}" 2>/dev/null)"}"
+
+  if [[ -z "${source}" ]]; then
+    licenses_sources
+  elif [[ -z "${component}" ]]; then
+    licenses_index "${source}" \
+      || jq -nc --arg source "${source}" '{"err": 1, "message": ("No licences from source " + $source)}'
+  else
+    licenses_text "${source}" "${component}"
+    case "$?" in
+      0) ;;
+      2) jq -nc --arg source "${source}" --arg component "${component}" \
+        '{"err": 2, "message": ("No component " + $component + " in source " + $source)}' ;;
+      *) jq -nc --arg source "${source}" '{"err": 1, "message": ("No licences from source " + $source)}' ;;
+    esac
+  fi
 }
 
 api_main() {
