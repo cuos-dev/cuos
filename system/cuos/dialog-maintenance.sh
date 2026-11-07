@@ -307,7 +307,7 @@ diagnostics_menu() {
       docker) api_stream_size "docker ps -a" 30 120 docker ps ;;
       ping) diagnostics_ping ;;
       dns) diagnostics_dns ;;
-      netcheck) term_all diagnostics_netcheck ;;
+      netcheck) diagnostics_netcheck ;;
       "expert") expert ;;
       back|"") return 0 ;;
     esac
@@ -370,16 +370,26 @@ diagnostics_dns() {
   api_stream_background "DNS resolve" "diagnostics_dns_request" "$hn"
 }
 
-# In less like the logs: the report is longer than a dialog box, and less shows
-# each check as it finishes.
+# Two boxes, because the tailbox Ping and DNS use cannot scroll up and the
+# report with its recommendations is longer than the box: a progressbox shows
+# each check as it finishes, then a textbox the whole report to scroll through.
 diagnostics_netcheck() {
   (
-    echo -e "\033[1;36m[ Update Connection Check - Press 'Q' to quit the view ]\033[0m";
-    "${SCRIPT_DIR}/netcheck.sh" 2>&1
-  ) | \
-    LESSSECURE=1 less \
-      --header=1,0 \
-      -R
+    local tmpfile
+    tmpfile="$(mktemp)"
+    # shellcheck disable=SC2064
+    trap "rm -f '${tmpfile}'" EXIT
+
+    # term_output, not term: the progressbox reads the pipe, not the tty.
+    "${SCRIPT_DIR}/netcheck.sh" 2>&1 | tee "${tmpfile}" | \
+      term_output cuos_dialog \
+        --title "Update Connection Check" \
+        --progressbox 22 90
+    term cuos_dialog \
+      --exit-label "OK" \
+      --title "Update Connection Check" \
+      --textbox "${tmpfile}" 22 90
+  )
 }
 
 # A product adds to this menu in custom-dialog.sh, with three optional
