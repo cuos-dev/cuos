@@ -55,7 +55,7 @@ maintenance_menu() {
     choice="$(fmenu \
       "System Maintenance" \
       "\nSelect an option:\n " \
-      20 55 8 \
+      20 55 7 \
       "host" "Change Hostname: $(hostname -s)" \
       "net" "Configure Network${ipaddress:+": ${ipaddress}"}" \
       - " " \

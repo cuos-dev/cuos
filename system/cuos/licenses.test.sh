@@ -116,8 +116,8 @@ product_name_of() {
 }
 echo '{"init_image": "ghcr.io/cuos-dev/cuos-iac"}' >"${TMP}/iac.json"
 expect "product name: from the config" "My OS" licenses_product_name
-expect "product name: cuos-iac" "CuOS IaC" product_name_of "${TMP}/iac.json"
-expect "product name: no config" "CuOS" product_name_of "${TMP}/none.json"
+expect "product name: cuos-iac" "CuOS IaC System" product_name_of "${TMP}/iac.json"
+expect "product name: no config" "CuOS System" product_name_of "${TMP}/none.json"
 expect "cuos version: the tag of /etc/image" "v0.7.0" licenses_cuos_version
 
 components="$(licenses_dpkg_components)"

@@ -15,8 +15,9 @@ The licences are grouped by **source**:
 | The updater image | `updater` | The index the image names in its label, if the image is on the device |
 | A running container | `container:<name>` | The index the container's image names in its label |
 
-The system is shown under its `product_name`. The component stays *CuOS*,
-because that is the licensed work.
+The system is shown under its `product_name`. Without one, it is *CuOS IaC
+System* or *CuOS System*. The component stays *CuOS*, because that is the
+licensed work.
 
 ### The system
 
@@ -102,12 +103,12 @@ Over the socket the same requests are written
 `{"command": "licenses", "source": "system", "component": "bash"}`. The answers:
 
 ```json
-[{"id": "system", "name": "CuOS", "kind": "system"},
+[{"id": "system", "name": "CuOS System", "kind": "system"},
  {"id": "container:cuos-app", "name": "Acme App", "kind": "container", "image": "acme/app:1", "index": "/usr/share/licenses/index.json"}]
 ```
 
 ```json
-{"format": 1, "source": {"id": "system", "name": "CuOS", "kind": "system"},
+{"format": 1, "source": {"id": "system", "name": "CuOS System", "kind": "system"},
  "components": [{"name": "CuOS", "version": "v0.7.0", "license": "Apache-2.0",
    "files": ["/usr/share/licenses/cuos/NOTICE", "/usr/share/licenses/cuos/LICENSE.txt"]}]}
 ```
