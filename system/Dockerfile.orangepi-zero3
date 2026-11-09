@@ -21,7 +21,7 @@ COPY armbian.key /etc/apt/keyrings/armbian.key
 COPY armbian-boot.cmd /boot/boot.cmd
 COPY armbianEnv.txt /boot
 
-RUN echo "Cache buster: v1" \
+RUN echo "Cache buster: v2" \
   && echo "orangepi-zero3" >"/etc/cuos-arch" \
   && sed -i 's/^Components: main$/Components: main non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
   && printf "Types: deb\nURIs: http://apt.armbian.com\nSuites: $(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')\nComponents: main\nSigned-By: /etc/apt/keyrings/armbian.key\n" > /etc/apt/sources.list.d/armbian.sources \
