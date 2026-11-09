@@ -8,6 +8,6 @@
     "docs:system-json": "./.github/scripts/gen-system-json-doc.sh"
   },
   "devDependencies": {
-    "jsonschema2mk": "2.2.3"
+    "jsonschema2mk": "2.2.4"
   }
 }
