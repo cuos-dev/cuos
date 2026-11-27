@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-FROM debian:13.7-slim
+FROM debian:13.8-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV container=docker
